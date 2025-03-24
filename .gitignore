@@ -1,38 +1,28 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# build output
+build
+static
+.svelte-kit
+.netlify
+.vercel
 
 # dependencies
-node_modules/
+node_modules
 
-# Expo
-.expo/
-dist/
-web-build/
-expo-env.d.ts
+# env
+*.local
+venv
+python_scripts
+urara
+.env
 
-# Native
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
 
-# Metro
-.metro-health-check*
+# logs
+pnpm-debug.log*
 
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
-# macOS
+# macOS-specific files
 .DS_Store
-*.pem
 
-# local env files
-.env*.local
-
-# typescript
-*.tsbuildinfo
-
-app-example
+# temp file
+src/routes/**/+page.svelte.md
+src/routes/**/+page.md
+src/static

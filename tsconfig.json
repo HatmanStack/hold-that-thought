@@ -1,17 +1,14 @@
 {
-  "extends": "expo/tsconfig.base",
+  "extends": "./.svelte-kit/tsconfig.json",
   "compilerOptions": {
+    "resolveJsonModule": true,
+    "types": ["vite/client", "vite-plugin-pwa/client"],
+    "allowJs": true,
+    "checkJs": true,
     "strict": true,
-    "paths": {
-      "@/*": [
-        "./*"
-      ]
-    }
-  },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts"
-  ]
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": false,
+    "skipLibCheck": true
+  }
 }

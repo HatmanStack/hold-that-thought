@@ -1,50 +1,36 @@
-# Welcome to your Expo app 👋
+# Blog
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+This site is built using Urara.
 
-## Get started
+## Features
 
-1. Install dependencies
+*   [List key features of your blog, e.g., responsive design]
+*   [Easy navigation]
+*   [Search functionality]
+*   [Categories and tags]
+*   [Commenting system]
 
-   ```bash
-   npm install
-   ```
+## Getting Started
 
-2. Start the app
+To run this blog locally:
 
-   ```bash
-    npx expo start
-   ```
+1.  Clone the repository: `git clone [repository URL]`
+2.  Install dependencies: `npm install` or `yarn install`
+3.  Run the development server: `npm start` or `yarn start`
+4.  Open your browser and navigate to `http://localhost:[port]`
 
-In the output, you'll find options to open the app in a
+## Deployment
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+[Explain how to deploy the blog to a live server, e.g., using Netlify, Vercel, or a traditional hosting provider.]
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## Contributing
 
-## Get a fresh project
+[Explain how others can contribute to your blog, e.g., by submitting pull requests or suggesting new features.]
 
-When you're ready, run:
+## License
 
-```bash
-npm run reset-project
-```
+[Specify the license under which your blog is released.]
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Contact
 
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+[Provide a way for people to contact you, e.g., email address or social media links.]
