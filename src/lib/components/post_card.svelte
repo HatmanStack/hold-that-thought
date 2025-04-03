@@ -8,9 +8,10 @@
   import { post as postConfig } from '$lib/config/post'
   import { posts as storedPosts } from '$lib/stores/posts'
   import { title as storedTitle } from '$lib/stores/title'
-  import { downloadSourcePdf } from '$lib/utils/s3Client';
- 
+  import { downloadSourcePdf /*, modifySourcePdf */ } from '$lib/utils/s3Client';
+
   let isDownloading = false;
+  let isModifying = false;
   export let post: Urara.Post
   export let preview: boolean = false
   export let loading: 'eager' | 'lazy' = 'lazy'
@@ -124,32 +125,64 @@
       </div>
     {/if}
     {#if !preview && post.title}
-  <div class='divider mt-4 mb-0' />
-  <div class="mt-2 mb-4">
-    <button 
-      class='btn btn-sm btn-outline gap-2'
-      disabled={isDownloading}
-      on:click={async () => {
-        isDownloading = true;
-        try {
-          if (post.title) {
-            await downloadSourcePdf(post.title);
-          }
-        } finally {
-          isDownloading = false;
-        }
-      }}>
-      {#if isDownloading}
-        <span class="loading loading-spinner loading-xs"></span>
-      {:else}
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      {/if}
-      Download Original Letter
-    </button>
-  </div>
-{/if}
+      <div class='divider mt-4 mb-0' />
+      <div class="mt-2 mb-4 flex flex-wrap items-center"> 
+        
+        <button
+          class='btn btn-sm btn-outline gap-2'
+          disabled={isDownloading || isModifying} 
+          on:click={async () => {
+            isDownloading = true;
+            try {
+              if (post.title) {
+                const url = window.location.href;
+                await downloadSourcePdf(url);
+              }
+            } finally {
+              isDownloading = false;
+            }
+          }}>
+          {#if isDownloading}
+            <span class="loading loading-spinner loading-xs"></span>
+          {:else}
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          {/if}
+          Download Original Letter
+        </button>
+
+        
+        <button
+          class='btn btn-sm btn-outline gap-2 ml-2' 
+          disabled={isDownloading || isModifying} 
+          on:click={async () => {
+            isModifying = true;
+            try {
+              if (post.title) {
+                const url = window.location.href;
+                console.log('Modify Letter clicked for URL:', url);
+                // TODO: Implement S3 modification call here, e.g., modifySourcePdf(url);
+                // You might need to import a new function from s3Client
+                // await modifySourcePdf(url); // Example hypothetical call
+                // Simulate async operation for demo
+                await new Promise(resolve => setTimeout(resolve, 1500));
+              }
+            } finally {
+              isModifying = false;
+            }
+          }}>
+          {#if isModifying}
+            <span class="loading loading-spinner loading-xs"></span>
+          {:else}
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+               <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+          {/if}
+          Modify Letter
+        </button>
+      </div>
+    {/if}
   </div>
   {#if !preview}
     {#if (prev || next) && !post.flags?.includes('pagination-disabled') && !post.flags?.includes('unlisted')}

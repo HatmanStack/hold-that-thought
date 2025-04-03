@@ -28,6 +28,7 @@ const log = (color: string, msg: string, dest?: Error | string) =>
     + chalk[color](`${msg} `)
     + chalk.dim(dest ?? ''),
   )
+  
 
 const error = (err: { code: string, message: unknown }) => {
   if (config.catch.includes(err.code)) {
@@ -144,6 +145,8 @@ switch (process.argv[2]) {
       const watcher = chokidar.watch('urara', {
         ignored: (file: string) => path.basename(file).startsWith('.'),
       })
+      
+      
       watcher
         .on('add', file => cpFile(file))
         .on('change', file => cpFile(file, { stat: 'update' }))

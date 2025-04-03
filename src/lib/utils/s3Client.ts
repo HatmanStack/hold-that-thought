@@ -1,62 +1,98 @@
-import { S3Client, ListObjectsV2Command, GetObjectCommand } from "@aws-sdk/client-s3";
+import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 
-const s3Client = new S3Client({
-  region: "us-east-2", 
-  credentials: {
-    accessKeyId: import.meta.env.VITE_AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: import.meta.env.VITE_AWS_SECRET_ACCESS_KEY || ''
-  }, useAccelerateEndpoint: false,
-  forcePathStyle: true,
-  customUserAgent: 'SvelteKit-S3-Client'
+const accessKeyId = import.meta.env.VITE_AWS_ACCESS_KEY_ID || "";
+const secretAccessKey = import.meta.env.VITE_AWS_SECRET_ACCESS_KEY || "";
+
+// Safe logging check during initialization
+console.log(`AWS Credentials Check: Access Key ID is ${accessKeyId ? 'LOADED' : 'MISSING'}.`);
+// You could add a similar check for the secret key if needed:
+// console.log(`AWS Credentials Check: Secret Access Key is ${secretAccessKey ? 'LOADED' : 'MISSING'}.`);
+// Never log the keys themselves.
+
+const lambdaClient = new LambdaClient({
+    region: "us-west-2", // Ensure this is the correct region for your Lambda
+    credentials: {
+        accessKeyId: "",
+        secretAccessKey: "",
+    },
 });
+const FUNC = "hold-that-thought-lambda";
 
-const BUCKET_NAME = "round-robin-source"; 
-
-export async function downloadSourcePdf(postTitle: string): Promise<void> {
-  if (!postTitle) return;
+export async function downloadSourcePdf(): Promise<void> {
+  const currentUrl = new URL(window.location.href);
+  const sanitizedTitle = decodeURIComponent(currentUrl.pathname);
   
-  try {
-    const sanitizedTitle = postTitle.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
-    const s3Prefix = `source/${sanitizedTitle}/`;
-    console.log('s3Prefix:', s3Prefix);
-    const listResponse = await s3Client.send(new ListObjectsV2Command({
-      Bucket: BUCKET_NAME,
-      Prefix: s3Prefix,
-    }));
-    
-    console.log('listResponse:', listResponse);
-    // Find the PDF file
-    const pdfKey = listResponse.Contents?.find(item => 
-      item.Key?.toLowerCase().endsWith('.pdf')
-    )?.Key;
-    
-    if (!pdfKey) {
-      console.error(`No PDF found in ${s3Prefix}`);
-      return;
-    }
 
-    const getResponse = await s3Client.send(new GetObjectCommand({
-      Bucket: BUCKET_NAME,
-      Key: pdfKey
-    }));
-    
-    // Convert to blob and download
-    const blob = await new Response(getResponse.Body as ReadableStream).blob();
-    const url = window.URL.createObjectURL(blob);
-    const fileName = pdfKey.split('/').pop() || `${sanitizedTitle}.pdf`;
-    
-    // Create download link
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    
-    // Clean up
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-    
+    // Log the result of sanitization
+    console.log("Sanitized Title derived from URL Path:", sanitizedTitle);
+
+  try {
+    // Construct the payload for the Lambda function
+    const payload = {
+      type: "download",
+      title: sanitizedTitle,
+    };
+
+    // Invoke the Lambda function
+    const command = new InvokeCommand({
+      FunctionName: FUNC,
+      Payload: new TextEncoder().encode(JSON.stringify(payload)),
+    });
+
+    const response = await lambdaClient.send(command);
+
+    if (!response.Payload) {
+      throw new Error("No response payload from Lambda");
+  }
+  
+  // Decode the SUCCESSFUL response payload from Lambda
+  const decoder = new TextDecoder(); // Defaults to 'utf-8', which is usually correct for JSON
+  const responsePayloadString = decoder.decode(response.Payload);
+  
+  // Check Lambda's logical status code if applicable (optional, depends on your Lambda structure)
+  // if (responsePayload.statusCode && responsePayload.statusCode !== 200) {
+  //     const body = responsePayload.body ? JSON.parse(responsePayload.body) : {};
+  //     throw new Error(`Lambda returned an error: ${body.message || 'Unknown error'}`);
+  // }
+  // Assuming the main payload directly contains the data if status was 200 from Invoke response
+  // Now parse the decoded string as JSON
+  const responsePayload = JSON.parse(responsePayloadString);
+
+// Check if the Lambda execution was successful
+if (responsePayload.statusCode !== 200) {
+  throw new Error(`Lambda returned error status: ${responsePayload.statusCode}`);
+}
+
+// The body is a JSON string that needs to be parsed again
+const responseBody = JSON.parse(responsePayload.body);
+
+console.log("Lambda response body:", responseBody);
+
+// Now you can access the downloadUrl and fileNameSuggestion
+if (!responseBody.downloadUrl) {
+  throw new Error(`Lambda response did not contain a download URL. Message: ${responseBody.message || 'N/A'}`);
+}
+
+const downloadUrl = responseBody.downloadUrl;
+const suggestedFileName = responseBody.fileNameSuggestion || `${sanitizedTitle}.pdf`;
+
+  console.log("Received download URL:", downloadUrl);
+  console.log("Suggested filename:", suggestedFileName);
+  
+  // --- Trigger download using the presigned URL ---
+  const a = document.createElement("a");
+  a.href = downloadUrl; // Use the SIGNED URL here
+  a.download = suggestedFileName; // Set the filename for the user
+  a.target = "_blank"; // Open in a new tab (optional)
+  document.body.appendChild(a); // Append link to body
+  a.click(); // Simulate click to trigger download
+  
+  // Clean up
+  document.body.removeChild(a); // Remove link from body
+  // No need for window.URL.createObjectURL or revokeObjectURL
+  
+  console.log("Download initiated.");
   } catch (error) {
-    console.error('Error downloading PDF:', error);
+    console.error("Error downloading PDF:", error);
   }
 }

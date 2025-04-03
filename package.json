@@ -82,7 +82,10 @@
     "workbox-window": "^7.0.0"
   },
   "dependencies": {
+    "@aws-sdk/client-lambda": "^3.782.0",
     "@aws-sdk/client-s3": "^3.758.0",
-    "aws-sdk": "^2.1692.0"
+    "aws-sdk": "^2.1692.0",
+    "gray-matter": "^4.0.3",
+    "marked": "^15.0.7"
   }
 }

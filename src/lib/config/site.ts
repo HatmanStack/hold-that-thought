@@ -7,11 +7,11 @@ export const site: SiteConfig = {
     name: 'Round Robin',
     status: '✨',
   },
-  description: 'Collection of Short Stories, Worth Saving',
+  description: 'Sharing letters, one typo at a time ',
   domain: 'https://carolfae.fun',
   lang: 'en-US',
   protocol: 'https://',
-  subtitle: 'Shorts',
+  subtitle: 'Letters',
   themeColor: '#3D4451',
   title: 'Home',
 }
