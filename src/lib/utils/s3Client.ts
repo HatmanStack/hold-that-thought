@@ -3,8 +3,7 @@ import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 const accessKeyId = import.meta.env.VITE_AWS_ACCESS_KEY_ID || "";
 const secretAccessKey = import.meta.env.VITE_AWS_SECRET_ACCESS_KEY || "";
 
-// Safe logging check during initialization
-console.log(`AWS Credentials Check: Access Key ID is ${accessKeyId ? 'LOADED' : 'MISSING'}.`);
+
 // You could add a similar check for the secret key if needed:
 // console.log(`AWS Credentials Check: Secret Access Key is ${secretAccessKey ? 'LOADED' : 'MISSING'}.`);
 // Never log the keys themselves.
@@ -12,8 +11,9 @@ console.log(`AWS Credentials Check: Access Key ID is ${accessKeyId ? 'LOADED' : 
 const lambdaClient = new LambdaClient({
     region: "us-west-2", // Ensure this is the correct region for your Lambda
     credentials: {
-        
-    },
+      accessKeyId: "",
+      secretAccessKey: "",
+  },
 });
 
 const FUNC = "hold-that-thought-lambda";

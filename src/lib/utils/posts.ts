@@ -54,26 +54,27 @@ export const genPosts: GenPostsFunction = ({
 } = {}) =>
   Object.entries(modules)
     .map(([, module]) => ({
-      ...module.metadata,
-      html:
-        postHtml || typeOfPost(module.metadata) !== 'article'
-          ? module.default
-            .render()
-            .html // eslint-disable-next-line no-control-regex
-            .replace(/[\u0000-\u001F]/g, '')
-            .replace(/[\r\n]/g, '')
-            .match(/<main [^>]+>(.*?)<\/main>/gi)?.[0]
-            .replace(/<main [^>]+>(.*?)<\/main>/gi, '$1')
-          // .replace(/( class=")(.*?)(")/gi, '')
-            .replace(/( style=")(.*?)(")/gi, '')
-            .replace(/(<span>)(.*?)(<\/span>)/gi, '$2')
-            .replace(/(<main>)(.*?)(<\/main>)/gi, '$2')
-          : '',
-      type: typeOfPost(module.metadata),
+        ...module.metadata,
+        html:
+          postHtml || typeOfPost(module.metadata) !== 'article'
+            ? module.default
+              .render()
+              .html // eslint-disable-next-line no-control-regex
+              .replace(/[\u0000-\u001F]/g, '')
+              .replace(/[\r\n]/g, '')
+              .match(/<main [^>]+>(.*?)<\/main>/gi)?.[0]
+              .replace(/<main [^>]+>(.*?)<\/main>/gi, '$1')
+            // .replace(/( class=")(.*?)(")/gi, '')
+              .replace(/( style=")(.*?)(")/gi, '')
+              .replace(/(<span>)(.*?)(<\/span>)/gi, '$2')
+              .replace(/(<main>)(.*?)(<\/main>)/gi, '$2')
+            : '',
+        type: typeOfPost(module.metadata),
     }))
     .filter((post, index) => (!filterUnlisted || !post.flags?.includes('unlisted')) && (!postLimit || index < postLimit))
     .map(post => {
       if (post.created) {
+       
         try {
           const date = new Date(post.created);
           post._parsedDate = date.toISOString(); // Add a safely parsed date for debugging

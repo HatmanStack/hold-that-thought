@@ -90,7 +90,7 @@ function toggleHelp() {
               </div>
             </div>
             <div class="mt-2">
-              <p class="text-warning">Note: Changes to the markdown will be reflected in the post when saved but all versions are saved, no content loss.</p>
+              <p class="text-warning">Note: Changes to the markdown will be reflected in the Letter at 12:00 PM the following day. The version of Markdown that is being edited is the Realtime Version and is Version controlled, no content loss.</p>
             </div>
           </div>
         {/if}
