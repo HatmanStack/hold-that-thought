@@ -5,13 +5,16 @@
   import Reply from '$lib/components/post_reply.svelte'
   import Status from '$lib/components/post_status.svelte'
   import Image from '$lib/components/prose/img.svelte'
+  import MarkdownEditorModal from '$lib/components/post_editor.svelte'
   import { post as postConfig } from '$lib/config/post'
   import { posts as storedPosts } from '$lib/stores/posts'
   import { title as storedTitle } from '$lib/stores/title'
-  import { downloadSourcePdf /*, modifySourcePdf */ } from '$lib/utils/s3Client';
+  import { downloadSourcePdf, getMarkdownContent, saveMarkdownContent } from '$lib/utils/s3Client';
 
   let isDownloading = false;
   let isModifying = false;
+  let isEditorOpen = false;
+  let markdownContent = '';
   export let post: Urara.Post
   export let preview: boolean = false
   export let loading: 'eager' | 'lazy' = 'lazy'
@@ -32,7 +35,39 @@
     })
   }
 
+  async function openMarkdownEditor() {
+    isModifying = true;
+    try {
+      if (post.path) {
+        // Load the original markdown content
+        markdownContent = await getMarkdownContent(post.path);
+        isEditorOpen = true;
+      }
+    } catch (error) {
+      console.error('Error loading markdown content:', error);
+      // Show error notification
+    } finally {
+      isModifying = false;
+    }
+  }
 
+  async function handleSave(event) {
+    isModifying = true;
+    try {
+      const updatedContent = event.detail;
+      const success = await saveMarkdownContent(updatedContent);
+      
+      if (success) {
+        // Show success message or reload page to see changes
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Error saving markdown content:', error);
+      // Show error notification
+    } finally {
+      isModifying = false;
+    }
+  }
 </script>
 
 <svelte:element
@@ -134,10 +169,7 @@
           on:click={async () => {
             isDownloading = true;
             try {
-              if (post.title) {
-                const url = window.location.href;
-                await downloadSourcePdf(url);
-              }
+                await downloadSourcePdf();
             } finally {
               isDownloading = false;
             }
@@ -153,36 +185,28 @@
         </button>
 
         
-        <button
+       <button
           class='btn btn-sm btn-outline gap-2 ml-2' 
           disabled={isDownloading || isModifying} 
-          on:click={async () => {
-            isModifying = true;
-            try {
-              if (post.title) {
-                const url = window.location.href;
-                console.log('Modify Letter clicked for URL:', url);
-                // TODO: Implement S3 modification call here, e.g., modifySourcePdf(url);
-                // You might need to import a new function from s3Client
-                // await modifySourcePdf(url); // Example hypothetical call
-                // Simulate async operation for demo
-                await new Promise(resolve => setTimeout(resolve, 1500));
-              }
-            } finally {
-              isModifying = false;
-            }
-          }}>
+          on:click={openMarkdownEditor}>
           {#if isModifying}
             <span class="loading loading-spinner loading-xs"></span>
           {:else}
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-               <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
           {/if}
           Modify Letter
         </button>
       </div>
     {/if}
+    <MarkdownEditorModal 
+      bind:isOpen={isEditorOpen}
+      content={markdownContent}
+      title={`Edit: ${post.title || post.path}`}
+      on:save={handleSave}
+      on:close={() => isEditorOpen = false}
+    />
   </div>
   {#if !preview}
     {#if (prev || next) && !post.flags?.includes('pagination-disabled') && !post.flags?.includes('unlisted')}

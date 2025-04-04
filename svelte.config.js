@@ -13,6 +13,7 @@ const adapter = {
     assets: 'build',
     fallback: undefined,
     pages: 'build',
+    strict: false
   }),
 }
 

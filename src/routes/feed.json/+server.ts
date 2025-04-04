@@ -44,7 +44,7 @@ const render = (posts = genPosts({ filterUnlisted: true, postHtml: true, postLim
   version: 'https://jsonfeed.org/version/1.1',
 })
 
-export const prerender = true
+export const prerender = false
 export const trailingSlash = 'never'
 export const GET: RequestHandler = async () =>
   json(render(), {

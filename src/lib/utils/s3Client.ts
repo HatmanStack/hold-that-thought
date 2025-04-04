@@ -12,10 +12,10 @@ console.log(`AWS Credentials Check: Access Key ID is ${accessKeyId ? 'LOADED' : 
 const lambdaClient = new LambdaClient({
     region: "us-west-2", // Ensure this is the correct region for your Lambda
     credentials: {
-        accessKeyId: "",
-        secretAccessKey: "",
+        
     },
 });
+
 const FUNC = "hold-that-thought-lambda";
 
 export async function downloadSourcePdf(): Promise<void> {
@@ -45,17 +45,9 @@ export async function downloadSourcePdf(): Promise<void> {
       throw new Error("No response payload from Lambda");
   }
   
-  // Decode the SUCCESSFUL response payload from Lambda
-  const decoder = new TextDecoder(); // Defaults to 'utf-8', which is usually correct for JSON
+  const decoder = new TextDecoder();  
   const responsePayloadString = decoder.decode(response.Payload);
-  
-  // Check Lambda's logical status code if applicable (optional, depends on your Lambda structure)
-  // if (responsePayload.statusCode && responsePayload.statusCode !== 200) {
-  //     const body = responsePayload.body ? JSON.parse(responsePayload.body) : {};
-  //     throw new Error(`Lambda returned an error: ${body.message || 'Unknown error'}`);
-  // }
-  // Assuming the main payload directly contains the data if status was 200 from Invoke response
-  // Now parse the decoded string as JSON
+
   const responsePayload = JSON.parse(responsePayloadString);
 
 // Check if the Lambda execution was successful
@@ -94,5 +86,97 @@ const suggestedFileName = responseBody.fileNameSuggestion || `${sanitizedTitle}.
   console.log("Download initiated.");
   } catch (error) {
     console.error("Error downloading PDF:", error);
+  }
+}
+
+export async function getMarkdownContent(path: string): Promise<string> {
+  const currentUrl = new URL(window.location.href);
+  const sanitizedTitle = decodeURIComponent(currentUrl.pathname);
+  
+
+    // Log the result of sanitization
+    console.log("Sanitized Title derived from URL Path:", sanitizedTitle);
+
+  try {
+    // Construct the payload for the Lambda function
+    const payload = {
+      type: "downloadMD",
+      title: sanitizedTitle,
+    };
+    
+    const command = new InvokeCommand({
+      FunctionName: FUNC,
+      Payload: new TextEncoder().encode(JSON.stringify(payload)),
+    });
+
+    const response = await lambdaClient.send(command);
+
+    if (!response.Payload) {
+      throw new Error("No response payload from Lambda");
+  }
+  
+  const decoder = new TextDecoder();  
+  const responsePayloadString = decoder.decode(response.Payload);
+
+  const responsePayload = JSON.parse(responsePayloadString);
+
+    // Check if the Lambda execution was successful
+    if (responsePayload.statusCode !== 200) {
+      throw new Error(`Lambda returned error status: ${responsePayload.statusCode}`);
+    }
+
+    // The body is a JSON string that needs to be parsed again
+    const responseBody = JSON.parse(responsePayload.body);
+
+    console.log("Lambda response body:", responseBody);
+    if (!responseBody.downloadUrl) {
+      throw new Error(`Failed to load markdown file: ${responseBody.statusText}`);
+    }
+    const markdownText = responseBody.downloadUrl;
+    return await markdownText; // Assuming the response is text
+  } catch (error) {
+    console.error('Error loading markdown content:', error);
+    throw error;
+  }
+}
+
+/**
+ * Updates the markdown content for a given post
+ * @param path The post path from the URL
+ * @param content The new markdown content
+ * @returns Boolean indicating success
+ */
+export async function saveMarkdownContent(content: string): Promise<boolean> {
+  
+    const currentUrl = new URL(window.location.href);
+  const sanitizedTitle = decodeURIComponent(currentUrl.pathname);
+  
+
+    // Log the result of sanitization
+    console.log("Sanitized Title derived from URL Path:", sanitizedTitle);
+    
+    try {
+      // Construct the payload for the Lambda function
+      const payload = {
+        type: "update",
+        title: sanitizedTitle,
+        content: content,
+      };
+      
+      const command = new InvokeCommand({
+        FunctionName: FUNC,
+        Payload: new TextEncoder().encode(JSON.stringify(payload)),
+      });
+  
+      const response = await lambdaClient.send(command);
+  
+      if (!response.Payload) {
+        throw new Error("No response payload from Lambda");
+      }
+    
+    return true;
+  } catch (error) {
+    console.error('Error saving markdown content:', error);
+    throw error;
   }
 }
