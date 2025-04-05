@@ -20,6 +20,11 @@
     isOpen = false;
   }
 
+  function build() {
+    dispatch('build');
+    isOpen = false;
+  }
+
 function toggleHelp() {
     showMarkdownHelp = !showMarkdownHelp;
   }
@@ -90,7 +95,7 @@ function toggleHelp() {
               </div>
             </div>
             <div class="mt-2">
-              <p class="text-warning">Note: Changes to the markdown will be reflected in the Letter at 12:00 PM the following day. The version of Markdown that is being edited is the Realtime Version and is Version controlled, no content loss.</p>
+              <p class="text-warning">Note: Changes to the markdown won't show up until you rebuild the site.  It can take up to 5 minutes for it to build.  It's not necessary to rebuild the site everytime you save, only when you want your saves to show up on the site. The version of the Letter that is being edited in your window is the Realtime Version and is Version controlled, no content loss.</p>
             </div>
           </div>
         {/if}
@@ -107,6 +112,12 @@ function toggleHelp() {
       <div class="flex justify-end gap-2 mt-4">
         <button class="btn btn-outline" on:click={cancel}>Cancel</button>
         <button class="btn btn-primary" on:click={save}>Save Changes</button>
+        <button class="btn btn-secondary" on:click={build}>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          Rebuild Site
+        </button>
       </div>
     </div>
   </div>

@@ -180,3 +180,36 @@ export async function saveMarkdownContent(content: string): Promise<boolean> {
     throw error;
   }
 }
+
+export async function restartEC2(): Promise<boolean> {
+  const currentUrl = new URL(window.location.href);
+  const sanitizedTitle = decodeURIComponent(currentUrl.pathname);
+  
+
+    // Log the result of sanitization
+    console.log("Rebuilding Site:", sanitizedTitle);
+
+  try {
+    // Construct the payload for the Lambda function
+    const payload = {
+      type: "deploy",
+      title: sanitizedTitle,
+    };
+    
+    const command = new InvokeCommand({
+      FunctionName: FUNC,
+      Payload: new TextEncoder().encode(JSON.stringify(payload)),
+    });
+
+    const response = await lambdaClient.send(command);
+
+    if (!response.Payload) {
+      throw new Error("No response payload from Lambda");
+    }
+  
+  return true;
+} catch (error) {
+  console.error('Error rebuilding Site:', error);
+  throw error;
+}
+}

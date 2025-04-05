@@ -9,7 +9,7 @@
   import { post as postConfig } from '$lib/config/post'
   import { posts as storedPosts } from '$lib/stores/posts'
   import { title as storedTitle } from '$lib/stores/title'
-  import { downloadSourcePdf, getMarkdownContent, saveMarkdownContent } from '$lib/utils/s3Client';
+  import { downloadSourcePdf, getMarkdownContent, saveMarkdownContent, restartEC2 } from '$lib/utils/s3Client';
 
   let isDownloading = false;
   let isModifying = false;
@@ -68,6 +68,27 @@
       isModifying = false;
     }
   }
+
+  async function handleBuild() {
+  try {
+    // Show a loading message or notification
+    const buildingMessage = alert('Starting build process. This may take a few minutes...');
+    
+    // Call the restartEC2 function
+    const success = await restartEC2();
+    
+    if (success) {
+      // Show success message
+      alert('Build process started successfully! Changes will be visible shortly.');
+    } else {
+      // Show error message
+      alert('Failed to start the build process. Please try again later.');
+    }
+  } catch (error) {
+    console.error('Error starting build process:', error);
+    alert(`Failed to start build: ${error.message}`);
+  }
+}
 </script>
 
 <svelte:element
@@ -206,6 +227,7 @@
       title={`Edit: ${post.title || post.path}`}
       on:save={handleSave}
       on:close={() => isEditorOpen = false}
+      on:build={handleBuild}
     />
   </div>
   {#if !preview}
