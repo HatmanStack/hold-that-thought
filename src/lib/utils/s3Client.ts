@@ -213,3 +213,82 @@ export async function restartEC2(): Promise<boolean> {
   throw error;
 }
 }
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      const base64String = reader.result as string;
+      // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
+      const base64Content = base64String.split(',')[1];
+      resolve(base64Content);
+    };
+    reader.onerror = error => reject(error);
+  });
+}
+
+export async function addLetterLambda(files: File | File[]): Promise<string> {
+  try {
+    // Handle both single file and array of files
+    const filesArray = Array.isArray(files) ? files : [files];
+    
+    // Create an array of base64 encoded file data
+    const filePromises = filesArray.map(async (file) => {
+      const base64 = await fileToBase64(file);
+      return {
+        fileName: file.name,
+        contentType: file.type,
+        fileData: base64,
+        size: Math.round(file.size / 1024) // Size in KB for logging
+      };
+    });
+    
+    // Wait for all files to be converted to base64
+    const fileData = await Promise.all(filePromises);
+    
+    // Log info about the batch
+    console.log(`Uploading ${fileData.length} files in batch:`);
+    fileData.forEach(file => {
+      console.log(`- ${file.fileName} (${file.size} KB)`);
+    });
+    
+    // Construct the payload for the Lambda function
+    const payload = {
+      type: "create",
+      files: fileData
+    };
+    
+    const command = new InvokeCommand({
+      FunctionName: FUNC,
+      Payload: new TextEncoder().encode(JSON.stringify(payload)),
+    });
+
+    const response = await lambdaClient.send(command);
+
+    if (!response.Payload) {
+      throw new Error("No response payload from Lambda");
+    }
+  
+    const decoder = new TextDecoder();  
+    const responsePayloadString = decoder.decode(response.Payload);
+    const responsePayload = JSON.parse(responsePayloadString);
+
+    // Check if the Lambda execution was successful
+    if (responsePayload.statusCode !== 200) {
+      throw new Error(`Lambda returned error status: ${responsePayload.statusCode}`);
+    }
+
+    // The body is a JSON string that needs to be parsed again
+    const responseBody = JSON.parse(responsePayload.body);
+    console.log("Lambda response body:", responseBody);
+    if (!responseBody.imageUrl) {
+      throw new Error(`Failed to upload image: ${responseBody.message || 'Unknown error'}`);
+    }
+ 
+    return "success";
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    throw error;
+  }
+}

@@ -10,11 +10,15 @@
   import { title as storedTitle } from '$lib/stores/title'
   import { onMount } from 'svelte'
   import { fly } from 'svelte/transition'
+  import { addLetterLambda } from '$lib/utils/s3Client'
+  import { tick } from 'svelte';
 
   let allPosts: Urara.Post[]
   let allTags: string[]
   let loaded: boolean
   let [posts, tags, years]: [Urara.Post[], string[], number[]] = [[], [], []]
+  let isProcessing = false
+  let fileInput: HTMLInputElement;
 
   storedTitle.set('')
 
@@ -31,6 +35,62 @@
       goto(tags.length > 0 ? `?tags=${tags.toString()}` : `/`, { replaceState: true })
   }
 
+async function addLetter() {
+  if (isProcessing) return;
+  
+  // Create a file input element if it doesn't exist yet
+  if (!fileInput && browser) {
+    fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.multiple = true;
+    fileInput.accept = 'image/*,.pdf';
+    
+    fileInput.onchange = async (e) => {
+      const files = fileInput.files;
+      if (!files || files.length === 0) {
+        isProcessing = false;
+        return;
+      }
+      
+      isProcessing = true;
+      
+      try {
+        // Convert FileList to Array
+        const filesArray = Array.from(files);
+        
+        console.log(`Processing batch of ${filesArray.length} files`);
+        filesArray.forEach(file => {
+          console.log(`- ${file.name} (${Math.round(file.size / 1024)} KB)`);
+        });
+        
+        // Send ALL files to addLetterLambda at once as an array
+        const result = await addLetterLambda(filesArray);
+        
+        // Inform user of results
+        
+        
+      } catch (error) {
+        console.error('Error in file upload process:', error);
+        alert(`Error: ${error.message}`);
+      } finally {
+        isProcessing = false;
+        alert(`Successfully processed ${filesArray.length} ${filesArray.length === 1 ? 'file' : 'files'}. The site will be updated shortly.`);
+        // Reset the file input value so the same files can be selected again if needed
+        fileInput.value = '';
+      }
+    };
+    
+    // Append to body to ensure it works in all browsers, but hide it
+    document.body.appendChild(fileInput);
+    fileInput.style.display = 'none';
+  }
+  
+  // Trigger the file selection dialog
+  if (fileInput) {
+    fileInput.click();
+  }
+}
+
   onMount(() => {
     if (browser) {
       if ($page.url.searchParams.get('tags'))
@@ -43,6 +103,8 @@
 <Head />
 
 <div class='flex flex-col flex-nowrap justify-center xl:flex-row xl:flex-wrap h-feed'>
+ 
+
   <div
     class='flex-1 w-full max-w-screen-md order-first mx-auto xl:mr-0 xl:ml-8 xl:max-w-md'
     in:fly={{ delay: 500, duration: 300, x: 25 }}
@@ -54,6 +116,17 @@
     in:fly={{ delay: 500, duration: 300, x: -25 }}
     out:fly={{ duration: 300, x: -25 }}>
     {#if allTags && Object.keys(allTags).length > 0}
+    <div class='flex justify-end px-8 pt-4'>
+      <button 
+        class='btn btn-sm btn-ghost gap-1'
+        class:hidden={tags.length === 0}
+        on:click={() => tags = []}>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+        Clear Tags
+      </button>
+    </div>
       <div
         class='flex xl:flex-wrap gap-2 overflow-x-auto xl:overflow-x-hidden overflow-y-hidden max-h-24 my-auto xl:max-h-fit max-w-fit xl:max-w-full pl-8 md:px-0 xl:pl-8 xl:pt-8'>
         {#each allTags as tag}
@@ -70,6 +143,25 @@
     {/if}
   </div>
   <div class='flex-none w-full max-w-screen-md mx-auto xl:mx-0'>
+   <div 
+    class='flex justify-center mb-4'
+    in:fly={{ delay: 500, duration: 300, y: -25 }}
+    out:fly={{ duration: 300, y: -25 }}>
+    <button 
+      class='btn btn-secondary gap-2' 
+      on:click={addLetter}
+      disabled={isProcessing}>
+      {#if isProcessing}
+        <span class="loading loading-spinner loading-xs"></span>
+      {:else}
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+        </svg>
+      {/if}
+      Add Letter
+    </button>
+  </div>
+
     {#key posts}
       <!-- {:else} is not used because there is a problem with the transition -->
       {#if loaded && posts.length === 0}
