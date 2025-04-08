@@ -281,12 +281,9 @@ export async function addLetterLambda(files: File | File[]): Promise<string> {
 
     // The body is a JSON string that needs to be parsed again
     const responseBody = JSON.parse(responsePayload.body);
-    console.log("Lambda response body:", responseBody);
-    if (!responseBody.imageUrl) {
-      throw new Error(`Failed to upload image: ${responseBody.message || 'Unknown error'}`);
-    }
+    
  
-    return "success";
+    return `${responseBody.message || 'Unknown error'}`;
   } catch (error) {
     console.error('Error uploading image:', error);
     throw error;

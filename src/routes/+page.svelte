@@ -67,14 +67,14 @@ async function addLetter() {
         const result = await addLetterLambda(filesArray);
         
         // Inform user of results
-        
+        alert(result)
         
       } catch (error) {
         console.error('Error in file upload process:', error);
         alert(`Error: ${error.message}`);
       } finally {
         isProcessing = false;
-        alert(`Successfully processed ${filesArray.length} ${filesArray.length === 1 ? 'file' : 'files'}. The site will be updated shortly.`);
+        alert(`Successfully processed file!`);
         // Reset the file input value so the same files can be selected again if needed
         fileInput.value = '';
       }
