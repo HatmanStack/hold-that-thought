@@ -25,7 +25,7 @@
 - [X]  Tags for Search
 - [ ]  Comment on Letters
 - [ ]  Add Missing Letters to Round Robin
-- [ ]  Edit Current Letters that don't conform after Optical Content Recognition
+- [X]  Edit Current Letters that don't conform after Optical Content Recognition
 - [ ]  Picture Gallery both for Immediate and Extended Family
 - [ ]  Family Documents for both Immediate and Extended Family
 
