@@ -1,6 +1,7 @@
 /// <reference types="@sveltejs/kit" />
 
 import type { FFFBase, FFFMedia, FFFMention } from 'fff-flavored-frontmatter'
+import type { User } from '$lib/types/auth'
 
 interface ImportMetaEnv extends Readonly<Record<string, string>> {
   readonly URARA_SITE_DOMAIN?: string
@@ -13,6 +14,13 @@ interface ImportMeta {
 }
 
 declare global {
+  namespace App {
+    interface Locals {
+      user?: User
+      token?: string
+    }
+  }
+
   namespace Urara {
     namespace Post {
       type Frontmatter = {

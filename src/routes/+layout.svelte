@@ -7,6 +7,7 @@
   import { genTags } from '$lib/utils/posts'
   import { onMount } from 'svelte'
   import { registerSW } from 'virtual:pwa-register'
+  import { initAuth } from '$lib/utils/auth'
   import 'uno.css'
 
   import type { LayoutData } from './$types'
@@ -22,16 +23,20 @@
 
   posts.set(res)
   tags.set(genTags(res))
-  onMount(
-    () =>
-      !dev
-        && browser
-      && registerSW({
-          immediate: true,
-          onRegistered: r => r && setInterval(async () => await r.update(), 198964),
-          onRegisterError: error => console.error(error),
-        }),
-  )
+  
+  onMount(async () => {
+    // Initialize authentication
+    await initAuth()
+    
+    // Register service worker
+    if (!dev && browser) {
+      registerSW({
+        immediate: true,
+        onRegistered: r => r && setInterval(async () => await r.update(), 198964),
+        onRegisterError: error => console.error(error),
+      })
+    }
+  })
 </script>
 
 <Head />

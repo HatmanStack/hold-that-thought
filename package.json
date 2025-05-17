@@ -84,6 +84,8 @@
   "dependencies": {
     "@aws-sdk/client-lambda": "^3.782.0",
     "@aws-sdk/client-s3": "^3.758.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.782.0",
+    "amazon-cognito-identity-js": "^6.3.7",
     "aws-sdk": "^2.1692.0",
     "gray-matter": "^4.0.3",
     "marked": "^15.0.7"

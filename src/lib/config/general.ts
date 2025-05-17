@@ -55,9 +55,29 @@ export const head: HeadConfig = {}
 
 export const header: HeaderConfig = {
   nav: [
-    
-    
+    {
+      link: '/',
+      text: 'Home',
+    },
+    {
+      link: '/about',
+      text: 'About',
+    },
+    {
+      children: [
+        {
+          link: '/profile',
+          text: 'Profile',
+        },
+        {
+          link: '/settings',
+          text: 'Settings',
+        },
+      ],
+      text: 'Account',
+    },
   ],
+  search: true
 }
 
 export const footer: FooterConfig = {
@@ -66,7 +86,14 @@ export const footer: FooterConfig = {
       link: '/atom.xml',
       text: 'Feed',
     },
-    
+    {
+      link: '/privacy',
+      text: 'Privacy Policy',
+    },
+    {
+      link: '/terms',
+      text: 'Terms of Service',
+    },
   ],
 }
 
