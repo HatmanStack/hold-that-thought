@@ -5,8 +5,12 @@
   import { header as headerConfig, theme } from '$lib/config/general'
   import { site } from '$lib/config/site'
   import { title as storedTitle } from '$lib/stores/title'
+  import { isAuthenticated, user } from '$lib/stores/user'
+  import { logout } from '$lib/utils/auth'
   import { hslToHex } from '$lib/utils/color'
   import { fly } from 'svelte/transition'
+  import { onMount } from 'svelte'
+  import { initAuth } from '$lib/utils/auth'
 
   export let path: string
   let title: string
@@ -45,6 +49,11 @@
       = localStorage.getItem('theme')
       ?? (window.matchMedia('(prefers-color-scheme: dark)').matches ? theme?.[1].name : theme[0].name ?? theme[0].name)
   }
+  
+  onMount(() => {
+    // Initialize authentication state
+    initAuth()
+  })
 </script>
 
 <svelte:head>
@@ -72,6 +81,32 @@
             <span class='i-heroicons-outline-search' />
           </button>
         {/if}
+        
+        <!-- Authentication UI -->
+        {#if $isAuthenticated}
+          <div class="dropdown dropdown-end">
+            <div class="btn btn-ghost btn-circle avatar" tabindex="0">
+              {#if $user?.picture}
+                <div class="w-10 rounded-full">
+                  <img src={$user.picture} alt="Profile" />
+                </div>
+              {:else}
+                <div class="w-10 rounded-full bg-primary text-primary-content grid place-items-center">
+                  <span>{$user?.given_name?.[0] || $user?.username?.[0] || 'U'}</span>
+                </div>
+              {/if}
+            </div>
+            <ul class="menu dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52" tabindex="0">
+              <li><a href="/profile">Profile</a></li>
+              <li><a href="/settings">Settings</a></li>
+              <li><button on:click={logout}>Logout</button></li>
+            </ul>
+          </div>
+        {:else}
+          <a href="/auth" class="btn btn-ghost">Login</a>
+          <a href="/auth?mode=signup" class="btn btn-primary">Sign Up</a>
+        {/if}
+        
         <div class='dropdown dropdown-end' id='change-theme'>
           <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
           <!-- reference: https://github.com/saadeghi/daisyui/issues/1285 -->
