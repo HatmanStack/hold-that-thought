@@ -1,0 +1,803 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'API Gateway with Lambda functions for Gallery S3 access'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'hold-that-thought'
+    Description: 'Name of the project for resource naming'
+  
+  Environment:
+    Type: String
+    Default: 'prod'
+    AllowedValues: ['dev', 'staging', 'prod']
+    Description: 'Environment name'
+
+  UserPoolArn:
+    Type: String
+    Description: 'ARN of the Cognito User Pool (from cognito-user-pool stack)'
+
+  S3BucketName:
+    Type: String
+    Description: 'Name of the S3 bucket containing gallery media'
+
+Resources:
+  # API Gateway REST API
+  GalleryApiGateway:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub '${ProjectName}-${Environment}-gallery-api'
+      Description: 'API Gateway for Gallery with Cognito JWT Authorization'
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      Policy:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: execute-api:Invoke
+            Resource: '*'
+
+  # Cognito JWT Authorizer
+  CognitoAuthorizer:
+    Type: AWS::ApiGateway::Authorizer
+    Properties:
+      Name: !Sub '${ProjectName}-${Environment}-gallery-authorizer'
+      RestApiId: !Ref GalleryApiGateway
+      Type: COGNITO_USER_POOLS
+      ProviderARNs:
+        - !Ref UserPoolArn
+      IdentitySource: method.request.header.Authorization
+
+  # Lambda Execution Role
+  GalleryLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-gallery-lambda-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: S3GalleryAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                  - s3:GetObjectVersion
+                  - s3:GetBucketLocation
+                Resource:
+                  - !Sub 'arn:aws:s3:::${S3BucketName}'
+                  - !Sub 'arn:aws:s3:::${S3BucketName}/*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*'
+
+  # Lambda function for Pictures
+  PicturesLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-${Environment}-gallery-pictures'
+      Runtime: python3.9
+      Handler: index.lambda_handler
+      Role: !GetAtt GalleryLambdaRole.Arn
+      Timeout: 30
+      MemorySize: 512
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref S3BucketName
+          CATEGORY: 'pictures'
+          REGION: !Ref AWS::Region
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import os
+          from datetime import datetime, timedelta
+          from urllib.parse import quote
+          
+          s3 = boto3.client('s3')
+          
+          def lambda_handler(event, context):
+              print(f"Event: {json.dumps(event)}")
+              
+              bucket_name = os.environ['BUCKET_NAME']
+              category = os.environ['CATEGORY']
+              region = os.environ['REGION']
+              
+              # Extract user info from Cognito authorizer
+              user_claims = event.get('requestContext', {}).get('authorizer', {}).get('claims', {})
+              user_id = user_claims.get('sub', 'unknown')
+              user_email = user_claims.get('email', 'unknown')
+              user_groups = user_claims.get('cognito:groups', '').split(',') if user_claims.get('cognito:groups') else []
+              
+              # Verify user is in ApprovedUsers group
+              if 'ApprovedUsers' not in user_groups:
+                  return {
+                      'statusCode': 403,
+                      'headers': {
+                          'Content-Type': 'application/json',
+                          'Access-Control-Allow-Origin': '*',
+                          'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+                          'Access-Control-Allow-Methods': 'GET,OPTIONS'
+                      },
+                      'body': json.dumps({
+                          'error': 'Access denied',
+                          'message': 'User is not in the ApprovedUsers group'
+                      })
+                  }
+              
+              try:
+                  # List objects in the gallery/{category}/ folder
+                  prefix = f'gallery/{category}/'
+                  response = s3.list_objects_v2(
+                      Bucket=bucket_name,
+                      Prefix=prefix,
+                      MaxKeys=100
+                  )
+                  
+                  items = []
+                  
+                  if 'Contents' in response:
+                      for obj in response['Contents']:
+                          key = obj['Key']
+                          
+                          # Skip folder markers
+                          if key.endswith('/'):
+                              continue
+                          
+                          filename = key.split('/')[-1]
+                          
+                          # Determine content type based on extension
+                          extension = filename.split('.')[-1].lower() if '.' in filename else ''
+                          content_type = get_content_type(extension, category)
+                          
+                          # Skip if not valid file type for category
+                          if not content_type:
+                              continue
+                          
+                          # Generate signed URL (1 hour expiration)
+                          signed_url = s3.generate_presigned_url(
+                              'get_object',
+                              Params={'Bucket': bucket_name, 'Key': key},
+                              ExpiresIn=3600
+                          )
+                          
+                          # Generate thumbnail URL if applicable
+                          thumbnail_url = None
+                          if category == 'pictures':
+                              thumbnail_key = key.replace('gallery/pictures/', 'gallery/thumbnails/')
+                              try:
+                                  s3.head_object(Bucket=bucket_name, Key=thumbnail_key)
+                                  thumbnail_url = s3.generate_presigned_url(
+                                      'get_object',
+                                      Params={'Bucket': bucket_name, 'Key': thumbnail_key},
+                                      ExpiresIn=3600
+                                  )
+                              except:
+                                  pass
+                          elif category == 'videos':
+                              thumbnail_key = key.replace('gallery/videos/', 'gallery/video-thumbnails/').rsplit('.', 1)[0] + '.jpg'
+                              try:
+                                  s3.head_object(Bucket=bucket_name, Key=thumbnail_key)
+                                  thumbnail_url = s3.generate_presigned_url(
+                                      'get_object',
+                                      Params={'Bucket': bucket_name, 'Key': thumbnail_key},
+                                      ExpiresIn=3600
+                                  )
+                              except:
+                                  pass
+                          
+                          # Create gallery item
+                          item = {
+                              'id': key.replace('/', '_').replace('.', '_'),
+                              'filename': filename,
+                              'title': extract_title(filename),
+                              'uploadDate': obj['LastModified'].isoformat(),
+                              'fileSize': obj['Size'],
+                              'contentType': content_type,
+                              'signedUrl': signed_url,
+                              'category': category
+                          }
+                          
+                          if thumbnail_url:
+                              item['thumbnailUrl'] = thumbnail_url
+                          
+                          items.append(item)
+                  
+                  # Sort by upload date (newest first)
+                  items.sort(key=lambda x: x['uploadDate'], reverse=True)
+                  
+                  return {
+                      'statusCode': 200,
+                      'headers': {
+                          'Content-Type': 'application/json',
+                          'Access-Control-Allow-Origin': '*',
+                          'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+                          'Access-Control-Allow-Methods': 'GET,OPTIONS'
+                      },
+                      'body': json.dumps({
+                          'success': True,
+                          'items': items,
+                          'section': category,
+                          'user': {
+                              'id': user_id,
+                              'email': user_email
+                          }
+                      })
+                  }
+                  
+              except Exception as e:
+                  print(f"Error: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'headers': {
+                          'Content-Type': 'application/json',
+                          'Access-Control-Allow-Origin': '*',
+                          'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+                          'Access-Control-Allow-Methods': 'GET,OPTIONS'
+                      },
+                      'body': json.dumps({
+                          'error': 'Internal server error',
+                          'message': f'Failed to load {category}'
+                      })
+                  }
+          
+          def get_content_type(extension, category):
+              """Determine content type based on file extension and category"""
+              content_types = {
+                  'pictures': {
+                      'jpg': 'image/jpeg',
+                      'jpeg': 'image/jpeg',
+                      'png': 'image/png',
+                      'gif': 'image/gif',
+                      'webp': 'image/webp',
+                      'bmp': 'image/bmp'
+                  },
+                  'videos': {
+                      'mp4': 'video/mp4',
+                      'avi': 'video/avi',
+                      'mov': 'video/mov',
+                      'wmv': 'video/wmv',
+                      'flv': 'video/flv',
+                      'webm': 'video/webm'
+                  },
+                  'documents': {
+                      'pdf': 'application/pdf',
+                      'doc': 'application/msword',
+                      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                      'txt': 'text/plain',
+                      'rtf': 'text/rtf'
+                  }
+              }
+              
+              return content_types.get(category, {}).get(extension)
+          
+          def extract_title(filename):
+              """Extract a readable title from filename"""
+              # Remove extension and replace underscores/hyphens with spaces
+              title = filename.rsplit('.', 1)[0]
+              title = title.replace('_', ' ').replace('-', ' ')
+              # Capitalize each word
+              return ' '.join(word.capitalize() for word in title.split())
+
+  # Lambda function for Videos (same code, different environment variable)
+  VideosLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-${Environment}-gallery-videos'
+      Runtime: python3.9
+      Handler: index.lambda_handler
+      Role: !GetAtt GalleryLambdaRole.Arn
+      Timeout: 30
+      MemorySize: 512
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref S3BucketName
+          CATEGORY: 'videos'
+          REGION: !Ref AWS::Region
+      Code:
+        ZipFile: !GetAtt PicturesLambdaFunction.Code
+
+  # Lambda function for Documents (same code, different environment variable)
+  DocumentsLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-${Environment}-gallery-documents'
+      Runtime: python3.9
+      Handler: index.lambda_handler
+      Role: !GetAtt GalleryLambdaRole.Arn
+      Timeout: 30
+      MemorySize: 512
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref S3BucketName
+          CATEGORY: 'documents'
+          REGION: !Ref AWS::Region
+      Code:
+        ZipFile: !GetAtt PicturesLambdaFunction.Code
+
+  # Lambda function for Letter Downloads
+  LetterDownloadLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-${Environment}-letter-download'
+      Runtime: python3.9
+      Handler: index.lambda_handler
+      Role: !GetAtt GalleryLambdaRole.Arn
+      Timeout: 30
+      MemorySize: 512
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref S3BucketName
+          REGION: !Ref AWS::Region
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import os
+          from urllib.parse import unquote
+          
+          s3 = boto3.client('s3')
+          
+          def lambda_handler(event, context):
+              print(f"Event: {json.dumps(event)}")
+              
+              bucket_name = os.environ['BUCKET_NAME']
+              region = os.environ['REGION']
+              
+              # Extract user info from Cognito authorizer
+              user_claims = event.get('requestContext', {}).get('authorizer', {}).get('claims', {})
+              user_id = user_claims.get('sub', 'unknown')
+              user_email = user_claims.get('email', 'unknown')
+              user_groups = user_claims.get('cognito:groups', '').split(',') if user_claims.get('cognito:groups') else []
+              
+              # Verify user is in ApprovedUsers group
+              if 'ApprovedUsers' not in user_groups:
+                  return {
+                      'statusCode': 403,
+                      'headers': {
+                          'Content-Type': 'application/json',
+                          'Access-Control-Allow-Origin': '*',
+                          'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+                          'Access-Control-Allow-Methods': 'GET,OPTIONS'
+                      },
+                      'body': json.dumps({
+                          'error': 'Access denied',
+                          'message': 'User is not in the ApprovedUsers group'
+                      })
+                  }
+              
+              try:
+                  # Extract title from path parameters
+                  path_params = event.get('pathParameters', {})
+                  title = path_params.get('title', '')
+                  
+                  if not title:
+                      return {
+                          'statusCode': 400,
+                          'headers': {
+                              'Content-Type': 'application/json',
+                              'Access-Control-Allow-Origin': '*',
+                              'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+                              'Access-Control-Allow-Methods': 'GET,OPTIONS'
+                          },
+                          'body': json.dumps({
+                              'error': 'Bad request',
+                              'message': 'Title parameter is required'
+                          })
+                      }
+                  
+                  # URL decode the title
+                  decoded_title = unquote(title)
+                  
+                  # Construct the S3 key for the original PDF
+                  # Assuming the structure is: letters/{title}/{title}.pdf
+                  s3_key = f"letters{decoded_title}/{decoded_title.split('/')[-1]}.pdf"
+                  
+                  # Check if the file exists
+                  try:
+                      s3.head_object(Bucket=bucket_name, Key=s3_key)
+                  except s3.exceptions.NoSuchKey:
+                      return {
+                          'statusCode': 404,
+                          'headers': {
+                              'Content-Type': 'application/json',
+                              'Access-Control-Allow-Origin': '*',
+                              'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+                              'Access-Control-Allow-Methods': 'GET,OPTIONS'
+                          },
+                          'body': json.dumps({
+                              'error': 'Not found',
+                              'message': f'Letter not found: {decoded_title}'
+                          })
+                      }
+                  
+                  # Generate signed URL (1 hour expiration)
+                  signed_url = s3.generate_presigned_url(
+                      'get_object',
+                      Params={'Bucket': bucket_name, 'Key': s3_key},
+                      ExpiresIn=3600
+                  )
+                  
+                  # Extract filename for download suggestion
+                  filename = decoded_title.split('/')[-1] + '.pdf'
+                  
+                  return {
+                      'statusCode': 200,
+                      'headers': {
+                          'Content-Type': 'application/json',
+                          'Access-Control-Allow-Origin': '*',
+                          'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+                          'Access-Control-Allow-Methods': 'GET,OPTIONS'
+                      },
+                      'body': json.dumps({
+                          'success': True,
+                          'downloadUrl': signed_url,
+                          'fileNameSuggestion': filename,
+                          'user': {
+                              'id': user_id,
+                              'email': user_email
+                          }
+                      })
+                  }
+                  
+              except Exception as e:
+                  print(f"Error: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'headers': {
+                          'Content-Type': 'application/json',
+                          'Access-Control-Allow-Origin': '*',
+                          'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+                          'Access-Control-Allow-Methods': 'GET,OPTIONS'
+                      },
+                      'body': json.dumps({
+                          'error': 'Internal server error',
+                          'message': 'Failed to generate download URL'
+                      })
+                  }
+
+  # Health Check Lambda
+  HealthLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-${Environment}-gallery-health'
+      Runtime: python3.9
+      Handler: index.lambda_handler
+      Role: !GetAtt GalleryLambdaRole.Arn
+      Timeout: 10
+      MemorySize: 256
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref S3BucketName
+          REGION: !Ref AWS::Region
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import os
+          from datetime import datetime
+          
+          s3 = boto3.client('s3')
+          
+          def lambda_handler(event, context):
+              bucket_name = os.environ['BUCKET_NAME']
+              
+              # Extract user info from Cognito authorizer
+              user_claims = event.get('requestContext', {}).get('authorizer', {}).get('claims', {})
+              user_id = user_claims.get('sub', 'unknown')
+              user_email = user_claims.get('email', 'unknown')
+              user_groups = user_claims.get('cognito:groups', '').split(',') if user_claims.get('cognito:groups') else []
+              
+              # Verify user is in ApprovedUsers group
+              if 'ApprovedUsers' not in user_groups:
+                  return {
+                      'statusCode': 403,
+                      'headers': {
+                          'Content-Type': 'application/json',
+                          'Access-Control-Allow-Origin': '*'
+                      },
+                      'body': json.dumps({
+                          'error': 'Access denied',
+                          'message': 'User is not in the ApprovedUsers group'
+                      })
+                  }
+              
+              try:
+                  # Test S3 connection
+                  s3.head_bucket(Bucket=bucket_name)
+                  s3_status = 'connected'
+              except Exception as e:
+                  print(f"S3 connection failed: {str(e)}")
+                  s3_status = 'disconnected'
+              
+              return {
+                  'statusCode': 200,
+                  'headers': {
+                      'Content-Type': 'application/json',
+                      'Access-Control-Allow-Origin': '*'
+                  },
+                  'body': json.dumps({
+                      'success': True,
+                      'status': 'healthy',
+                      'services': {
+                          's3': s3_status,
+                          'authentication': 'working'
+                      },
+                      'user': {
+                          'id': user_id,
+                          'email': user_email,
+                          'groups': user_groups
+                      },
+                      'timestamp': datetime.utcnow().isoformat()
+                  })
+              }
+
+  # API Gateway Resources
+  GalleryResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref GalleryApiGateway
+      ParentId: !GetAtt GalleryApiGateway.RootResourceId
+      PathPart: 'gallery'
+
+  PicturesResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref GalleryApiGateway
+      ParentId: !Ref GalleryResource
+      PathPart: 'pictures'
+
+  VideosResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref GalleryApiGateway
+      ParentId: !Ref GalleryResource
+      PathPart: 'videos'
+
+  DocumentsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref GalleryApiGateway
+      ParentId: !Ref GalleryResource
+      PathPart: 'documents'
+
+  HealthResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref GalleryApiGateway
+      ParentId: !Ref GalleryResource
+      PathPart: 'health'
+
+  LettersResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref GalleryApiGateway
+      ParentId: !Ref GalleryResource
+      PathPart: 'letters'
+
+  LetterDownloadResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref GalleryApiGateway
+      ParentId: !Ref LettersResource
+      PathPart: '{title}'
+
+  # API Gateway Methods
+  PicturesGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref GalleryApiGateway
+      ResourceId: !Ref PicturesResource
+      HttpMethod: GET
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PicturesLambdaFunction.Arn}/invocations'
+
+  VideosGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref GalleryApiGateway
+      ResourceId: !Ref VideosResource
+      HttpMethod: GET
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${VideosLambdaFunction.Arn}/invocations'
+
+  DocumentsGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref GalleryApiGateway
+      ResourceId: !Ref DocumentsResource
+      HttpMethod: GET
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DocumentsLambdaFunction.Arn}/invocations'
+
+  HealthGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref GalleryApiGateway
+      ResourceId: !Ref HealthResource
+      HttpMethod: GET
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HealthLambdaFunction.Arn}/invocations'
+
+  LetterDownloadGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref GalleryApiGateway
+      ResourceId: !Ref LetterDownloadResource
+      HttpMethod: GET
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      RequestParameters:
+        method.request.path.title: true
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LetterDownloadLambdaFunction.Arn}/invocations'
+
+  # CORS OPTIONS methods
+  PicturesOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref GalleryApiGateway
+      ResourceId: !Ref PicturesResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: false
+            method.response.header.Access-Control-Allow-Methods: false
+            method.response.header.Access-Control-Allow-Origin: false
+
+  LetterDownloadOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref GalleryApiGateway
+      ResourceId: !Ref LetterDownloadResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: false
+            method.response.header.Access-Control-Allow-Methods: false
+            method.response.header.Access-Control-Allow-Origin: false
+
+  # Lambda Permissions
+  PicturesLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref PicturesLambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${GalleryApiGateway}/*/GET/gallery/pictures'
+
+  VideosLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref VideosLambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${GalleryApiGateway}/*/GET/gallery/videos'
+
+  DocumentsLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref DocumentsLambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${GalleryApiGateway}/*/GET/gallery/documents'
+
+  HealthLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref HealthLambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${GalleryApiGateway}/*/GET/gallery/health'
+
+  LetterDownloadLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref LetterDownloadLambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${GalleryApiGateway}/*/GET/gallery/letters/*'
+
+  # API Gateway Deployment
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - PicturesGetMethod
+      - VideosGetMethod
+      - DocumentsGetMethod
+      - HealthGetMethod
+      - LetterDownloadGetMethod
+      - PicturesOptionsMethod
+      - LetterDownloadOptionsMethod
+    Properties:
+      RestApiId: !Ref GalleryApiGateway
+      StageName: !Ref Environment
+
+Outputs:
+  ApiGatewayUrl:
+    Description: 'Gallery API Gateway URL'
+    Value: !Sub 'https://${GalleryApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}'
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-GalleryApiUrl'
+
+  ApiGatewayId:
+    Description: 'Gallery API Gateway ID'
+    Value: !Ref GalleryApiGateway
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-GalleryApiId'
+
+  PicturesEndpoint:
+    Description: 'Pictures endpoint URL'
+    Value: !Sub 'https://${GalleryApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/gallery/pictures'
+
+  VideosEndpoint:
+    Description: 'Videos endpoint URL'
+    Value: !Sub 'https://${GalleryApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/gallery/videos'
+
+  DocumentsEndpoint:
+    Description: 'Documents endpoint URL'
+    Value: !Sub 'https://${GalleryApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/gallery/documents'
+
+  HealthEndpoint:
+    Description: 'Health check endpoint URL'
+    Value: !Sub 'https://${GalleryApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/gallery/health'
+
+  LetterDownloadEndpoint:
+    Description: 'Letter download endpoint URL'
+    Value: !Sub 'https://${GalleryApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/gallery/letters'

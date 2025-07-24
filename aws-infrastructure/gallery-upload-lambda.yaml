@@ -1,0 +1,482 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Lambda function for authenticated media file uploads to Gallery'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'hold-that-thought'
+    Description: 'Name of the project for resource naming'
+  
+  Environment:
+    Type: String
+    Default: 'prod'
+    AllowedValues: ['dev', 'staging', 'prod']
+    Description: 'Environment name'
+
+  UserPoolArn:
+    Type: String
+    Description: 'ARN of the Cognito User Pool (from cognito-user-pool stack)'
+
+  S3BucketName:
+    Type: String
+    Description: 'Name of the S3 bucket for media storage'
+
+  ExistingApiGatewayId:
+    Type: String
+    Description: 'ID of the existing API Gateway to add the upload endpoint to'
+
+  ExistingAuthorizerId:
+    Type: String
+    Description: 'ID of the existing Cognito authorizer'
+
+Resources:
+  # Lambda Execution Role for Upload Function
+  UploadLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-upload-lambda-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: S3UploadAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                  - s3:GetObject
+                  - s3:DeleteObject
+                Resource: !Sub 'arn:aws:s3:::${S3BucketName}/media/*'
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !Sub 'arn:aws:s3:::${S3BucketName}'
+                Condition:
+                  StringLike:
+                    's3:prefix': 'media/*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*'
+
+  # Lambda function for media uploads
+  MediaUploadLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-${Environment}-media-upload'
+      Runtime: python3.9
+      Handler: index.lambda_handler
+      Role: !GetAtt UploadLambdaRole.Arn
+      Timeout: 300
+      MemorySize: 1024
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref S3BucketName
+          REGION: !Ref AWS::Region
+          MAX_FILE_SIZE: '52428800'  # 50MB in bytes
+          ALLOWED_EXTENSIONS: 'jpg,jpeg,png,gif,webp,bmp,mp4,avi,mov,wmv,flv,webm,pdf,doc,docx,txt,rtf'
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import base64
+          import os
+          import uuid
+          import mimetypes
+          from datetime import datetime
+          from urllib.parse import unquote
+          
+          s3 = boto3.client('s3')
+          
+          # Configuration from environment variables
+          BUCKET_NAME = os.environ['BUCKET_NAME']
+          REGION = os.environ['REGION']
+          MAX_FILE_SIZE = int(os.environ.get('MAX_FILE_SIZE', 52428800))  # 50MB default
+          ALLOWED_EXTENSIONS = os.environ.get('ALLOWED_EXTENSIONS', '').split(',')
+          
+          # File type mappings
+          MEDIA_TYPES = {
+              'pictures': {
+                  'extensions': ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'],
+                  'mime_types': ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'],
+                  'prefix': 'media/pictures/'
+              },
+              'videos': {
+                  'extensions': ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'],
+                  'mime_types': ['video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/flv', 'video/webm'],
+                  'prefix': 'media/videos/'
+              },
+              'documents': {
+                  'extensions': ['pdf', 'doc', 'docx', 'txt', 'rtf'],
+                  'mime_types': ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'text/rtf'],
+                  'prefix': 'media/documents/'
+              }
+          }
+          
+          def lambda_handler(event, context):
+              print(f"Event: {json.dumps(event, default=str)}")
+              
+              try:
+                  # Extract user info from Cognito authorizer
+                  user_claims = event.get('requestContext', {}).get('authorizer', {}).get('claims', {})
+                  user_id = user_claims.get('sub', 'unknown')
+                  user_email = user_claims.get('email', 'unknown')
+                  user_groups = user_claims.get('cognito:groups', '').split(',') if user_claims.get('cognito:groups') else []
+                  
+                  print(f"User: {user_email} ({user_id}), Groups: {user_groups}")
+                  
+                  # Verify user is in ApprovedUsers group
+                  if 'ApprovedUsers' not in user_groups:
+                      return create_response(403, {
+                          'error': 'Access denied',
+                          'message': 'User is not in the ApprovedUsers group'
+                      })
+                  
+                  # Parse the request body
+                  body = event.get('body', '')
+                  is_base64_encoded = event.get('isBase64Encoded', False)
+                  
+                  if is_base64_encoded:
+                      body = base64.b64decode(body)
+                  
+                  # Extract file information from the request
+                  # This assumes multipart/form-data or direct file upload
+                  file_info = parse_upload_request(event, body)
+                  
+                  if not file_info:
+                      return create_response(400, {
+                          'error': 'Invalid request',
+                          'message': 'No file data found in request'
+                      })
+                  
+                  # Validate file
+                  validation_result = validate_file(file_info)
+                  if not validation_result['valid']:
+                      return create_response(400, {
+                          'error': 'File validation failed',
+                          'message': validation_result['message']
+                      })
+                  
+                  # Determine media type and S3 key
+                  media_type = determine_media_type(file_info['filename'], file_info.get('content_type'))
+                  if not media_type:
+                      return create_response(400, {
+                          'error': 'Unsupported file type',
+                          'message': f"File type not supported: {file_info['filename']}"
+                      })
+                  
+                  # Generate unique filename to prevent conflicts
+                  file_extension = file_info['filename'].split('.')[-1].lower()
+                  unique_filename = f"{uuid.uuid4().hex}_{file_info['filename']}"
+                  s3_key = f"{MEDIA_TYPES[media_type]['prefix']}{unique_filename}"
+                  
+                  # Upload to S3
+                  upload_result = upload_to_s3(
+                      file_data=file_info['data'],
+                      s3_key=s3_key,
+                      content_type=file_info.get('content_type', 'application/octet-stream'),
+                      user_id=user_id,
+                      user_email=user_email,
+                      original_filename=file_info['filename']
+                  )
+                  
+                  if not upload_result['success']:
+                      return create_response(500, {
+                          'error': 'Upload failed',
+                          'message': upload_result['message']
+                      })
+                  
+                  # Return success response
+                  return create_response(200, {
+                      'success': True,
+                      'message': 'File uploaded successfully',
+                      'data': {
+                          'filename': file_info['filename'],
+                          'media_type': media_type,
+                          's3_key': s3_key,
+                          'file_size': len(file_info['data']),
+                          'upload_time': datetime.utcnow().isoformat(),
+                          'uploaded_by': user_email
+                      }
+                  })
+                  
+              except Exception as e:
+                  print(f"Error: {str(e)}")
+                  return create_response(500, {
+                      'error': 'Internal server error',
+                      'message': str(e)
+                  })
+          
+          def parse_upload_request(event, body):
+              """Parse the upload request to extract file information"""
+              try:
+                  # Handle different request formats
+                  content_type = event.get('headers', {}).get('content-type', '').lower()
+                  
+                  if 'multipart/form-data' in content_type:
+                      # Parse multipart form data (simplified - in production use a proper parser)
+                      return parse_multipart_data(body, content_type)
+                  elif 'application/json' in content_type:
+                      # Handle JSON with base64 encoded file
+                      return parse_json_upload(body)
+                  else:
+                      # Direct binary upload
+                      filename = event.get('queryStringParameters', {}).get('filename', 'upload')
+                      return {
+                          'filename': filename,
+                          'data': body,
+                          'content_type': content_type
+                      }
+              except Exception as e:
+                  print(f"Error parsing request: {str(e)}")
+                  return None
+          
+          def parse_json_upload(body):
+              """Parse JSON upload with base64 encoded file"""
+              try:
+                  if isinstance(body, bytes):
+                      body = body.decode('utf-8')
+                  
+                  data = json.loads(body)
+                  
+                  if 'file_data' not in data or 'filename' not in data:
+                      return None
+                  
+                  file_data = base64.b64decode(data['file_data'])
+                  
+                  return {
+                      'filename': data['filename'],
+                      'data': file_data,
+                      'content_type': data.get('content_type', 'application/octet-stream')
+                  }
+              except Exception as e:
+                  print(f"Error parsing JSON upload: {str(e)}")
+                  return None
+          
+          def parse_multipart_data(body, content_type):
+              """Simplified multipart parser - in production use a proper library"""
+              # This is a simplified implementation
+              # In production, use a proper multipart parser library
+              try:
+                  # Extract boundary
+                  boundary = content_type.split('boundary=')[1]
+                  if isinstance(body, str):
+                      body = body.encode('utf-8')
+                  
+                  # Split by boundary (simplified)
+                  parts = body.split(f'--{boundary}'.encode())
+                  
+                  for part in parts:
+                      if b'Content-Disposition: form-data' in part and b'filename=' in part:
+                          # Extract filename
+                          filename_start = part.find(b'filename="') + 10
+                          filename_end = part.find(b'"', filename_start)
+                          filename = part[filename_start:filename_end].decode('utf-8')
+                          
+                          # Extract content type
+                          content_type_match = part.find(b'Content-Type: ')
+                          if content_type_match != -1:
+                              ct_start = content_type_match + 14
+                              ct_end = part.find(b'\r\n', ct_start)
+                              content_type = part[ct_start:ct_end].decode('utf-8')
+                          else:
+                              content_type = 'application/octet-stream'
+                          
+                          # Extract file data
+                          data_start = part.find(b'\r\n\r\n') + 4
+                          data_end = part.rfind(b'\r\n')
+                          file_data = part[data_start:data_end]
+                          
+                          return {
+                              'filename': filename,
+                              'data': file_data,
+                              'content_type': content_type
+                          }
+              except Exception as e:
+                  print(f"Error parsing multipart data: {str(e)}")
+                  return None
+          
+          def validate_file(file_info):
+              """Validate uploaded file"""
+              # Check file size
+              if len(file_info['data']) > MAX_FILE_SIZE:
+                  return {
+                      'valid': False,
+                      'message': f'File size exceeds maximum allowed size of {MAX_FILE_SIZE} bytes'
+                  }
+              
+              # Check file extension
+              filename = file_info['filename'].lower()
+              extension = filename.split('.')[-1] if '.' in filename else ''
+              
+              if extension not in ALLOWED_EXTENSIONS:
+                  return {
+                      'valid': False,
+                      'message': f'File extension "{extension}" is not allowed'
+                  }
+              
+              # Check for empty file
+              if len(file_info['data']) == 0:
+                  return {
+                      'valid': False,
+                      'message': 'File is empty'
+                  }
+              
+              return {'valid': True}
+          
+          def determine_media_type(filename, content_type=None):
+              """Determine media type based on filename and content type"""
+              extension = filename.lower().split('.')[-1] if '.' in filename else ''
+              
+              for media_type, config in MEDIA_TYPES.items():
+                  if extension in config['extensions']:
+                      return media_type
+                  if content_type and content_type.lower() in [mt.lower() for mt in config['mime_types']]:
+                      return media_type
+              
+              return None
+          
+          def upload_to_s3(file_data, s3_key, content_type, user_id, user_email, original_filename):
+              """Upload file to S3 with metadata"""
+              try:
+                  # Prepare metadata
+                  metadata = {
+                      'uploaded-by': user_email,
+                      'user-id': user_id,
+                      'original-filename': original_filename,
+                      'upload-timestamp': datetime.utcnow().isoformat()
+                  }
+                  
+                  # Upload to S3
+                  s3.put_object(
+                      Bucket=BUCKET_NAME,
+                      Key=s3_key,
+                      Body=file_data,
+                      ContentType=content_type,
+                      Metadata=metadata,
+                      ServerSideEncryption='AES256'
+                  )
+                  
+                  print(f"Successfully uploaded {s3_key} to S3")
+                  return {'success': True}
+                  
+              except Exception as e:
+                  print(f"S3 upload error: {str(e)}")
+                  return {
+                      'success': False,
+                      'message': f'S3 upload failed: {str(e)}'
+                  }
+          
+          def create_response(status_code, body):
+              """Create standardized API response"""
+              return {
+                  'statusCode': status_code,
+                  'headers': {
+                      'Content-Type': 'application/json',
+                      'Access-Control-Allow-Origin': '*',
+                      'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+                      'Access-Control-Allow-Methods': 'POST,OPTIONS'
+                  },
+                  'body': json.dumps(body)
+              }
+
+  # API Gateway Resource for Upload
+  UploadResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref ExistingApiGatewayId
+      ParentId: !Sub '{{resolve:ssm:/aws/apigateway/restapis/${ExistingApiGatewayId}/resources/root}}'
+      PathPart: 'upload'
+
+  # POST method for file upload
+  UploadPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref ExistingApiGatewayId
+      ResourceId: !Ref UploadResource
+      HttpMethod: POST
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref ExistingAuthorizerId
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${MediaUploadLambdaFunction.Arn}/invocations'
+        IntegrationResponses:
+          - StatusCode: 200
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: false
+
+  # OPTIONS method for CORS
+  UploadOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref ExistingApiGatewayId
+      ResourceId: !Ref UploadResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+              application/json: ''
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: false
+            method.response.header.Access-Control-Allow-Methods: false
+            method.response.header.Access-Control-Allow-Origin: false
+
+  # Lambda permission for API Gateway
+  UploadLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref MediaUploadLambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ExistingApiGatewayId}/*/POST/upload'
+
+  # CloudWatch Log Group for Lambda
+  UploadLambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${MediaUploadLambdaFunction}'
+      RetentionInDays: 14
+
+Outputs:
+  UploadLambdaFunctionArn:
+    Description: 'ARN of the media upload Lambda function'
+    Value: !GetAtt MediaUploadLambdaFunction.Arn
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-UploadLambdaArn'
+
+  UploadEndpoint:
+    Description: 'Upload endpoint URL'
+    Value: !Sub 'https://${ExistingApiGatewayId}.execute-api.${AWS::Region}.amazonaws.com/prod/upload'
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-UploadEndpoint'
+
+  UploadResourceId:
+    Description: 'API Gateway Resource ID for upload endpoint'
+    Value: !Ref UploadResource
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-UploadResourceId'

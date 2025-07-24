@@ -8,6 +8,7 @@
   import Post from '$lib/components/post_card.svelte'
   import { posts as storedPosts, tags as storedTags } from '$lib/stores/posts'
   import { title as storedTitle } from '$lib/stores/title'
+  import { isAuthenticated, authLoading } from '$lib/auth/auth-store'
   import { onMount } from 'svelte'
   import { fly } from 'svelte/transition'
   import { addLetterLambda } from '$lib/utils/s3Client'
@@ -19,6 +20,15 @@
   let [posts, tags, years]: [Urara.Post[], string[], number[]] = [[], [], []]
   let isProcessing = false
   let fileInput: HTMLInputElement;
+  let cognitoConfigured = false
+  let developmentMode = false
+  
+  // Pagination variables
+  let displayedPosts: Urara.Post[] = []
+  let currentPage = 0
+  let postsPerPage = 10
+  let isLoadingMore = false
+  let hasMorePosts = true
 
   storedTitle.set('')
 
@@ -33,6 +43,46 @@
     posts = !tags ? allPosts : allPosts.filter(post => tags.every(tag => post.tags?.includes(tag)))
     if (browser && window.location.pathname === '/')
       goto(tags.length > 0 ? `?tags=${tags.toString()}` : `/`, { replaceState: true })
+    
+    // Reset pagination when tags change
+    resetPagination()
+  }
+
+  // Reset pagination and load first batch
+  function resetPagination() {
+    currentPage = 0
+    displayedPosts = []
+    hasMorePosts = true
+    loadMorePosts()
+  }
+
+  // Load more posts (10 at a time)
+  function loadMorePosts() {
+    if (isLoadingMore || !hasMorePosts) return
+    
+    isLoadingMore = true
+    
+    // Simulate a small delay for better UX
+    setTimeout(() => {
+      const startIndex = currentPage * postsPerPage
+      const endIndex = startIndex + postsPerPage
+      const newPosts = posts.slice(startIndex, endIndex)
+      
+      if (newPosts.length === 0) {
+        hasMorePosts = false
+      } else {
+        displayedPosts = [...displayedPosts, ...newPosts]
+        currentPage++
+        hasMorePosts = endIndex < posts.length
+      }
+      
+      isLoadingMore = false
+    }, 300)
+  }
+
+  // Watch for posts changes and reset pagination
+  $: if (posts && posts.length > 0 && displayedPosts.length === 0) {
+    resetPagination()
   }
 
 async function addLetter() {
@@ -93,16 +143,80 @@ async function addLetter() {
 
   onMount(() => {
     if (browser) {
-      if ($page.url.searchParams.get('tags'))
-        tags = $page.url.searchParams.get('tags')?.split(',') ?? []
-      loaded = true
+      // Check if Cognito is configured
+      import('$lib/auth/cognito-config').then(({ isCognitoConfigured }) => {
+        cognitoConfigured = isCognitoConfigured()
+        
+        if (!cognitoConfigured) {
+          // Cognito not configured - show content without authentication
+          console.warn('⚠️  Cognito not configured - running in development mode')
+          developmentMode = true
+          if ($page.url.searchParams.get('tags'))
+            tags = $page.url.searchParams.get('tags')?.split(',') ?? []
+          loaded = true
+          return
+        }
+        
+        // Cognito is configured - check authentication and approval
+        const unsubscribe = isAuthenticated.subscribe(authenticated => {
+          if (!$authLoading && !authenticated) {
+            goto('/auth/login')
+            return
+          }
+          
+          // Check if user is authenticated and approved
+          if (authenticated) {
+            // Check user's groups from the auth store
+            import('$lib/auth/auth-store').then(({ currentUser }) => {
+              const userUnsubscribe = currentUser.subscribe(user => {
+                if (user) {
+                  const isApproved = user['cognito:groups']?.includes('ApprovedUsers') || false
+                  
+                  if (!isApproved) {
+                    // User is authenticated but not approved
+                    goto('/auth/pending-approval')
+                    return
+                  }
+                  
+                  // User is approved - load content
+                  if ($page.url.searchParams.get('tags'))
+                    tags = $page.url.searchParams.get('tags')?.split(',') ?? []
+                  loaded = true
+                }
+              })
+              
+              return userUnsubscribe
+            })
+          }
+        })
+
+        return unsubscribe
+      })
     }
   })
 </script>
 
 <Head />
 
-<div class='flex flex-col flex-nowrap justify-center xl:flex-row xl:flex-wrap h-feed'>
+{#if $authLoading && cognitoConfigured}
+  <div class="flex items-center justify-center min-h-screen">
+    <div class="loading loading-spinner loading-lg"></div>
+  </div>
+{:else if $isAuthenticated || developmentMode}
+  <!-- Show development mode banner if Cognito isn't configured -->
+  {#if developmentMode}
+    <div class="alert alert-warning mb-4">
+      <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+      </svg>
+      <div>
+        <h3 class="font-bold">Development Mode</h3>
+        <div class="text-sm">Cognito authentication not configured. Visit <a href="/auth-status" class="link">auth status</a> for setup instructions.</div>
+      </div>
+    </div>
+  {/if}
+  
+  <div class='flex flex-col flex-nowrap justify-center xl:flex-row xl:flex-wrap h-feed'>
  
 
   <div
@@ -187,7 +301,7 @@ async function addLetter() {
         itemprop='mainEntityOfPage'
         itemscope
         itemtype='https://schema.org/Blog'>
-        {#each posts as post, index}
+        {#each displayedPosts as post, index}
           {@const year = new Date(post.created).getFullYear()}
           {#if !years.includes(year)}
             <div
@@ -205,6 +319,42 @@ async function addLetter() {
           </div>
         {/each}
       </main>
+      
+      <!-- Load More Button -->
+      {#if loaded && displayedPosts.length > 0 && hasMorePosts}
+        <div class="flex justify-center my-8">
+          <button 
+            class="btn btn-primary btn-lg gap-2"
+            class:loading={isLoadingMore}
+            disabled={isLoadingMore}
+            on:click={loadMorePosts}
+          >
+            {#if isLoadingMore}
+              <span class="loading loading-spinner loading-sm"></span>
+              Loading...
+            {:else}
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+              </svg>
+              Load More Letters
+            {/if}
+          </button>
+        </div>
+      {/if}
+      
+      <!-- End of Posts Message -->
+      {#if loaded && displayedPosts.length > 0 && !hasMorePosts}
+        <div class="text-center my-8 p-6 bg-base-200 rounded-lg">
+          <div class="text-base-content/60">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p class="font-medium">You've reached the end!</p>
+            <p class="text-sm mt-1">All {posts.length} letters have been loaded.</p>
+          </div>
+        </div>
+      {/if}
+      
       <div
         class='sticky bottom-0 md:static md:mt-8'
         class:hidden={!loaded}
@@ -215,4 +365,10 @@ async function addLetter() {
       </div>
     {/key}
   </div>
-</div>
+  </div>
+{:else}
+  <!-- This should not show due to redirect, but just in case -->
+  <div class="flex items-center justify-center min-h-screen">
+    <div class="loading loading-spinner loading-lg"></div>
+  </div>
+{/if}

@@ -1,0 +1,196 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Lambda function to send email notifications on user signup'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'hold-that-thought'
+    Description: 'Name of the project for resource naming'
+  
+  Environment:
+    Type: String
+    Default: 'prod'
+    AllowedValues: ['dev', 'staging', 'prod']
+    Description: 'Environment name'
+
+  NotificationEmail:
+    Type: String
+    Description: 'Email address to receive signup notifications'
+    Default: 'gemenielabs@gmail.com'
+
+  UserPoolId:
+    Type: String
+    Description: 'Cognito User Pool ID to attach the trigger to'
+
+Resources:
+  # IAM Role for Lambda
+  SignupNotificationLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-signup-notification-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SESPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ses:SendEmail
+                  - ses:SendRawEmail
+                Resource: '*'
+
+  # Lambda Function
+  SignupNotificationLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-${Environment}-signup-notification'
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt SignupNotificationLambdaRole.Arn
+      Timeout: 30
+      Environment:
+        Variables:
+          NOTIFICATION_EMAIL: !Ref NotificationEmail
+          PROJECT_NAME: !Ref ProjectName
+          ENVIRONMENT: !Ref Environment
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import os
+          from datetime import datetime
+
+          ses = boto3.client('ses')
+
+          def lambda_handler(event, context):
+              print(f"Received event: {json.dumps(event)}")
+              
+              try:
+                  # Extract user information from the event
+                  user_attributes = event.get('request', {}).get('userAttributes', {})
+                  email = user_attributes.get('email', 'Unknown')
+                  given_name = user_attributes.get('given_name', '')
+                  family_name = user_attributes.get('family_name', '')
+                  
+                  # Get environment variables
+                  notification_email = os.environ['NOTIFICATION_EMAIL']
+                  project_name = os.environ['PROJECT_NAME']
+                  environment = os.environ['ENVIRONMENT']
+                  
+                  # Create email content
+                  full_name = f"{given_name} {family_name}".strip() or "Unknown"
+                  timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
+                  
+                  subject = f"New User Signup - {project_name.title()} ({environment.upper()})"
+                  
+                  body_text = f"""
+          New User Signup Notification
+          
+          A new user has signed up for {project_name.title()}:
+          
+          Name: {full_name}
+          Email: {email}
+          Time: {timestamp}
+          Environment: {environment.upper()}
+          
+          The user is currently pending approval and will need to be added to the ApprovedUsers group to access the application.
+          
+          To approve this user:
+          1. Go to AWS Cognito Console
+          2. Navigate to User Pools > {project_name}-{environment}-user-pool
+          3. Go to Users and groups > Groups
+          4. Select "ApprovedUsers" group
+          5. Add the user: {email}
+          
+          Or use the AWS CLI:
+          aws cognito-idp admin-add-user-to-group --user-pool-id {event.get('userPoolId', 'USER_POOL_ID')} --username {email} --group-name ApprovedUsers
+          
+          This is an automated notification from {project_name.title()}.
+                  """
+                  
+                  body_html = f"""
+          <html>
+          <head></head>
+          <body>
+            <h2>New User Signup Notification</h2>
+            <p>A new user has signed up for <strong>{project_name.title()}</strong>:</p>
+            
+            <table style="border-collapse: collapse; margin: 20px 0;">
+              <tr><td style="padding: 8px; font-weight: bold;">Name:</td><td style="padding: 8px;">{full_name}</td></tr>
+              <tr><td style="padding: 8px; font-weight: bold;">Email:</td><td style="padding: 8px;">{email}</td></tr>
+              <tr><td style="padding: 8px; font-weight: bold;">Time:</td><td style="padding: 8px;">{timestamp}</td></tr>
+              <tr><td style="padding: 8px; font-weight: bold;">Environment:</td><td style="padding: 8px;">{environment.upper()}</td></tr>
+            </table>
+            
+            <p><strong>The user is currently pending approval</strong> and will need to be added to the ApprovedUsers group to access the application.</p>
+            
+            <h3>To approve this user:</h3>
+            <ol>
+              <li>Go to AWS Cognito Console</li>
+              <li>Navigate to User Pools &gt; {project_name}-{environment}-user-pool</li>
+              <li>Go to Users and groups &gt; Groups</li>
+              <li>Select "ApprovedUsers" group</li>
+              <li>Add the user: <code>{email}</code></li>
+            </ol>
+            
+            <p><strong>Or use the AWS CLI:</strong></p>
+            <pre style="background-color: #f4f4f4; padding: 10px; border-radius: 4px;">aws cognito-idp admin-add-user-to-group --user-pool-id {event.get('userPoolId', 'USER_POOL_ID')} --username {email} --group-name ApprovedUsers</pre>
+            
+            <hr style="margin: 30px 0;">
+            <p style="color: #666; font-size: 12px;">This is an automated notification from {project_name.title()}.</p>
+          </body>
+          </html>
+                  """
+                  
+                  # Send email
+                  response = ses.send_email(
+                      Source=notification_email,
+                      Destination={'ToAddresses': [notification_email]},
+                      Message={
+                          'Subject': {'Data': subject},
+                          'Body': {
+                              'Text': {'Data': body_text},
+                              'Html': {'Data': body_html}
+                          }
+                      }
+                  )
+                  
+                  print(f"Email sent successfully: {response['MessageId']}")
+                  
+              except Exception as e:
+                  print(f"Error sending notification: {str(e)}")
+                  # Don't fail the signup process if email fails
+              
+              # Always return the event to continue the signup process
+              return event
+
+  # Lambda Permission for Cognito to invoke
+  CognitoLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SignupNotificationLambda
+      Action: lambda:InvokeFunction
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPoolId}'
+
+Outputs:
+  LambdaFunctionArn:
+    Description: 'ARN of the signup notification Lambda function'
+    Value: !GetAtt SignupNotificationLambda.Arn
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-SignupNotificationLambdaArn'
+
+  LambdaFunctionName:
+    Description: 'Name of the signup notification Lambda function'
+    Value: !Ref SignupNotificationLambda
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-SignupNotificationLambdaName'

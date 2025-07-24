@@ -1,0 +1,176 @@
+{
+  "successEvent": {
+    "httpMethod": "GET",
+    "path": "/pdf-download",
+    "pathParameters": null,
+    "queryStringParameters": {
+      "filename": "test-document.pdf"
+    },
+    "headers": {
+      "Authorization": "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "Content-Type": "application/json",
+      "Origin": "https://example.com"
+    },
+    "requestContext": {
+      "accountId": "123456789012",
+      "apiId": "abcdef123",
+      "httpMethod": "GET",
+      "requestId": "test-request-id",
+      "resourcePath": "/pdf-download",
+      "stage": "prod",
+      "authorizer": {
+        "claims": {
+          "sub": "user-123-456-789",
+          "email": "john.doe@example.com",
+          "cognito:groups": "ApprovedUsers",
+          "aud": "client-id",
+          "exp": 1640995200,
+          "iat": 1640991600,
+          "token_use": "access"
+        }
+      }
+    },
+    "body": null,
+    "isBase64Encoded": false
+  },
+  
+  "unauthorizedEvent": {
+    "httpMethod": "GET",
+    "path": "/pdf-download",
+    "pathParameters": null,
+    "queryStringParameters": null,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "requestContext": {
+      "accountId": "123456789012",
+      "apiId": "abcdef123",
+      "httpMethod": "GET",
+      "requestId": "test-request-id-2",
+      "resourcePath": "/pdf-download",
+      "stage": "prod"
+    },
+    "body": null,
+    "isBase64Encoded": false
+  },
+  
+  "forbiddenEvent": {
+    "httpMethod": "GET",
+    "path": "/pdf-download",
+    "pathParameters": null,
+    "queryStringParameters": null,
+    "headers": {
+      "Authorization": "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "Content-Type": "application/json"
+    },
+    "requestContext": {
+      "accountId": "123456789012",
+      "apiId": "abcdef123",
+      "httpMethod": "GET",
+      "requestId": "test-request-id-3",
+      "resourcePath": "/pdf-download",
+      "stage": "prod",
+      "authorizer": {
+        "claims": {
+          "sub": "user-789-123-456",
+          "email": "jane.smith@example.com",
+          "cognito:groups": "RegularUsers",
+          "aud": "client-id",
+          "exp": 1640995200,
+          "iat": 1640991600,
+          "token_use": "access"
+        }
+      }
+    },
+    "body": null,
+    "isBase64Encoded": false
+  },
+  
+  "corsPreflightEvent": {
+    "httpMethod": "OPTIONS",
+    "path": "/pdf-download",
+    "pathParameters": null,
+    "queryStringParameters": null,
+    "headers": {
+      "Origin": "https://example.com",
+      "Access-Control-Request-Method": "GET",
+      "Access-Control-Request-Headers": "Authorization,Content-Type"
+    },
+    "requestContext": {
+      "accountId": "123456789012",
+      "apiId": "abcdef123",
+      "httpMethod": "OPTIONS",
+      "requestId": "test-request-id-4",
+      "resourcePath": "/pdf-download",
+      "stage": "prod"
+    },
+    "body": null,
+    "isBase64Encoded": false
+  },
+  
+  "multipleGroupsEvent": {
+    "httpMethod": "GET",
+    "path": "/pdf-download",
+    "pathParameters": null,
+    "queryStringParameters": {
+      "filename": "another-document.pdf"
+    },
+    "headers": {
+      "Authorization": "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "Content-Type": "application/json"
+    },
+    "requestContext": {
+      "accountId": "123456789012",
+      "apiId": "abcdef123",
+      "httpMethod": "GET",
+      "requestId": "test-request-id-5",
+      "resourcePath": "/pdf-download",
+      "stage": "prod",
+      "authorizer": {
+        "claims": {
+          "sub": "user-456-789-123",
+          "email": "admin@example.com",
+          "cognito:groups": ["ApprovedUsers", "AdminUsers"],
+          "aud": "client-id",
+          "exp": 1640995200,
+          "iat": 1640991600,
+          "token_use": "access"
+        }
+      }
+    },
+    "body": null,
+    "isBase64Encoded": false
+  },
+  
+  "noFilenameEvent": {
+    "httpMethod": "GET",
+    "path": "/pdf-download",
+    "pathParameters": null,
+    "queryStringParameters": null,
+    "headers": {
+      "Authorization": "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "Content-Type": "application/json"
+    },
+    "requestContext": {
+      "accountId": "123456789012",
+      "apiId": "abcdef123",
+      "httpMethod": "GET",
+      "requestId": "test-request-id-6",
+      "resourcePath": "/pdf-download",
+      "stage": "prod",
+      "authorizer": {
+        "claims": {
+          "sub": "user-321-654-987",
+          "email": "user@example.com",
+          "cognito:groups": "ApprovedUsers",
+          "aud": "client-id",
+          "exp": 1640995200,
+          "iat": 1640991600,
+          "token_use": "access"
+        }
+      }
+    },
+    "body": null,
+    "isBase64Encoded": false
+  }
+}

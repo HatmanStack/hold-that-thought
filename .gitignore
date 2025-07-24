@@ -48,3 +48,5 @@ amplifytools.xcconfig
 .secret-*
 **.sample
 #amplify-do-not-edit-end
+lambdas/media-upload-lambda/node_modules
+lambdas/pdf-download-lambda/node_modules

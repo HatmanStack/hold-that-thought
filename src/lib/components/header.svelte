@@ -2,15 +2,13 @@
   import { browser, dev } from '$app/environment'
   import Nav from '$lib/components/header_nav.svelte'
   import Search from '$lib/components/header_search.svelte'
+  import UserMenu from '$lib/components/auth/UserMenu.svelte'
   import { header as headerConfig, theme } from '$lib/config/general'
   import { site } from '$lib/config/site'
   import { title as storedTitle } from '$lib/stores/title'
-  import { isAuthenticated, user } from '$lib/stores/user'
-  import { logout } from '$lib/utils/auth'
   import { hslToHex } from '$lib/utils/color'
   import { fly } from 'svelte/transition'
-  import { onMount } from 'svelte'
-  import { initAuth } from '$lib/utils/auth'
+  import { currentUser, isAuthenticated } from '$lib/auth/auth-store'
 
   export let path: string
   let title: string
@@ -22,6 +20,10 @@
   let [scrollY, lastY] = [0, 0]
 
   storedTitle.subscribe(storedTitle => (title = storedTitle as string))
+
+  // Check if user is approved (in ApprovedUsers group)
+  $: isUserApproved = $isAuthenticated && $currentUser && 
+    ($currentUser['cognito:groups']?.includes('ApprovedUsers') || false)
 
   $: if (browser && currentTheme) {
     document.documentElement.setAttribute('data-theme', currentTheme)
@@ -47,13 +49,8 @@
   if (browser) {
     currentTheme
       = localStorage.getItem('theme')
-      ?? (window.matchMedia('(prefers-color-scheme: dark)').matches ? theme?.[1].name : theme[0].name ?? theme[0].name)
+      ?? 'retro' // Default to retro theme
   }
-  
-  onMount(() => {
-    // Initialize authentication state
-    initAuth()
-  })
 </script>
 
 <svelte:head>
@@ -74,6 +71,13 @@
           <Nav nav={headerConfig.nav} {path} {pin} {scrollY} {title} />
         {/if}
         <a class='btn btn-ghost normal-case text-lg' href='/'>{site.title}</a>
+        <!-- Hide these links on small screens -->
+        <div class='hidden lg:flex ml-4 space-x-2'>
+          <a class='btn btn-ghost normal-case' href='/about' class:btn-active={path === '/about'}>About</a>
+          {#if isUserApproved}
+            <a class='btn btn-ghost normal-case' href='/gallery' class:btn-active={path === '/gallery'}>Gallery</a>
+          {/if}
+        </div>
       </div>
       <div class='navbar-end'>
         {#if headerConfig.search}
@@ -81,32 +85,7 @@
             <span class='i-heroicons-outline-search' />
           </button>
         {/if}
-        
-        <!-- Authentication UI -->
-        {#if $isAuthenticated}
-          <div class="dropdown dropdown-end">
-            <div class="btn btn-ghost btn-circle avatar" tabindex="0">
-              {#if $user?.picture}
-                <div class="w-10 rounded-full">
-                  <img src={$user.picture} alt="Profile" />
-                </div>
-              {:else}
-                <div class="w-10 rounded-full bg-primary text-primary-content grid place-items-center">
-                  <span>{$user?.given_name?.[0] || $user?.username?.[0] || 'U'}</span>
-                </div>
-              {/if}
-            </div>
-            <ul class="menu dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52" tabindex="0">
-              <li><a href="/profile">Profile</a></li>
-              <li><a href="/settings">Settings</a></li>
-              <li><button on:click={logout}>Logout</button></li>
-            </ul>
-          </div>
-        {:else}
-          <a href="/auth" class="btn btn-ghost">Login</a>
-          <a href="/auth?mode=signup" class="btn btn-primary">Sign Up</a>
-        {/if}
-        
+        <UserMenu />
         <div class='dropdown dropdown-end' id='change-theme'>
           <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
           <!-- reference: https://github.com/saadeghi/daisyui/issues/1285 -->

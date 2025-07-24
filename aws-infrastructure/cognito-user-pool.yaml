@@ -1,0 +1,291 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Cognito User Pool and Identity Pool for SvelteKit Authentication'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'sveltekit-auth'
+    Description: 'Name of the project for resource naming'
+  
+  Environment:
+    Type: String
+    Default: 'dev'
+    AllowedValues: ['dev', 'staging', 'prod']
+    Description: 'Environment name'
+
+  GoogleClientId:
+    Type: String
+    Default: ''
+    Description: 'Google OAuth Client ID (leave empty to configure later)'
+    NoEcho: false
+
+  GoogleClientSecret:
+    Type: String
+    Default: ''
+    Description: 'Google OAuth Client Secret (leave empty to configure later)'
+    NoEcho: true
+
+  SignupNotificationLambdaArn:
+    Type: String
+    Default: ''
+    Description: 'ARN of the Lambda function for signup notifications (leave empty to disable)'
+
+Conditions:
+  HasGoogleCredentials: !And
+    - !Not [!Equals [!Ref GoogleClientId, '']]
+    - !Not [!Equals [!Ref GoogleClientSecret, '']]
+  
+  HasSignupNotificationLambda: !Not [!Equals [!Ref SignupNotificationLambdaArn, '']]
+
+Resources:
+  # Cognito User Pool
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub '${ProjectName}-${Environment}-user-pool'
+      AliasAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      EmailConfiguration:
+        EmailSendingAccount: COGNITO_DEFAULT
+      # Only allow admin to create users - disable self-registration
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      # Lambda triggers for signup notifications
+      LambdaConfig:
+        PreSignUp: !If
+          - HasSignupNotificationLambda
+          - !Ref SignupNotificationLambdaArn
+          - !Ref 'AWS::NoValue'
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: false
+          RequireLowercase: false
+          RequireNumbers: false
+          RequireSymbols: false
+          TemporaryPasswordValidityDays: 7
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Required: true
+          Mutable: true
+        - Name: given_name
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+        - Name: family_name
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+        - Name: picture
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+      UserPoolTags:
+        Project: !Ref ProjectName
+        Environment: !Ref Environment
+
+  # Google Identity Provider (conditional)
+  GoogleIdentityProvider:
+    Type: AWS::Cognito::UserPoolIdentityProvider
+    Condition: HasGoogleCredentials
+    Properties:
+      UserPoolId: !Ref UserPool
+      ProviderName: Google
+      ProviderType: Google
+      ProviderDetails:
+        client_id: !Ref GoogleClientId
+        client_secret: !Ref GoogleClientSecret
+        authorize_scopes: 'email openid profile'
+      AttributeMapping:
+        email: email
+        given_name: given_name
+        family_name: family_name
+        picture: picture
+        username: sub
+
+  # User Pool Domain for Hosted UI
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Sub '${ProjectName}-${Environment}-${AWS::AccountId}'
+      UserPoolId: !Ref UserPool
+
+  # Cognito User Pool Client
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub '${ProjectName}-${Environment}-client'
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+      PreventUserExistenceErrors: ENABLED
+      SupportedIdentityProviders: !If
+        - HasGoogleCredentials
+        - [COGNITO, Google]
+        - [COGNITO]
+      CallbackURLs:
+        - http://localhost:5173/auth/callback
+        - http://localhost:5173
+        - https://hold-that-thought.com/auth/callback
+        - https://hold-that-thought.com
+      LogoutURLs:
+        - http://localhost:5173/auth/logout
+        - http://localhost:5173
+        - https://hold-that-thought.com/auth/logout
+        - https://hold-that-thought.com
+      AllowedOAuthFlows:
+        - code
+        - implicit
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+        - aws.cognito.signin.user.admin
+      AllowedOAuthFlowsUserPoolClient: true
+      RefreshTokenValidity: 30
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      TokenValidityUnits:
+        AccessToken: minutes
+        IdToken: minutes
+        RefreshToken: days
+
+  # Cognito Identity Pool
+  IdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      IdentityPoolName: !Sub '${ProjectName}-${Environment}-identity-pool'
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders:
+        - ClientId: !Ref UserPoolClient
+          ProviderName: !GetAtt UserPool.ProviderName
+
+  # IAM Role for authenticated users
+  AuthenticatedRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-authenticated-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                'cognito-identity.amazonaws.com:aud': !Ref IdentityPool
+              'ForAnyValue:StringLike':
+                'cognito-identity.amazonaws.com:amr': authenticated
+      Policies:
+        - PolicyName: AuthenticatedUserPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cognito-sync:*
+                  - cognito-identity:*
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - execute-api:Invoke
+                Resource: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*/*/*'
+
+  # IAM Role for unauthenticated users (if needed)
+  UnauthenticatedRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-unauthenticated-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                'cognito-identity.amazonaws.com:aud': !Ref IdentityPool
+              'ForAnyValue:StringLike':
+                'cognito-identity.amazonaws.com:amr': unauthenticated
+      Policies:
+        - PolicyName: UnauthenticatedUserPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Deny
+                Action: '*'
+                Resource: '*'
+
+  # ApprovedUsers Group
+  ApprovedUsersGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: ApprovedUsers
+      Description: 'Group for users with approved access to the application'
+      UserPoolId: !Ref UserPool
+      Precedence: 1
+
+  # Attach roles to identity pool
+  IdentityPoolRoleAttachment:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId: !Ref IdentityPool
+      Roles:
+        authenticated: !GetAtt AuthenticatedRole.Arn
+        unauthenticated: !GetAtt UnauthenticatedRole.Arn
+
+Outputs:
+  UserPoolId:
+    Description: 'Cognito User Pool ID'
+    Value: !Ref UserPool
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-UserPoolId'
+
+  UserPoolClientId:
+    Description: 'Cognito User Pool Client ID'
+    Value: !Ref UserPoolClient
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-UserPoolClientId'
+
+  IdentityPoolId:
+    Description: 'Cognito Identity Pool ID'
+    Value: !Ref IdentityPool
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-IdentityPoolId'
+
+  UserPoolArn:
+    Description: 'Cognito User Pool ARN'
+    Value: !GetAtt UserPool.Arn
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-UserPoolArn'
+
+  AuthenticatedRoleArn:
+    Description: 'IAM Role ARN for authenticated users'
+    Value: !GetAtt AuthenticatedRole.Arn
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-AuthenticatedRoleArn'
+
+  UserPoolDomain:
+    Description: 'Cognito User Pool Domain for Hosted UI'
+    Value: !Ref UserPoolDomain
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-UserPoolDomain'
+
+  HostedUIUrl:
+    Description: 'Cognito Hosted UI URL'
+    Value: !Sub 'https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com'
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-HostedUIUrl'
+
+  GoogleLoginUrl:
+    Description: 'Direct Google OAuth Login URL'
+    Condition: HasGoogleCredentials
+    Value: !Sub 'https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com/oauth2/authorize?identity_provider=Google&redirect_uri=http://localhost:5173/auth/callback&response_type=code&client_id=${UserPoolClient}&scope=email+openid+profile'

@@ -8,7 +8,7 @@
   const dispatch = createEventDispatcher();
   
   let editableContent = content;
-    let showMarkdownHelp = false;
+  let showMarkdownHelp = false;
   
   function save() {
     dispatch('save', editableContent);
@@ -20,12 +20,7 @@
     isOpen = false;
   }
 
-  function build() {
-    dispatch('build');
-    isOpen = false;
-  }
-
-function toggleHelp() {
+  function toggleHelp() {
     showMarkdownHelp = !showMarkdownHelp;
   }
 
@@ -52,8 +47,6 @@ function toggleHelp() {
           {showMarkdownHelp ? 'Hide Help' : 'Show Help'}
         </button>
         
- 
-  
       {#if showMarkdownHelp}
         <div class="bg-base-200 p-3 rounded-lg mt-2 text-sm max-h-[60vh] overflow-y-auto">
           <h4 class="font-semibold mb-2">Markdown Reference</h4>
@@ -97,7 +90,7 @@ function toggleHelp() {
             </div>
           </div>
           <div class="mt-2">
-            <p class="text-warning">Note: Changes to the markdown won't show up until you rebuild the site.  It can take up to 5 minutes for it to build.  It's not necessary to rebuild the site everytime you save, only when you want your saves to show up on the site. The version of the Letter that is being edited in your window is the Realtime Version and is Version controlled, no content loss.</p>
+            <p class="text-warning">Note: Changes will be saved but may take some time to appear on the site.</p>
           </div>
         </div>
       {/if}
@@ -114,12 +107,6 @@ function toggleHelp() {
       <div class="flex flex-col sm:flex-row justify-end gap-2 mt-4">
         <button class="btn btn-outline w-full sm:w-auto" on:click={cancel}>Cancel</button>
         <button class="btn btn-primary w-full sm:w-auto" on:click={save}>Save Changes</button>
-        <button class="btn btn-secondary w-full sm:w-auto" on:click={build}>
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-          Rebuild Site
-        </button>
       </div>
     </div>
   </div>

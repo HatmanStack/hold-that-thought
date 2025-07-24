@@ -1,9 +1,15 @@
 <script lang='ts'>
+  import { currentUser, isAuthenticated } from '$lib/auth/auth-store';
+  
   export let nav: { children?: { link: string, text: string }[], link?: string, text: string }[]
   export let path: string
   export let title: string
   export let scrollY: number
   export let pin: boolean
+
+  // Check if user is approved (in ApprovedUsers group)
+  $: isUserApproved = $isAuthenticated && $currentUser && 
+    ($currentUser['cognito:groups']?.includes('ApprovedUsers') || false)
 </script>
 
 <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
@@ -17,6 +23,20 @@
     class:hidden={!pin}
     id='navbar-dropdown'
     tabindex='0'>
+    <!-- Main navigation links -->
+    <li>
+      <a class:font-bold={path === '/'} href='/'>Home</a>
+    </li>
+    <li>
+      <a class:font-bold={path === '/about'} href='/about'>About</a>
+    </li>
+    {#if isUserApproved}
+      <li>
+        <a class:font-bold={path === '/gallery'} href='/gallery'>Gallery</a>
+      </li>
+    {/if}
+    <div class="divider my-1"></div>
+    <!-- Original nav items -->
     {#each nav as { children, link, text }}
       {#if link && !children}
         <li>
