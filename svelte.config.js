@@ -50,3 +50,4 @@ export default {
   },
   preprocess: [mdsvex(mdsvexConfig), vitePreprocess()],
 }
+

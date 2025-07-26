@@ -3,273 +3,262 @@ import { get } from 'svelte/store';
 import { PUBLIC_API_GATEWAY_URL } from '$env/static/public';
 import { refreshSession } from '$lib/auth/client';
 
-export async function downloadSourcePdf(): Promise<void> {
-  const currentUrl = new URL(window.location.href);
-  const sanitizedTitle = decodeURIComponent(currentUrl.pathname);
-
-  try {
+async function ensureAuthenticated() {
     const auth = get(authStore);
-    if (!auth.isAuthenticated || !auth.tokens) {
-      throw new Error('Authentication required. Please log in.');
-    }
-
-    // Try to refresh the token before making the request
-    try {
-      await refreshSession();
-    } catch (refreshError) {
-      console.warn('Token refresh failed:', refreshError);
-      // Continue with existing token
-    }
-
-    // Get the latest token state after potential refresh
-    const currentAuth = get(authStore);
-    if (!currentAuth.isAuthenticated || !currentAuth.tokens) {
-      throw new Error('Authentication required. Please log in.');
-    }
-
-    console.log('Making PDF download request:', {
-      url: `${PUBLIC_API_GATEWAY_URL}/pdf-download`,
-      method: 'POST',
-      key: sanitizedTitle,
-      hasToken: !!currentAuth.tokens.idToken
-    });
-
-    const response = await fetch(`${PUBLIC_API_GATEWAY_URL}/pdf-download`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${currentAuth.tokens.idToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        key: sanitizedTitle
-      })
-    });
-
-    console.log('PDF download response:', {
-      status: response.status,
-      statusText: response.statusText,
-      headers: Object.fromEntries(response.headers.entries())
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('PDF download error response:', errorText);
-      
-      // If token expired even after refresh, redirect to login
-      if (response.status === 401) {
-        authStore.clearAuth();
-        window.location.href = '/auth/login';
-        return;
-      }
-      
-      throw new Error(`Download failed: ${response.status} ${response.statusText}`);
-    }
-
-    const responseData = await response.json();
-    const data = JSON.parse(responseData.body);
     
-    // Open in new tab to force download
-    window.open(data.url, '_blank');
-
-  } catch (error) {
-    console.error("Error downloading PDF:", error);
-    throw error;
-  }
+    // If we have a valid token, use it
+    if (auth.isAuthenticated && auth.tokens) {
+        return auth.tokens.idToken;
+    }
+    
+    // Try to refresh if not authenticated
+    try {
+        await refreshSession();
+        const newAuth = get(authStore);
+        if (newAuth.isAuthenticated && newAuth.tokens) {
+            return newAuth.tokens.idToken;
+        }
+    } catch (refreshError) {
+        console.warn('Token refresh failed:', refreshError);
+    }
+    
+    // If we still don't have a valid token, throw error
+    throw new Error('Authentication required');
 }
 
-export async function getMarkdownContent(path: string): Promise<string> {
-  const currentUrl = new URL(window.location.href);
-  const sanitizedTitle = decodeURIComponent(currentUrl.pathname);
-
-  try {
-    const auth = get(authStore);
-    if (!auth.isAuthenticated || !auth.tokens) {
-      throw new Error('User is not authenticated');
-    }
-
-    // Try to refresh the token before making the request
+export async function getMarkdownContent(letterPath: string): Promise<string> {
     try {
-      await refreshSession();
-    } catch (refreshError) {
-      console.warn('Token refresh failed:', refreshError);
-      // Continue with existing token
+        // Use the API endpoint without requiring authentication for reading
+        const response = await fetch(`/api/markdown?path=${encodeURIComponent(letterPath)}`);
+
+        if (!response.ok) {
+            throw new Error(`Failed to load markdown: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data.content;
+    } catch (error) {
+        console.error('Error loading markdown content:', error);
+        throw error;
     }
-
-    // Get the latest token state after potential refresh
-    const currentAuth = get(authStore);
-    if (!currentAuth.isAuthenticated || !currentAuth.tokens) {
-      throw new Error('User is not authenticated');
-    }
-
-    const payload = {
-      type: "downloadMD",
-      title: sanitizedTitle,
-    };
-
-    const response = await fetch(`${PUBLIC_API_GATEWAY_URL}/markdown`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${currentAuth.tokens.idToken}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      // If token expired even after refresh, redirect to login
-      if (response.status === 401) {
-        authStore.clearAuth();
-        window.location.href = '/auth/login';
-        return;
-      }
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const responseData = await response.json();
-    
-    if (!responseData.downloadUrl) {
-      throw new Error('Failed to load markdown file');
-    }
-
-    return responseData.downloadUrl;
-  } catch (error) {
-    console.error('Error loading markdown content:', error);
-    throw error;
-  }
 }
 
 export async function saveMarkdownContent(content: string): Promise<boolean> {
-  const currentUrl = new URL(window.location.href);
-  const sanitizedTitle = decodeURIComponent(currentUrl.pathname);
+    const currentUrl = new URL(window.location.href);
+    const sanitizedTitle = decodeURIComponent(currentUrl.pathname);
 
-  try {
-    const auth = get(authStore);
-    if (!auth.isAuthenticated || !auth.tokens) {
-      throw new Error('User is not authenticated');
-    }
-
-    // Try to refresh the token before making the request
     try {
-      await refreshSession();
-    } catch (refreshError) {
-      console.warn('Token refresh failed:', refreshError);
-      // Continue with existing token
+        // Save locally first
+        const localResponse = await fetch('/api/markdown', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                path: sanitizedTitle,
+                content: content
+            })
+        });
+
+        if (!localResponse.ok) {
+            throw new Error(`Failed to save locally: ${localResponse.status}`);
+        }
+
+        console.log('Successfully saved content locally');
+
+        // Try to save to S3 as backup
+        try {
+            const token = await ensureAuthenticated();
+            
+            console.log('Attempting S3 backup...');
+            const s3Response = await fetch(`${PUBLIC_API_GATEWAY_URL}/pdf-download`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    type: "markdown",
+                    key: sanitizedTitle,
+                    content: content
+                }),
+            });
+
+            if (!s3Response.ok) {
+                const errorText = await s3Response.text();
+                console.warn('S3 backup failed:', {
+                    status: s3Response.status,
+                    error: errorText
+                });
+            } else {
+                const responseData = await s3Response.json();
+                console.log('S3 backup successful:', responseData);
+            }
+        } catch (s3Error) {
+            console.warn('S3 backup failed:', s3Error);
+            // Don't fail the save operation for S3 backup failure
+        }
+
+        // Trigger rebuild to update the site
+        try {
+            const rebuildResponse = await fetch('/api/rebuild', {
+                method: 'POST'
+            });
+            if (!rebuildResponse.ok) {
+                console.warn('Rebuild request failed:', rebuildResponse.status);
+            }
+        } catch (rebuildError) {
+            console.warn('Rebuild failed:', rebuildError);
+        }
+
+        return true;
+    } catch (error) {
+        console.error('Error saving markdown content:', error);
+        throw error;
     }
-
-    // Get the latest token state after potential refresh
-    const currentAuth = get(authStore);
-    if (!currentAuth.isAuthenticated || !currentAuth.tokens) {
-      throw new Error('User is not authenticated');
-    }
-
-    const payload = {
-      type: "update",
-      title: sanitizedTitle,
-      content: content,
-    };
-
-    const response = await fetch(`${PUBLIC_API_GATEWAY_URL}/markdown`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${currentAuth.tokens.idToken}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      // If token expired even after refresh, redirect to login
-      if (response.status === 401) {
-        authStore.clearAuth();
-        window.location.href = '/auth/login';
-        return false;
-      }
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Error saving markdown content:', error);
-    throw error;
-  }
 }
 
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => {
-      const base64String = reader.result as string;
-      const base64Content = base64String.split(',')[1];
-      resolve(base64Content);
-    };
-    reader.onerror = error => reject(error);
-  });
+export async function downloadSourcePdf(): Promise<void> {
+    const currentUrl = new URL(window.location.href);
+    const sanitizedTitle = decodeURIComponent(currentUrl.pathname);
+
+    try {
+        const token = await ensureAuthenticated();
+
+        const response = await fetch(`${PUBLIC_API_GATEWAY_URL}/pdf-download`, {
+            method: "POST",
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                type: "pdf",
+                key: sanitizedTitle
+            })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('PDF download error response:', errorText);
+            throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+        }
+
+        // Check if response is base64 encoded PDF
+        const contentType = response.headers.get('content-type');
+        let pdfBlob;
+        
+        if (contentType === 'application/pdf') {
+            // Lambda returns base64 encoded PDF, convert to blob
+            let responseText = await response.text();
+            
+            // Check if response is JSON wrapped
+            let base64Data;
+            try {
+                const jsonResponse = JSON.parse(responseText);
+                base64Data = jsonResponse.body || jsonResponse;
+            } catch {
+                base64Data = responseText;
+            }
+            
+            // Ensure base64Data is a string and clean it
+            base64Data = String(base64Data).replace(/\s/g, '');
+            
+            try {
+                const binaryString = atob(base64Data);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                pdfBlob = new Blob([bytes], { type: 'application/pdf' });
+            } catch (error) {
+                console.error('Base64 decode error:', error);
+                console.error('Base64 data type:', typeof base64Data);
+                console.error('Base64 data length:', base64Data.length);
+                console.error('Base64 data sample:', base64Data.substring(0, 100));
+                throw new Error('Failed to decode PDF data');
+            }
+        } else {
+            // Fallback to blob response
+            pdfBlob = await response.blob();
+        }
+        
+        const blobUrl = URL.createObjectURL(pdfBlob);
+        
+        const pathParts = sanitizedTitle.split('/').filter(Boolean);
+        const filename = pathParts.length > 0 
+            ? `${pathParts[pathParts.length - 1]}.pdf`
+            : 'letter.pdf';
+        
+        console.log('Using filename:', filename);
+        
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        
+        setTimeout(() => {
+            URL.revokeObjectURL(blobUrl);
+            document.body.removeChild(link);
+        }, 200);
+
+    } catch (error) {
+        console.error("Error downloading PDF:", error);
+        throw error;
+    }
 }
 
 export async function addLetterLambda(files: File | File[]): Promise<string> {
-  try {
-    const auth = get(authStore);
-    if (!auth.isAuthenticated || !auth.tokens) {
-      throw new Error('User is not authenticated');
-    }
-
-    // Try to refresh the token before making the request
     try {
-      await refreshSession();
-    } catch (refreshError) {
-      console.warn('Token refresh failed:', refreshError);
-      // Continue with existing token
+        const token = await ensureAuthenticated();
+
+        const filesArray = Array.isArray(files) ? files : [files];
+        const filePromises = filesArray.map(async (file) => {
+            const base64 = await fileToBase64(file);
+            return {
+                fileName: file.name,
+                contentType: file.type,
+                fileData: base64,
+                size: Math.round(file.size / 1024)
+            };
+        });
+
+        const fileData = await Promise.all(filePromises);
+        const payload = {
+            type: "create",
+            files: fileData
+        };
+
+        const response = await fetch(`${PUBLIC_API_GATEWAY_URL}/upload`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`,
+            },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const responseData = await response.json();
+        return responseData.message || 'Upload successful';
+    } catch (error) {
+        console.error('Error uploading files:', error);
+        throw error;
     }
+}
 
-    // Get the latest token state after potential refresh
-    const currentAuth = get(authStore);
-    if (!currentAuth.isAuthenticated || !currentAuth.tokens) {
-      throw new Error('User is not authenticated');
-    }
-
-    const filesArray = Array.isArray(files) ? files : [files];
-
-    const filePromises = filesArray.map(async (file) => {
-      const base64 = await fileToBase64(file);
-      return {
-        fileName: file.name,
-        contentType: file.type,
-        fileData: base64,
-        size: Math.round(file.size / 1024)
-      };
+function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+            const base64String = reader.result as string;
+            const base64Content = base64String.split(',')[1];
+            resolve(base64Content);
+        };
+        reader.onerror = error => reject(error);
     });
-
-    const fileData = await Promise.all(filePromises);
-
-    const payload = {
-      type: "create",
-      files: fileData
-    };
-
-    const response = await fetch(`${PUBLIC_API_GATEWAY_URL}/upload`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${currentAuth.tokens.idToken}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      // If token expired even after refresh, redirect to login
-      if (response.status === 401) {
-        authStore.clearAuth();
-        window.location.href = '/auth/login';
-        return 'Authentication expired';
-      }
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const responseData = await response.json();
-    return responseData.message || 'Upload successful';
-  } catch (error) {
-    console.error('Error uploading image:', error);
-    throw error;
-  }
 }

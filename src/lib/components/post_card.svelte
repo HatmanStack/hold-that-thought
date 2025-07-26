@@ -9,8 +9,8 @@
   import { post as postConfig } from '$lib/config/post'
   import { posts as storedPosts } from '$lib/stores/posts'
   import { title as storedTitle } from '$lib/stores/title'
-  import { downloadSourcePdf, getMarkdownContent, saveMarkdownContent } from '$lib/utils/s3Client';
-  import { getStoredTokens } from '$lib/auth/client';
+  import { downloadSourcePdf } from '$lib/utils/s3Client'
+  import { getMarkdownContent, saveMarkdownContent } from '$lib/services/markdown'
 
   let isDownloading = false;
   let isModifying = false;
@@ -40,13 +40,18 @@
     isModifying = true;
     try {
       if (post.path) {
+        console.log('Opening editor for path:', post.path);
         // Load the original markdown content
         markdownContent = await getMarkdownContent(post.path);
+        console.log('Loaded content length:', markdownContent?.length);
+        if (!markdownContent) {
+          throw new Error('Failed to load content');
+        }
         isEditorOpen = true;
       }
     } catch (error) {
       console.error('Error loading markdown content:', error);
-      // Show error notification
+      alert('Failed to load content: ' + error.message);
     } finally {
       isModifying = false;
     }
@@ -56,15 +61,25 @@
     isModifying = true;
     try {
       const updatedContent = event.detail;
-      const success = await saveMarkdownContent(updatedContent);
+      if (!updatedContent) {
+        throw new Error('No content to save');
+      }
+      
+      console.log('Saving content for path:', post.path);
+      console.log('Content length:', updatedContent.length);
+      console.log('Content preview:', updatedContent.substring(0, 100) + '...');
+      
+      const success = await saveMarkdownContent(post.path, updatedContent);
       
       if (success) {
-        // Show success message or reload page to see changes
+        console.log('Save successful, reloading page');
         window.location.reload();
+      } else {
+        throw new Error('Save returned false');
       }
     } catch (error) {
       console.error('Error saving markdown content:', error);
-      // Show error notification
+      alert('Failed to save content: ' + error.message);
     } finally {
       isModifying = false;
     }

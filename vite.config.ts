@@ -31,4 +31,12 @@ export default defineConfig({
       },
     }),
   ],
+  server: {
+    watch: {
+      // Advanced file watching configuration for complex environments
+      // Uncomment if HMR is failing in Docker, WSL, or complex monorepos
+      // usePolling: true,
+      // interval: 100
+    }
+  }
 })

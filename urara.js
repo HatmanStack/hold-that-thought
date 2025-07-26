@@ -12,10 +12,11 @@ const config = {
     extensions: {
         images: ['jpg', 'png', 'webp', 'avif'],
         posts: ['md'],
+        server: ['js'],
     },
     images: [''],
 };
-const check = (ext) => (config.extensions.posts.includes(ext) ? 'src/routes' : 'static');
+const check = (ext) => (config.extensions.posts.includes(ext) || config.extensions.server.includes(ext) ? 'src/routes' : 'static');
 const log = (color, msg, dest) => 
 // eslint-disable-next-line no-console
 console.log(chalk.dim(`${new Date().toLocaleTimeString()} `)

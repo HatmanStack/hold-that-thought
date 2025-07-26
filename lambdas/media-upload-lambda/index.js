@@ -1,9 +1,10 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-west-2' });
 const BUCKET_NAME = process.env.BUCKET_NAME;
 const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE || '10485760', 10); // 10MB default
-const ALLOWED_TYPES = (process.env.ALLOWED_TYPES || 'image/jpeg,image/png,application/pdf').split(',');
+const ALLOWED_TYPES = (process.env.ALLOWED_TYPES || 'image/jpeg,image/png,image/gif,image/webp,video/mp4,video/avi,video/mov,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain').split(',');
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 
 function createResponse(statusCode, body, additionalHeaders = {}) {
@@ -11,9 +12,11 @@ function createResponse(statusCode, body, additionalHeaders = {}) {
     statusCode,
     headers: {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': CORS_ORIGIN,
-      'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-      'Access-Control-Allow-Methods': 'POST,OPTIONS',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
+      'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Max-Age': '86400',
       ...additionalHeaders
     },
     body: JSON.stringify(body)
@@ -32,11 +35,30 @@ function validateJWTClaims(requestContext) {
 }
 
 function validateApprovedUsersGroup(claims) {
+  console.log('Validating user groups. Claims:', JSON.stringify(claims, null, 2));
+  
   const userGroups = claims['cognito:groups'];
-  const groups = Array.isArray(userGroups) ? userGroups : [userGroups];
+  console.log('User groups from claims:', userGroups);
+  
+  // Handle different formats of groups
+  let groups = [];
+  if (Array.isArray(userGroups)) {
+    groups = userGroups;
+  } else if (typeof userGroups === 'string') {
+    groups = [userGroups];
+  } else if (userGroups) {
+    // Handle comma-separated string or other formats
+    groups = userGroups.toString().split(',').map(g => g.trim());
+  }
+  
+  console.log('Processed groups array:', groups);
+  
   if (!groups.includes('ApprovedUsers')) {
+    console.error('User is not in ApprovedUsers group. Available groups:', groups);
     throw new Error('User is not in ApprovedUsers group');
   }
+  
+  console.log('User validation successful - user is in ApprovedUsers group');
 }
 
 function createErrorResponse(statusCode, error, message, code = null) {
@@ -173,10 +195,153 @@ export const handler = async (event) => {
   let claims;
   try {
     claims = validateJWTClaims(event.requestContext);
+    console.log('JWT claims validated successfully');
     validateApprovedUsersGroup(claims);
+    console.log('User group validation successful');
   } catch (err) {
+    console.error('Authentication/authorization error:', err.message);
     return createErrorResponse(403, 'Forbidden', err.message);
   }
+
+  // Check if this is a list request or presigned URL request (JSON body with action)
+  const contentType = event.headers['Content-Type'] || event.headers['content-type'];
+  if (contentType && contentType.includes('application/json')) {
+    try {
+      const body = JSON.parse(event.body);
+      if (body.action === 'list') {
+        return handleListMedia(body.category, claims);
+      }
+      if (body.action === 'presigned-url') {
+        return handlePresignedUrl(body, claims);
+      }
+    } catch (err) {
+      // If JSON parsing fails, continue to file upload logic
+    }
+  }
+
+  // Handle file upload (existing logic)
+  return handleFileUpload(event, claims);
+}
+
+async function handlePresignedUrl(body, claims) {
+  const { filename, contentType, fileSize } = body;
+  
+  if (!filename || !contentType) {
+    return createErrorResponse(400, 'Bad Request', 'Filename and contentType are required');
+  }
+  
+  if (!ALLOWED_TYPES.includes(contentType)) {
+    return createErrorResponse(400, 'Bad Request', 'File type not allowed');
+  }
+  
+  // For large files, allow up to 500MB
+  const maxSize = 500 * 1024 * 1024; // 500MB
+  if (fileSize && fileSize > maxSize) {
+    return createErrorResponse(400, 'Bad Request', 'File size exceeds 500MB limit');
+  }
+  
+  try {
+    const key = `media/${determineCategory(contentType)}/${Date.now()}-${filename}`;
+    
+    const command = new PutObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: key,
+      ContentType: contentType,
+      Metadata: {
+        'uploaded-by': claims.email || claims['cognito:username'] || 'unknown',
+        'upload-timestamp': new Date().toISOString()
+      }
+    });
+    
+    const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 }); // 1 hour
+    
+    return createResponse(200, {
+      presignedUrl,
+      key,
+      message: 'Presigned URL generated successfully'
+    });
+  } catch (err) {
+    console.error('Error generating presigned URL:', err);
+    return createErrorResponse(500, 'Internal Server Error', 'Failed to generate presigned URL');
+  }
+}
+
+function determineCategory(contentType) {
+  if (contentType.startsWith('image/')) return 'pictures';
+  if (contentType.startsWith('video/')) return 'videos';
+  return 'documents';
+}
+
+async function handleListMedia(category, claims) {
+  if (!category || !['pictures', 'videos', 'documents'].includes(category)) {
+    return createErrorResponse(400, 'Bad Request', 'Valid category required: pictures, videos, or documents');
+  }
+
+  try {
+    const prefix = `media/${category}/`;
+    
+    const listCommand = new ListObjectsV2Command({
+      Bucket: BUCKET_NAME,
+      Prefix: prefix,
+      MaxKeys: 100
+    });
+
+    const response = await s3Client.send(listCommand);
+    
+    if (!response.Contents) {
+      return createResponse(200, []);
+    }
+
+    // Generate signed URLs for each item
+    const mediaItems = await Promise.all(
+      response.Contents.map(async (item) => {
+        const getObjectCommand = new GetObjectCommand({
+          Bucket: BUCKET_NAME,
+          Key: item.Key
+        });
+        
+        const signedUrl = await getSignedUrl(s3Client, getObjectCommand, { expiresIn: 3600 });
+        
+        return {
+          id: item.Key,
+          filename: item.Key.split('/').pop(),
+          title: item.Key.split('/').pop(),
+          uploadDate: item.LastModified.toISOString(),
+          fileSize: item.Size,
+          contentType: getContentTypeFromKey(item.Key),
+          signedUrl: signedUrl,
+          category: category
+        };
+      })
+    );
+
+    return createResponse(200, mediaItems);
+  } catch (err) {
+    console.error('Error listing media:', err);
+    return createErrorResponse(500, 'Internal Server Error', 'Failed to retrieve media items');
+  }
+}
+
+function getContentTypeFromKey(key) {
+  const extension = key.split('.').pop()?.toLowerCase();
+  const contentTypeMap = {
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'png': 'image/png',
+    'gif': 'image/gif',
+    'webp': 'image/webp',
+    'mp4': 'video/mp4',
+    'avi': 'video/avi',
+    'mov': 'video/mov',
+    'pdf': 'application/pdf',
+    'doc': 'application/msword',
+    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'txt': 'text/plain'
+  };
+  return contentTypeMap[extension] || 'application/octet-stream';
+}
+
+async function handleFileUpload(event, claims) {
 
   let result;
   try {
@@ -202,13 +367,11 @@ export const handler = async (event) => {
   }
 
   // Determine S3 prefix based on file type
-  let prefix = 'media/other/';
+  let prefix = 'media/documents/'; // Default to documents
   if (file.contentType.startsWith('image/')) {
     prefix = 'media/pictures/';
   } else if (file.contentType.startsWith('video/')) {
     prefix = 'media/videos/';
-  } else if (file.contentType === 'application/pdf') {
-    prefix = 'media/documents/';
   }
 
   const key = `${prefix}${Date.now()}_${file.filename}`;
@@ -225,12 +388,21 @@ export const handler = async (event) => {
       ServerSideEncryption: 'AES256'
     }));
 
+    // Generate signed URL for immediate access
+    const getObjectCommand = new GetObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: key
+    });
+    
+    const signedUrl = await getSignedUrl(s3Client, getObjectCommand, { expiresIn: 3600 });
+
     return createResponse(200, {
       message: 'Upload successful',
       key,
       filename: file.filename,
       contentType: file.contentType,
-      size: file.content.length
+      size: file.content.length,
+      url: signedUrl
     });
   } catch (err) {
     console.error('Error uploading to S3:', err);

@@ -257,7 +257,7 @@ async function addLetter() {
     {/if}
   </div>
   <div class='flex-none w-full max-w-screen-md mx-auto xl:mx-0'>
-   <div 
+   <!-- <div 
     class='flex justify-center mb-4'
     in:fly={{ delay: 500, duration: 300, y: -25 }}
     out:fly={{ duration: 300, y: -25 }}>
@@ -274,7 +274,7 @@ async function addLetter() {
       {/if}
       Add Letter
     </button>
-  </div>
+  </div> -->
 
     {#key posts}
       <!-- {:else} is not used because there is a problem with the transition -->

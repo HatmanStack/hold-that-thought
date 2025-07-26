@@ -24,7 +24,9 @@
     error = ''
     
     try {
-      mediaItems = await getMediaItems(section)
+      const items = await getMediaItems(section)
+      // Filter out files with 0 bytes
+      mediaItems = items.filter(item => item.fileSize > 0)
     } catch (err) {
       console.error(`Error loading ${section}:`, err)
       error = err instanceof Error ? err.message : `Failed to load ${section}`
@@ -44,15 +46,22 @@
 
     try {
       const file = input.files[0]
+      
+      // Validate file size (300MB limit)
+      if (file.size > 300 * 1024 * 1024) {
+        throw new Error('File size cannot exceed 300MB')
+      }
+      
       const newItem = await uploadMedia(file)
       
-      // Add the new item to the list if it matches the current section
-      if (newItem.category === selectedSection) {
-        mediaItems = [...mediaItems, newItem]
-      }
+      // Reload the media list to ensure proper display with signed URLs
+      await loadMediaItems(selectedSection)
 
       // Clear the input
       input.value = ''
+      
+      // Show success message briefly
+      uploadError = ''
     } catch (err) {
       console.error('Upload error:', err)
       uploadError = err instanceof Error ? err.message : 'Upload failed'
@@ -103,7 +112,11 @@
       // If Cognito is not configured, show content in development mode
       if (!data.cognitoConfigured) {
         console.warn('⚠️  Cognito not configured - running in development mode')
-        loadMediaItems(selectedSection)
+        // In development mode, still try to load media but handle auth errors gracefully
+        loadMediaItems(selectedSection).catch(err => {
+          console.warn('Failed to load media in development mode:', err)
+          error = 'Gallery requires authentication to be configured'
+        })
         return
       }
       
@@ -164,9 +177,7 @@
 
   <div class="text-center mb-8">
     <h1 class="text-4xl font-bold mb-4">Family Gallery</h1>
-    <p class="text-xl text-base-content/80 max-w-2xl mx-auto">
-      Explore our collection of family pictures, videos, and documents preserved through the years.
-    </p>
+    
   </div>
 
   <!-- Upload Section -->

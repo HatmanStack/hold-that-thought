@@ -22,7 +22,6 @@
 <div class="min-h-screen flex items-center justify-center bg-base-200 px-4">
   <div class="card w-full max-w-md mx-auto bg-base-100 shadow-xl">
     <div class="card-body text-center">
-      <div class="text-success text-6xl mb-4">👋</div>
       <h2 class="card-title justify-center">Signed Out Successfully</h2>
       <p class="text-sm opacity-70 mb-4">You have been signed out of your account.</p>
       <p class="text-xs opacity-50">Redirecting to home page...</p>

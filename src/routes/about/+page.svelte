@@ -38,9 +38,9 @@
         An archive to see how our parents, grandparents, and great-grandparents communicated.
       </p>
       <p class="text-base-content/90 leading-relaxed mb-4">
-          We ask that you be concious of others and not share media or letters through social media.
-        
-          Feel free to add missing letters by uploading images or PDFs. Continue the tradition with your own family news.
+          Don't share media or letters through social media but feel free to modify any letters that didn't get parsed correctly.
+        Adding letters will come soon. 
+          
         </p>
     </div>
 
@@ -64,7 +64,7 @@
         <div class="bg-base-100 border border-base-300 rounded-lg p-6 mb-4">
           <h3 class="font-semibold mb-3">🔍 OCR Technology</h3>
           <p class="text-base-content/80 mb-3">
-            We use Google's OCR (Optical Content Recognition) to parse the letters, but it's not perfect and some handwriting can be challenging to read.
+           Google's OCR (Optical Content Recognition) to parse the letters, but it's not perfect and some handwriting can be challenging to read.
           </p>
           <p class="text-base-content/80 mb-3">You can improve existing letters by:</p>
           <ul class="list-disc list-inside text-sm text-base-content/80 space-y-1">

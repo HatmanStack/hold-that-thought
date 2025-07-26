@@ -58,9 +58,6 @@
         <li class="menu-title">
           <span class="text-xs truncate">{$currentUser.email}</span>
         </li>
-        <li><a href="/profile" on:click={closeDropdown}>Profile</a></li>
-        <li><a href="/settings" on:click={closeDropdown}>Settings</a></li>
-        <div class="divider my-1"></div>
         <li>
           <button type="button" on:click={handleSignOut} class="text-error">
             Sign Out

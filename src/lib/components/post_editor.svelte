@@ -66,32 +66,6 @@
               <p><code>```code block```</code> - Code block</p>
             </div>
           </div>
-          <br>
-          <h4 class="font-semibold mb-2">MetaData Reference</h4>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <div>
-              <p><code>---</code> Meta Data Marker </p>
-              <p><code>created:</code> Date Letter was Sent </p>
-              <p><code>description:</code> Short description of content</p>
-              <p><code>published:</code> Author </p>
-              <p><code>tags:</code> Can be added for easy Search/Cross-Reference</p>
-              <p><code>title:</code> Title of Letter</p>
-            </div>
-            <div>
-              <p>The Items inside of the Meta Data Markers should follow</p>
-              <p>the same format but can be edited</p>
-              <br>
-              <p>Deleting tags is fine and will help clean up the Library</p>
-              <br>
-              <p>The first Title given by Google's OCR will be the Letter's</p>
-              <p>URL but Changes to the title will show up in the feed</p>
-              <br>
-              <p>Hovering the Date at the top of the Letter Tells you the last time it was edited</p>
-            </div>
-          </div>
-          <div class="mt-2">
-            <p class="text-warning">Note: Changes will be saved but may take some time to appear on the site.</p>
-          </div>
         </div>
       {/if}
     </div>
