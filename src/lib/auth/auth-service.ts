@@ -23,46 +23,7 @@ function decodeJWT(token: string) {
 export class AuthService {
   private refreshTimer: NodeJS.Timeout | null = null
 
-  async signUp(email: string, password: string, attributes: Record<string, string> = {}) {
-    authStore.setLoading(true)
-    
-    try {
-      const result = await cognitoAuth.signUp(email, password, {
-        email: email,
-        ...attributes,
-      })
-      
-      if (!result.success) {
-        throw result.error
-      }
-      
-      return { success: true, userSub: result.data?.UserSub }
-    } catch (error) {
-      console.error('Sign up error:', error)
-      throw error
-    } finally {
-      authStore.setLoading(false)
-    }
-  }
 
-  async confirmSignUp(email: string, confirmationCode: string) {
-    authStore.setLoading(true)
-    
-    try {
-      const result = await cognitoAuth.confirmSignUp(email, confirmationCode)
-      
-      if (!result.success) {
-        throw result.error
-      }
-      
-      return { success: true }
-    } catch (error) {
-      console.error('Confirm sign up error:', error)
-      throw error
-    } finally {
-      authStore.setLoading(false)
-    }
-  }
 
   async signIn(email: string, password: string) {
     authStore.setLoading(true)
@@ -180,35 +141,7 @@ export class AuthService {
     authStore.clearAuth()
   }
 
-  async forgotPassword(email: string) {
-    try {
-      const result = await cognitoAuth.forgotPassword(email)
-      
-      if (!result.success) {
-        throw result.error
-      }
-      
-      return { success: true }
-    } catch (error) {
-      console.error('Forgot password error:', error)
-      throw error
-    }
-  }
 
-  async confirmForgotPassword(email: string, confirmationCode: string, newPassword: string) {
-    try {
-      const result = await cognitoAuth.confirmForgotPassword(email, confirmationCode, newPassword)
-      
-      if (!result.success) {
-        throw result.error
-      }
-      
-      return { success: true }
-    } catch (error) {
-      console.error('Confirm forgot password error:', error)
-      throw error
-    }
-  }
 
   private scheduleTokenRefresh(expiresAt: number) {
     if (this.refreshTimer) {

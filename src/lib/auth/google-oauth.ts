@@ -26,20 +26,7 @@ export class GoogleOAuthService {
     return `${baseUrl}/oauth2/authorize?${params.toString()}`
   }
 
-  // Generate standard Cognito hosted UI login URL
-  getHostedUILoginUrl(redirectUri?: string): string {
-    const baseUrl = this.getHostedUIUrl()
-    const redirect = redirectUri || `${window.location.origin}/auth/callback`
-    
-    const params = new URLSearchParams({
-      redirect_uri: redirect,
-      response_type: 'code',
-      client_id: cognitoConfig.userPoolWebClientId,
-      scope: 'email openid profile aws.cognito.signin.user.admin'
-    })
 
-    return `${baseUrl}/oauth2/authorize?${params.toString()}`
-  }
 
   // Generate logout URL
   getLogoutUrl(redirectUri?: string): string {
@@ -154,11 +141,7 @@ export class GoogleOAuthService {
     window.location.href = loginUrl
   }
 
-  // Initiate hosted UI login
-  loginWithHostedUI(redirectUri?: string): void {
-    const loginUrl = this.getHostedUILoginUrl(redirectUri)
-    window.location.href = loginUrl
-  }
+
 
   // Logout via hosted UI
   logoutViaHostedUI(redirectUri?: string): void {

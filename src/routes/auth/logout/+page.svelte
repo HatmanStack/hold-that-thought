@@ -4,6 +4,20 @@
   import { authStore } from '$lib/auth/auth-store'
   
   onMount(() => {
+    // Clear all JWT-related storage
+    if (typeof window !== 'undefined') {
+      // Clear all possible JWT storage locations
+      localStorage.clear()
+      sessionStorage.clear()
+      
+      // Clear any cookies by setting them to expire
+      document.cookie.split(";").forEach(cookie => {
+        const eqPos = cookie.indexOf("=")
+        const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`
+      })
+    }
+    
     // Clear local auth state
     authStore.clearAuth()
     

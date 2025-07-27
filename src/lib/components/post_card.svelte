@@ -204,7 +204,7 @@
         </button>
 
         
-       <button
+       <!-- <button
           class='btn btn-sm btn-outline gap-2 ml-2' 
           disabled={isDownloading || isModifying} 
           on:click={openMarkdownEditor}>
@@ -216,7 +216,7 @@
             </svg>
           {/if}
           Modify Letter
-        </button>
+        </button> -->
       </div>
     {/if}
     <MarkdownEditorModal 

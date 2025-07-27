@@ -40,6 +40,13 @@ function createAuthStore() {
     init: () => {
       if (!browser) return
       
+      // Check if user intentionally signed out
+      const signedOut = localStorage.getItem('auth_signed_out')
+      if (signedOut === 'true') {
+        set({ ...initialState, loading: false })
+        return
+      }
+      
       try {
         const storedTokens = localStorage.getItem('auth_tokens')
         const storedUser = localStorage.getItem('auth_user')
@@ -75,6 +82,8 @@ function createAuthStore() {
     // Set authenticated state
     setAuthenticated: (user: User, tokens: AuthTokens) => {
       if (browser) {
+        // Clear signout flag when user signs in
+        localStorage.removeItem('auth_signed_out')
         localStorage.setItem('auth_tokens', JSON.stringify(tokens))
         localStorage.setItem('auth_user', JSON.stringify(user))
       }
@@ -102,6 +111,9 @@ function createAuthStore() {
     // Clear auth state
     clearAuth: () => {
       if (browser) {
+        // Set signout flag to prevent auto re-authentication
+        localStorage.setItem('auth_signed_out', 'true')
+        
         // Clear auth store tokens
         localStorage.removeItem('auth_tokens')
         localStorage.removeItem('auth_user')

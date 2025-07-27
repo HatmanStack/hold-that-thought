@@ -38,8 +38,7 @@
         An archive to see how our parents, grandparents, and great-grandparents communicated.
       </p>
       <p class="text-base-content/90 leading-relaxed mb-4">
-          Don't share media or letters through social media but feel free to modify any letters that didn't get parsed correctly.
-        Adding letters will come soon. 
+          Don't share media or letters through social media.  Modifying and adding new letters will come soon.
           
         </p>
     </div>

@@ -43,6 +43,12 @@ export default {
           return;
         }
         
+        // Ignore 401 errors for protected routes like /admin
+        if (message.includes('401') && (path.includes('/admin') || path.includes('/login'))) {
+          console.warn(`Ignoring protected route during prerender: ${path}`);
+          return;
+        }
+        
         // For other errors, throw to fail the build
         throw new Error(message);
       }

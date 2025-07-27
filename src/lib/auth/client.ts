@@ -131,16 +131,6 @@ export async function authenticatedFetch(url: string, options: RequestInit = {})
 }
 
 /**
- * Get Cognito logout URL
- */
-export function getLogoutUrl(redirectUri?: string): string {
-  const domain = `${PUBLIC_COGNITO_USER_POOL_ID.split('_')[0]}-${PUBLIC_COGNITO_USER_POOL_ID.split('_')[1]}`
-  const logoutUri = redirectUri || window.location.origin
-  
-  return `https://${domain}.auth.${PUBLIC_AWS_REGION}.amazoncognito.com/logout?client_id=${PUBLIC_COGNITO_USER_POOL_CLIENT_ID}&logout_uri=${encodeURIComponent(logoutUri)}`
-}
-
-/**
  * Refresh the session using the refresh token
  */
 export async function refreshSession(): Promise<void> {
