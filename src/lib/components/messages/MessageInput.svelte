@@ -170,7 +170,7 @@
   {/if}
 
   <!-- Input area -->
-  <div class="flex gap-2 items-end">
+  <div class="flex gap-1 sm:gap-2 items-end">
     <!-- Attachment button -->
     <input
       type="file"
@@ -181,7 +181,7 @@
       accept="image/*,.pdf,.doc,.docx,.txt"
     />
     <button
-      class="btn btn-ghost btn-circle"
+      class="btn btn-ghost btn-circle btn-sm sm:btn-md"
       on:click={() => fileInput.click()}
       disabled={sending}
       aria-label="Attach file"
@@ -208,19 +208,19 @@
       on:keydown={handleKeyDown}
       placeholder="Type a message..."
       rows="1"
-      class="textarea textarea-bordered flex-1 resize-none"
+      class="textarea textarea-bordered textarea-sm sm:textarea-md flex-1 resize-none"
       disabled={sending}
-      style="min-height: 2.5rem; max-height: 10rem;"
+      style="min-height: 2.5rem; max-height: 8rem;"
       on:input={(e) => {
         const target = e.target as HTMLTextAreaElement;
         target.style.height = 'auto';
-        target.style.height = target.scrollHeight + 'px';
+        target.style.height = Math.min(target.scrollHeight, 128) + 'px';
       }}
     ></textarea>
 
     <!-- Send button -->
     <button
-      class="btn btn-primary"
+      class="btn btn-primary btn-sm sm:btn-md"
       on:click={handleSendMessage}
       disabled={sending || (!messageText.trim() && selectedFiles.length === 0)}
       class:loading={sending}

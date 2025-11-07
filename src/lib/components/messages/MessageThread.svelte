@@ -204,10 +204,10 @@
         <!-- Messages list -->
         {#each messages as message}
           {@const isOwnMessage = message.senderId === currentUserId}
-          <div class="flex gap-3" class:flex-row-reverse={isOwnMessage} class:justify-end={isOwnMessage}>
+          <div class="flex gap-2 sm:gap-3" class:flex-row-reverse={isOwnMessage} class:justify-end={isOwnMessage}>
             <!-- Avatar -->
-            <div class="avatar placeholder flex-shrink-0">
-              <div class="bg-neutral text-neutral-content rounded-full w-10 h-10">
+            <div class="avatar placeholder flex-shrink-0 hidden sm:block">
+              <div class="bg-neutral text-neutral-content rounded-full w-8 h-8 sm:w-10 sm:h-10">
                 <span class="text-sm">
                   {message.senderName.charAt(0).toUpperCase()}
                 </span>
@@ -215,7 +215,7 @@
             </div>
 
             <!-- Message content -->
-            <div class="flex flex-col max-w-xs md:max-w-md">
+            <div class="flex flex-col w-full sm:max-w-xs md:max-w-md">
               <!-- Sender name -->
               {#if !isOwnMessage}
                 <span class="text-xs text-base-content/60 mb-1 px-2">
@@ -225,7 +225,7 @@
 
               <!-- Message bubble -->
               <div
-                class="rounded-lg px-4 py-2"
+                class="rounded-lg px-3 py-2 sm:px-4 max-w-full"
                 class:bg-primary={isOwnMessage}
                 class:text-primary-content={isOwnMessage}
                 class:bg-base-200={!isOwnMessage}

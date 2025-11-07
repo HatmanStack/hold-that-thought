@@ -194,12 +194,12 @@
       <div class="space-y-2">
         {#each conversations as conversation}
           <button
-            class="w-full text-left p-3 hover:bg-base-200 transition-colors rounded-lg flex gap-3 items-start relative"
+            class="w-full text-left p-3 sm:p-4 hover:bg-base-200 active:bg-base-300 transition-colors rounded-lg flex gap-2 sm:gap-3 items-start relative min-h-[3.5rem]"
             on:click={() => handleConversationClick(conversation)}
           >
             <!-- Avatar placeholder -->
-            <div class="avatar placeholder">
-              <div class="bg-primary text-primary-content rounded-full w-12 h-12">
+            <div class="avatar placeholder flex-shrink-0">
+              <div class="bg-primary text-primary-content rounded-full w-10 h-10 sm:w-12 sm:h-12">
                 <span class="text-lg">
                   {getConversationName(conversation).charAt(0).toUpperCase()}
                 </span>
@@ -210,7 +210,7 @@
             <div class="flex-1 min-w-0">
               <!-- Name and time -->
               <div class="flex justify-between items-start mb-1">
-                <h3 class="font-semibold text-base truncate flex-1">
+                <h3 class="font-semibold text-sm sm:text-base truncate flex-1">
                   {getConversationName(conversation)}
                 </h3>
                 <span class="text-xs text-base-content/60 ml-2 flex-shrink-0">
@@ -231,7 +231,7 @@
 
             <!-- Unread count badge -->
             {#if conversation.unreadCount > 0}
-              <div class="badge badge-primary badge-sm absolute top-3 right-3">
+              <div class="badge badge-primary badge-xs sm:badge-sm absolute top-3 right-3">
                 {conversation.unreadCount}
               </div>
             {/if}
