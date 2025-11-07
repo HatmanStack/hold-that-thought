@@ -347,7 +347,7 @@
       
       <div class="mb-4">
         {#if selectedSection === 'pictures'}
-          <img src={selectedItem.signedUrl} alt={selectedItem.title} class="w-full max-h-96 object-contain rounded-lg" />
+          <img src={selectedItem.signedUrl} alt={selectedItem.title} class="w-full max-h-96 object-contain rounded-lg" loading="lazy" />
         {:else if selectedSection === 'videos'}
           <video controls class="w-full max-h-96 rounded-lg">
             <source src={selectedItem.signedUrl} type={selectedItem.contentType}>

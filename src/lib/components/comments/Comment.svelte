@@ -150,6 +150,7 @@
           src={comment.userPhotoUrl}
           alt={comment.userName}
           class="w-10 h-10 rounded-full"
+          loading="lazy"
         />
       {:else}
         <div class="avatar placeholder">

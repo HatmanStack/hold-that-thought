@@ -212,9 +212,11 @@
       disabled={sending}
       style="min-height: 2.5rem; max-height: 8rem;"
       on:input={(e) => {
-        const target = e.target as HTMLTextAreaElement;
-        target.style.height = 'auto';
-        target.style.height = Math.min(target.scrollHeight, 128) + 'px';
+        const target = e.target;
+        if (target instanceof HTMLTextAreaElement) {
+          target.style.height = 'auto';
+          target.style.height = Math.min(target.scrollHeight, 128) + 'px';
+        }
       }}
     ></textarea>
 

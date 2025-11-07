@@ -75,7 +75,7 @@
         <div class="avatar flex-shrink-0">
           {#if profile.profilePhotoUrl}
             <div class="w-24 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
-              <img src={profile.profilePhotoUrl} alt={profile.displayName} />
+              <img src={profile.profilePhotoUrl} alt={profile.displayName} loading="lazy" />
             </div>
           {:else}
             <div class="placeholder">
