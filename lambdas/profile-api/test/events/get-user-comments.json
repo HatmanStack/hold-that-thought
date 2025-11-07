@@ -1,0 +1,19 @@
+{
+  "httpMethod": "GET",
+  "resource": "/profile/{userId}/comments",
+  "pathParameters": {
+    "userId": "test-user-123"
+  },
+  "queryStringParameters": {
+    "limit": "50"
+  },
+  "requestContext": {
+    "authorizer": {
+      "claims": {
+        "sub": "test-user-123",
+        "email": "test@example.com",
+        "cognito:groups": "ApprovedUsers"
+      }
+    }
+  }
+}
