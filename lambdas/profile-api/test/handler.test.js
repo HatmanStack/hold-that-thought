@@ -1,12 +1,18 @@
 const { handler } = require('../index');
 const { mockClient } = require('aws-sdk-client-mock');
-const { DynamoDBDocumentClient, GetCommand, QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+const { DynamoDBDocumentClient, GetCommand, QueryCommand, UpdateCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
 
 const ddbMock = mockClient(DynamoDBDocumentClient);
 
 // Set environment variables
 process.env.USER_PROFILES_TABLE = 'test-user-profiles';
 process.env.COMMENTS_TABLE = 'test-comments';
+
+// Use valid UUIDs for testing
+const TEST_USER_UUID = '550e8400-e29b-41d4-a716-446655440000';
+const PRIVATE_USER_UUID = '660e8400-e29b-41d4-a716-446655440001';
+const OTHER_USER_UUID = '770e8400-e29b-41d4-a716-446655440002';
+const ADMIN_USER_UUID = '880e8400-e29b-41d4-a716-446655440003';
 
 beforeEach(() => {
   ddbMock.reset();
@@ -16,7 +22,7 @@ describe('Profile API Lambda', () => {
   describe('GET /profile/{userId}', () => {
     test('should return user profile', async () => {
       const mockProfile = {
-        userId: 'test-user-123',
+        userId: TEST_USER_UUID,
         email: 'test@example.com',
         displayName: 'Test User',
         bio: 'Test bio',
@@ -24,15 +30,16 @@ describe('Profile API Lambda', () => {
       };
 
       ddbMock.on(GetCommand).resolves({ Item: mockProfile });
+      ddbMock.on(PutCommand).resolves({});
 
       const event = {
         httpMethod: 'GET',
         resource: '/profile/{userId}',
-        pathParameters: { userId: 'test-user-123' },
+        pathParameters: { userId: TEST_USER_UUID },
         requestContext: {
           authorizer: {
             claims: {
-              sub: 'test-user-123',
+              sub: TEST_USER_UUID,
               email: 'test@example.com'
             }
           }
@@ -43,7 +50,7 @@ describe('Profile API Lambda', () => {
 
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
-      expect(body.userId).toBe('test-user-123');
+      expect(body.userId).toBe(TEST_USER_UUID);
       expect(body.displayName).toBe('Test User');
     });
 
@@ -53,10 +60,10 @@ describe('Profile API Lambda', () => {
       const event = {
         httpMethod: 'GET',
         resource: '/profile/{userId}',
-        pathParameters: { userId: 'nonexistent' },
+        pathParameters: { userId: '990e8400-e29b-41d4-a716-446655440099' },
         requestContext: {
           authorizer: {
-            claims: { sub: 'requester-123', email: 'requester@example.com' }
+            claims: { sub: OTHER_USER_UUID, email: 'requester@example.com' }
           }
         }
       };
@@ -70,22 +77,23 @@ describe('Profile API Lambda', () => {
 
     test('should return 403 for private profile (non-owner)', async () => {
       const mockProfile = {
-        userId: 'private-user',
+        userId: PRIVATE_USER_UUID,
         email: 'private@example.com',
         displayName: 'Private User',
         isProfilePrivate: true
       };
 
       ddbMock.on(GetCommand).resolves({ Item: mockProfile });
+      ddbMock.on(PutCommand).resolves({});
 
       const event = {
         httpMethod: 'GET',
         resource: '/profile/{userId}',
-        pathParameters: { userId: 'private-user' },
+        pathParameters: { userId: PRIVATE_USER_UUID },
         requestContext: {
           authorizer: {
             claims: {
-              sub: 'other-user-123',
+              sub: OTHER_USER_UUID,
               email: 'other@example.com'
             }
           }
@@ -101,22 +109,23 @@ describe('Profile API Lambda', () => {
 
     test('should allow owner to view their private profile', async () => {
       const mockProfile = {
-        userId: 'private-user',
+        userId: PRIVATE_USER_UUID,
         email: 'private@example.com',
         displayName: 'Private User',
         isProfilePrivate: true
       };
 
       ddbMock.on(GetCommand).resolves({ Item: mockProfile });
+      ddbMock.on(PutCommand).resolves({});
 
       const event = {
         httpMethod: 'GET',
         resource: '/profile/{userId}',
-        pathParameters: { userId: 'private-user' },
+        pathParameters: { userId: PRIVATE_USER_UUID },
         requestContext: {
           authorizer: {
             claims: {
-              sub: 'private-user',
+              sub: PRIVATE_USER_UUID,
               email: 'private@example.com'
             }
           }
@@ -130,22 +139,23 @@ describe('Profile API Lambda', () => {
 
     test('should allow admin to view private profile', async () => {
       const mockProfile = {
-        userId: 'private-user',
+        userId: PRIVATE_USER_UUID,
         email: 'private@example.com',
         displayName: 'Private User',
         isProfilePrivate: true
       };
 
       ddbMock.on(GetCommand).resolves({ Item: mockProfile });
+      ddbMock.on(PutCommand).resolves({});
 
       const event = {
         httpMethod: 'GET',
         resource: '/profile/{userId}',
-        pathParameters: { userId: 'private-user' },
+        pathParameters: { userId: PRIVATE_USER_UUID },
         requestContext: {
           authorizer: {
             claims: {
-              sub: 'admin-user',
+              sub: ADMIN_USER_UUID,
               email: 'admin@example.com',
               'cognito:groups': 'Admins,ApprovedUsers'
             }
@@ -161,9 +171,11 @@ describe('Profile API Lambda', () => {
 
   describe('PUT /profile', () => {
     test('should update user profile', async () => {
+      ddbMock.on(GetCommand).resolves({ Item: null });
+      ddbMock.on(PutCommand).resolves({});
       ddbMock.on(UpdateCommand).resolves({
         Attributes: {
-          userId: 'test-user-123',
+          userId: TEST_USER_UUID,
           email: 'test@example.com',
           displayName: 'Updated Name',
           bio: 'Updated bio',
@@ -181,7 +193,7 @@ describe('Profile API Lambda', () => {
         requestContext: {
           authorizer: {
             claims: {
-              sub: 'test-user-123',
+              sub: TEST_USER_UUID,
               email: 'test@example.com'
             }
           }
@@ -207,7 +219,7 @@ describe('Profile API Lambda', () => {
         requestContext: {
           authorizer: {
             claims: {
-              sub: 'test-user-123',
+              sub: TEST_USER_UUID,
               email: 'test@example.com'
             }
           }
@@ -233,7 +245,7 @@ describe('Profile API Lambda', () => {
         requestContext: {
           authorizer: {
             claims: {
-              sub: 'test-user-123',
+              sub: TEST_USER_UUID,
               email: 'test@example.com'
             }
           }
@@ -248,9 +260,11 @@ describe('Profile API Lambda', () => {
     });
 
     test('should sanitize XSS payloads in bio and displayName', async () => {
+      ddbMock.on(GetCommand).resolves({ Item: null });
+      ddbMock.on(PutCommand).resolves({});
       ddbMock.on(UpdateCommand).resolves({
         Attributes: {
-          userId: 'test-user-123',
+          userId: TEST_USER_UUID,
           email: 'test@example.com',
           displayName: 'alert(XSS)',
           bio: 'scriptalert(XSS)/script',
@@ -268,7 +282,7 @@ describe('Profile API Lambda', () => {
         requestContext: {
           authorizer: {
             claims: {
-              sub: 'test-user-123',
+              sub: TEST_USER_UUID,
               email: 'test@example.com'
             }
           }
@@ -297,7 +311,7 @@ describe('Profile API Lambda', () => {
   describe('GET /profile/{userId}/comments', () => {
     test('should return user comment history', async () => {
       const mockProfile = {
-        userId: 'test-user-123',
+        userId: TEST_USER_UUID,
         email: 'test@example.com',
         isProfilePrivate: false
       };
@@ -306,14 +320,14 @@ describe('Profile API Lambda', () => {
         {
           itemId: '/2015/christmas',
           commentId: '2025-01-15T10:00:00.000Z#abc',
-          userId: 'test-user-123',
+          userId: TEST_USER_UUID,
           commentText: 'Great letter!',
           isDeleted: false
         },
         {
           itemId: '/2016/summer',
           commentId: '2025-01-14T09:00:00.000Z#def',
-          userId: 'test-user-123',
+          userId: TEST_USER_UUID,
           commentText: 'Love this!',
           isDeleted: false
         }
@@ -325,12 +339,12 @@ describe('Profile API Lambda', () => {
       const event = {
         httpMethod: 'GET',
         resource: '/profile/{userId}/comments',
-        pathParameters: { userId: 'test-user-123' },
+        pathParameters: { userId: TEST_USER_UUID },
         queryStringParameters: { limit: '50' },
         requestContext: {
           authorizer: {
             claims: {
-              sub: 'test-user-123',
+              sub: TEST_USER_UUID,
               email: 'test@example.com'
             }
           }
@@ -347,7 +361,7 @@ describe('Profile API Lambda', () => {
 
     test('should filter out deleted comments', async () => {
       const mockProfile = {
-        userId: 'test-user-123',
+        userId: TEST_USER_UUID,
         email: 'test@example.com',
         isProfilePrivate: false
       };
@@ -356,14 +370,14 @@ describe('Profile API Lambda', () => {
         {
           itemId: '/2015/christmas',
           commentId: '2025-01-15T10:00:00.000Z#abc',
-          userId: 'test-user-123',
+          userId: TEST_USER_UUID,
           commentText: 'Great letter!',
           isDeleted: false
         },
         {
           itemId: '/2016/summer',
           commentId: '2025-01-14T09:00:00.000Z#def',
-          userId: 'test-user-123',
+          userId: TEST_USER_UUID,
           commentText: 'Deleted comment',
           isDeleted: true
         }
@@ -375,12 +389,12 @@ describe('Profile API Lambda', () => {
       const event = {
         httpMethod: 'GET',
         resource: '/profile/{userId}/comments',
-        pathParameters: { userId: 'test-user-123' },
+        pathParameters: { userId: TEST_USER_UUID },
         queryStringParameters: {},
         requestContext: {
           authorizer: {
             claims: {
-              sub: 'test-user-123',
+              sub: TEST_USER_UUID,
               email: 'test@example.com'
             }
           }
@@ -397,22 +411,23 @@ describe('Profile API Lambda', () => {
 
     test('should return 403 for private profile comments', async () => {
       const mockProfile = {
-        userId: 'private-user',
+        userId: PRIVATE_USER_UUID,
         email: 'private@example.com',
         isProfilePrivate: true
       };
 
       ddbMock.on(GetCommand).resolves({ Item: mockProfile });
+      ddbMock.on(PutCommand).resolves({});
 
       const event = {
         httpMethod: 'GET',
         resource: '/profile/{userId}/comments',
-        pathParameters: { userId: 'private-user' },
+        pathParameters: { userId: PRIVATE_USER_UUID },
         queryStringParameters: {},
         requestContext: {
           authorizer: {
             claims: {
-              sub: 'other-user',
+              sub: OTHER_USER_UUID,
               email: 'other@example.com'
             }
           }
@@ -432,7 +447,7 @@ describe('Profile API Lambda', () => {
       const event = {
         httpMethod: 'GET',
         resource: '/profile/{userId}',
-        pathParameters: { userId: 'test-user' },
+        pathParameters: { userId: TEST_USER_UUID },
         requestContext: {}
       };
 
@@ -450,7 +465,7 @@ describe('Profile API Lambda', () => {
         requestContext: {
           authorizer: {
             claims: {
-              sub: 'test-user-123',
+              sub: TEST_USER_UUID,
               email: 'test@example.com'
             }
           }
