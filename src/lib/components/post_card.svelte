@@ -6,6 +6,7 @@
   import Status from '$lib/components/post_status.svelte'
   import Image from '$lib/components/prose/img.svelte'
   import MarkdownEditorModal from '$lib/components/post_editor.svelte'
+  import CommentSection from '$lib/components/comments/CommentSection.svelte'
   import { post as postConfig } from '$lib/config/post'
   import { posts as storedPosts } from '$lib/stores/posts'
   import { title as storedTitle } from '$lib/stores/title'
@@ -233,6 +234,13 @@
     {/if}
     {#if browser && postConfig.comment && !post.flags?.includes('comment-disabled')}
       <Comment config={postConfig.comment} {post} />
+    {/if}
+    {#if browser && !post.flags?.includes('comment-disabled')}
+      <CommentSection
+        itemId={post.path}
+        itemType="letter"
+        itemTitle={post.title ?? post.path.slice(1)}
+      />
     {/if}
   {/if}
 </svelte:element>
