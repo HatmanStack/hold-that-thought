@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte'
-  import { sendMessage } from '$lib/services/messageService'
+  import { sendMessage, uploadAttachment } from '$lib/services/messageService'
   import type { Message } from '$lib/types/message'
 
   export let conversationId: string
@@ -71,9 +71,30 @@
     error = ''
 
     try {
-      // For now, send without uploading attachments
-      // (Attachment upload will be implemented in Task 10)
-      const result = await sendMessage(conversationId, trimmedText)
+      // Upload attachments first if there are any
+      let attachments: Array<{ s3Key: string; filename: string; contentType: string; size: number }> = []
+
+      if (selectedFiles.length > 0) {
+        for (const file of selectedFiles) {
+          const uploadResult = await uploadAttachment(file)
+
+          if (uploadResult.success && uploadResult.data) {
+            attachments.push({
+              s3Key: uploadResult.data.s3Key,
+              filename: file.name,
+              contentType: file.type,
+              size: file.size
+            })
+          } else {
+            error = uploadResult.error || `Failed to upload ${file.name}`
+            sending = false
+            return
+          }
+        }
+      }
+
+      // Send message with attachments
+      const result = await sendMessage(conversationId, trimmedText, attachments.length > 0 ? attachments : undefined)
 
       if (result.success && result.data) {
         // Clear input
