@@ -1,0 +1,52 @@
+config:
+  target: "{{ $processEnvironment.API_URL || 'https://api.holdthatthought.family' }}"
+  phases:
+    - duration: 60
+      arrivalRate: 5
+      name: "Warm up"
+    - duration: 120
+      arrivalRate: 10
+      name: "Sustained load"
+    - duration: 60
+      arrivalRate: 25
+      name: "Peak load"
+  http:
+    timeout: 30
+  processor: "./load-test-processor.js"
+
+scenarios:
+  - name: "View and add comments"
+    flow:
+      # Get comments for a letter
+      - get:
+          url: "/comments/2015/christmas?limit=50"
+          headers:
+            Authorization: "Bearer {{ $processEnvironment.TEST_TOKEN }}"
+          capture:
+            - json: "$.items[0].commentId"
+              as: "firstCommentId"
+      - think: 2
+
+      # Add a new comment
+      - post:
+          url: "/comments/2015/christmas"
+          headers:
+            Authorization: "Bearer {{ $processEnvironment.TEST_TOKEN }}"
+            Content-Type: "application/json"
+          json:
+            commentText: "Load test comment - {{ $randomString() }}"
+          capture:
+            - json: "$.commentId"
+              as: "newCommentId"
+      - think: 1
+
+      # React to a comment (if one exists)
+      - post:
+          url: "/reactions/{{ firstCommentId }}"
+          headers:
+            Authorization: "Bearer {{ $processEnvironment.TEST_TOKEN }}"
+            Content-Type: "application/json"
+          json:
+            reactionType: "like"
+          ifTrue: "firstCommentId"
+      - think: 2
