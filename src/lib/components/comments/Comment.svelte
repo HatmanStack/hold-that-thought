@@ -164,7 +164,12 @@
     <div class="flex-1 min-w-0">
       <!-- Header -->
       <div class="flex items-center gap-2 mb-1">
-        <span class="font-semibold text-sm">{comment.userName}</span>
+        <a
+          href="/profile/{comment.userId}"
+          class="font-semibold text-sm hover:text-primary hover:underline"
+        >
+          {comment.userName}
+        </a>
         <span class="text-xs text-base-content/60">
           {formatRelativeTime(comment.createdAt)}
         </span>
