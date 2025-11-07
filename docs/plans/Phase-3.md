@@ -767,6 +767,18 @@ Before proceeding to Phase 4, verify:
 
 ---
 
+## Review Feedback (Iteration 1)
+
+### Task 4: Profile Page Route - Admin Check Implementation
+
+> **Consider:** In `src/routes/profile/[userId]/+page.svelte:16`, the admin check is hardcoded to `false` with a TODO comment. Looking at Phase 0 architecture guidance and the implementation in `src/lib/components/comments/CommentSection.svelte:22`, what pattern should be used to properly check if a user is in the Admins group?
+>
+> **Think about:** The plan in Phase 3 Task 4 (line 251) states "Check admin status from auth store". The Phase Verification section (line 725) requires "Admin can view all profiles". How does hardcoding `isAdmin = false` affect this requirement?
+>
+> **Reflect:** In `src/lib/components/comments/CommentSection.svelte`, you successfully implemented the admin check using `$currentUser?.['cognito:groups']?.includes('Admins')`. Should the profile page use the same pattern for consistency?
+
+---
+
 ## Next Steps
 
-Proceed to **Phase 4: Messaging System** to build direct messaging functionality.
+After addressing the review feedback above, proceed to **Phase 4: Messaging System** to build direct messaging functionality.
