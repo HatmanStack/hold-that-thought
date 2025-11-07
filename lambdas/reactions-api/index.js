@@ -80,14 +80,25 @@ async function toggleReaction(event, userId) {
       }));
 
       // Decrement reaction count in Comments table
-      await docClient.send(new UpdateCommand({
-        TableName: COMMENTS_TABLE,
-        Key: { itemId, commentId },
-        UpdateExpression: 'ADD reactionCount :decrement',
-        ExpressionAttributeValues: {
-          ':decrement': -1
+      try {
+        await docClient.send(new UpdateCommand({
+          TableName: COMMENTS_TABLE,
+          Key: { itemId, commentId },
+          UpdateExpression: 'ADD reactionCount :decrement',
+          ConditionExpression: 'attribute_exists(commentId)',
+          ExpressionAttributeValues: {
+            ':decrement': -1
+          }
+        }));
+      } catch (error) {
+        // If comment doesn't exist, we still removed the reaction successfully
+        // Just log the issue - the reaction removal was successful
+        if (error.name === 'ConditionalCheckFailedException') {
+          console.warn('Comment does not exist, reaction removed but count not decremented:', { itemId, commentId });
+        } else {
+          throw error;
         }
-      }));
+      }
 
       return successResponse({ liked: false, message: 'Reaction removed' });
 
@@ -106,14 +117,28 @@ async function toggleReaction(event, userId) {
       }));
 
       // Increment reaction count in Comments table
-      await docClient.send(new UpdateCommand({
-        TableName: COMMENTS_TABLE,
-        Key: { itemId, commentId },
-        UpdateExpression: 'ADD reactionCount :increment',
-        ExpressionAttributeValues: {
-          ':increment': 1
+      try {
+        await docClient.send(new UpdateCommand({
+          TableName: COMMENTS_TABLE,
+          Key: { itemId, commentId },
+          UpdateExpression: 'ADD reactionCount :increment',
+          ConditionExpression: 'attribute_exists(commentId)',
+          ExpressionAttributeValues: {
+            ':increment': 1
+          }
+        }));
+      } catch (error) {
+        // If comment doesn't exist, roll back the reaction that was just added
+        if (error.name === 'ConditionalCheckFailedException') {
+          console.error('Comment does not exist, rolling back reaction:', { itemId, commentId });
+          await docClient.send(new DeleteCommand({
+            TableName: COMMENT_REACTIONS_TABLE,
+            Key: { commentId, userId }
+          }));
+          return errorResponse(404, 'Comment not found');
         }
-      }));
+        throw error;
+      }
 
       return successResponse({ liked: true, message: 'Reaction added' });
     }

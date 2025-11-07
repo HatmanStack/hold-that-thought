@@ -25,7 +25,16 @@ exports.handler = async (event) => {
     // Extract userId from JWT (Cognito authorizer)
     const userId = event.requestContext?.authorizer?.claims?.sub;
     const userEmail = event.requestContext?.authorizer?.claims?.email;
-    const userGroups = event.requestContext?.authorizer?.claims?.['cognito:groups'] || '';
+    const userGroupsRaw = event.requestContext?.authorizer?.claims?.['cognito:groups'];
+
+    // Parse cognito:groups - can be string (comma-separated) or array
+    let userGroups = [];
+    if (Array.isArray(userGroupsRaw)) {
+      userGroups = userGroupsRaw;
+    } else if (typeof userGroupsRaw === 'string') {
+      userGroups = userGroupsRaw.split(',').map(g => g.trim()).filter(g => g);
+    }
+
     const isAdmin = userGroups.includes('Admins');
 
     if (!userId) {

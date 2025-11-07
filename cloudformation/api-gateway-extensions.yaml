@@ -245,6 +245,48 @@ Resources:
               Fn::ImportValue: !Sub '${LambdaStackName}-CommentsApiArn'
 
   # ========================================
+  # /admin/comments/{commentId} Resource (Admin delete)
+  # ========================================
+
+  AdminResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt RestApi.RootResourceId
+      PathPart: 'admin'
+      RestApiId: !Ref RestApiId
+
+  AdminCommentsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref AdminResource
+      PathPart: 'comments'
+      RestApiId: !Ref RestApiId
+
+  AdminCommentsCommentIdResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref AdminCommentsResource
+      PathPart: '{commentId}'
+      RestApiId: !Ref RestApiId
+
+  # DELETE /admin/comments/{commentId}
+  AdminCommentsDeleteMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: DELETE
+      ResourceId: !Ref AdminCommentsCommentIdResource
+      RestApiId: !Ref RestApiId
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FunctionArn}/invocations'
+          - FunctionArn:
+              Fn::ImportValue: !Sub '${LambdaStackName}-CommentsApiArn'
+
+  # ========================================
   # /reactions Resource
   # ========================================
   ReactionsResource:

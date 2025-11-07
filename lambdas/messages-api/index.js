@@ -322,6 +322,7 @@ async function markAsRead(event, userId) {
       TableName: CONVERSATION_MEMBERS_TABLE,
       Key: { userId, conversationId },
       UpdateExpression: 'SET unreadCount = :zero',
+      ConditionExpression: 'attribute_exists(userId)',
       ExpressionAttributeValues: {
         ':zero': 0
       }
@@ -331,6 +332,9 @@ async function markAsRead(event, userId) {
 
   } catch (error) {
     console.error('Error marking conversation as read:', { conversationId, userId, error });
+    if (error.name === 'ConditionalCheckFailedException') {
+      return errorResponse(403, 'You are not a member of this conversation');
+    }
     throw error;
   }
 }

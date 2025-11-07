@@ -38,6 +38,7 @@ Resources:
     Properties:
       TopicName: !Sub ${Environment}-hold-that-thought-alerts
       DisplayName: Hold That Thought Alerts
+      KmsMasterKeyId: alias/aws/sns  # Encrypt topic with AWS-managed key
       Subscription:
         - Endpoint: !Ref AlertEmail
           Protocol: email

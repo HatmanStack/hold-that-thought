@@ -17,6 +17,11 @@ Parameters:
     Default: hold-that-thought-dynamodb
     Description: Name of the DynamoDB CloudFormation stack
 
+  SESFromEmail:
+    Type: String
+    Default: noreply@holdthatthought.family
+    Description: Verified SES email identity for sending notifications
+
 Resources:
   # ========================================
   # IAM Role for API Lambda Functions
@@ -114,7 +119,11 @@ Resources:
                 Action:
                   - ses:SendEmail
                   - ses:SendRawEmail
-                Resource: '*'
+                Resource:
+                  # Restrict to specific verified SES identity
+                  - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${SESFromEmail}'
+                  # If using domain-level verification, also add:
+                  # - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/holdthatthought.family'
 
   # ========================================
   # Profile API Lambda
