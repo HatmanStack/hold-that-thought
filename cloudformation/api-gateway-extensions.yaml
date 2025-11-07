@@ -39,6 +39,45 @@ Resources:
         - !Ref CognitoUserPoolArn
 
   # ========================================
+  # Lambda Invoke Permissions
+  # ========================================
+  ProfileApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName:
+        Fn::ImportValue: !Sub '${LambdaStackName}-ProfileApiArn'
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApiId}/*'
+
+  CommentsApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName:
+        Fn::ImportValue: !Sub '${LambdaStackName}-CommentsApiArn'
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApiId}/*'
+
+  ReactionsApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName:
+        Fn::ImportValue: !Sub '${LambdaStackName}-ReactionsApiArn'
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApiId}/*'
+
+  MessagesApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName:
+        Fn::ImportValue: !Sub '${LambdaStackName}-MessagesApiArn'
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApiId}/*'
+
+  # ========================================
   # /profile Resource
   # ========================================
   ProfileResource:
