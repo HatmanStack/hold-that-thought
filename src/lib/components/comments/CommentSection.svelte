@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onMount, onDestroy } from 'svelte'
   import { currentUser } from '$lib/auth/auth-store'
   import { getComments } from '$lib/services/commentService'
   import CommentForm from './CommentForm.svelte'
@@ -16,6 +16,7 @@
   let error = ''
   let lastKey: string | undefined = undefined
   let hasMore = false
+  let pollInterval: NodeJS.Timeout | null = null
 
   $: currentUserId = $currentUser?.sub || ''
   $: isAdmin = $currentUser?.['cognito:groups']?.includes('Admins') || false
@@ -49,6 +50,30 @@
     loadingMore = false
   }
 
+  /**
+   * Poll for new comments (every 30 seconds)
+   */
+  async function pollNewComments() {
+    // Skip if tab is hidden
+    if (typeof document !== 'undefined' && document.hidden) {
+      return
+    }
+
+    // Fetch latest 10 comments
+    const result = await getComments(itemId, 10)
+
+    if (result.success && Array.isArray(result.data)) {
+      // Check for new comments not in current list
+      const currentIds = new Set(comments.map((c) => c.commentId))
+      const newComments = result.data.filter((c) => !currentIds.has(c.commentId))
+
+      if (newComments.length > 0) {
+        // Prepend new comments
+        comments = [...newComments, ...comments]
+      }
+    }
+  }
+
   function handleCommentCreated(event: CustomEvent<CommentType>) {
     // Prepend new comment to list (optimistic update)
     comments = [event.detail, ...comments]
@@ -69,7 +94,19 @@
   }
 
   onMount(() => {
+    // Initial load
     loadComments()
+
+    // Start polling for new comments every 30 seconds
+    pollInterval = setInterval(pollNewComments, 30000)
+  })
+
+  onDestroy(() => {
+    // Clean up polling interval
+    if (pollInterval) {
+      clearInterval(pollInterval)
+      pollInterval = null
+    }
   })
 </script>
 
