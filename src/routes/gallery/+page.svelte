@@ -6,6 +6,7 @@
   import { browser } from '$app/environment'
   import type { PageData } from './$types'
   import { uploadMedia, getMediaItems, type MediaItem } from '$lib/services/media-service'
+  import CommentSection from '$lib/components/comments/CommentSection.svelte'
   
   export let data: PageData
   
@@ -378,7 +379,7 @@
         </div>
       {/if}
       
-      <div class="grid grid-cols-2 gap-4 text-sm">
+      <div class="grid grid-cols-2 gap-4 text-sm mb-4">
         <div>
           <span class="font-semibold">Upload Date:</span>
           <span class="text-base-content/70">{formatDate(selectedItem.uploadDate)}</span>
@@ -388,7 +389,16 @@
           <span class="text-base-content/70">{formatFileSize(selectedItem.fileSize)}</span>
         </div>
       </div>
-      
+
+      <!-- Comments Section -->
+      <div class="max-h-96 overflow-y-auto">
+        <CommentSection
+          itemId={selectedItem.id}
+          itemType="media"
+          itemTitle={selectedItem.title}
+        />
+      </div>
+
       <div class="modal-action">
         <button class="btn" on:click={closeModal}>Close</button>
         <a href={selectedItem.signedUrl} target="_blank" class="btn btn-primary">
