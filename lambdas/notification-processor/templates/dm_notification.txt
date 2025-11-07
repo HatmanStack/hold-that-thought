@@ -1,0 +1,16 @@
+New Message from {senderName}
+
+Hi there,
+
+{senderName} sent you a message:
+
+"{messagePreview}"
+
+View the full conversation:
+{conversationUrl}
+
+---
+You're receiving this email because someone sent you a direct message.
+Manage notification preferences: {settingsUrl}
+
+© 2025 Hold That Thought - Family Letter Sharing
