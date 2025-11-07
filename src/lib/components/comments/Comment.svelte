@@ -23,7 +23,11 @@
   // Reaction state
   let reactionCount = comment.reactionCount
   let isReacting = false
-  let hasReacted = false // TODO: Track if current user has reacted
+  let hasReacted = comment.userHasReacted ?? false
+
+  // Update reaction state when comment prop changes
+  $: hasReacted = comment.userHasReacted ?? false
+  $: reactionCount = comment.reactionCount
 
   $: isOwner = comment.userId === currentUserId
   $: canEdit = isOwner && !comment.isDeleted

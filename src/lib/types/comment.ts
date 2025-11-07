@@ -15,6 +15,7 @@ export interface Comment {
   isDeleted: boolean
   itemType: 'letter' | 'media'
   itemTitle: string
+  userHasReacted?: boolean  // Whether current user has reacted to this comment
 }
 
 export interface Reaction {

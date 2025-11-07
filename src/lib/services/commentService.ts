@@ -12,11 +12,12 @@ const API_BASE = PUBLIC_API_GATEWAY_URL
 
 /**
  * Get authorization header with JWT token
+ * @throws Error if user is not authenticated or token is missing
  */
 function getAuthHeader(): Record<string, string> {
   const tokens = get(authTokens)
   if (!tokens?.idToken) {
-    throw new Error('Not authenticated')
+    throw new Error('Your session has expired. Please log in again.')
   }
   return {
     Authorization: `Bearer ${tokens.idToken}`,
