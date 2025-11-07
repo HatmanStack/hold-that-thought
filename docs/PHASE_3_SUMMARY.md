@@ -203,10 +203,7 @@ Phase 3 frontend relies on these Phase 1 backend endpoints:
 3. **No user search** - Cannot search for users by name
    - Future: Add user directory with search
 
-4. **Admin check placeholder** - `isAdmin` hardcoded to false in profile page
-   - TODO: Implement Cognito groups check when admin functionality is added
-
-5. **No image resizing** - Profile photos uploaded at original size
+4. **No image resizing** - Profile photos uploaded at original size
    - Future: Add Lambda to resize images on upload (save storage)
 
 ## Technical Debt
@@ -218,10 +215,6 @@ Phase 3 frontend relies on these Phase 1 backend endpoints:
 2. **Comment history deep-linking**
    - Navigates to item but doesn't scroll/highlight comment yet
    - Solution: Add scroll behavior and highlight in CommentSection
-
-3. **Admin group checking**
-   - Currently hardcoded to false
-   - Solution: Extract Cognito groups from JWT and check for 'Admins'
 
 ## Performance Notes
 
@@ -237,6 +230,8 @@ Ready to proceed to **Phase 4: Messaging System** to build direct messaging func
 ## Commits
 
 ```
+ce99471 fix(profile): implement proper admin check in profile page
+2c0a646 docs: add Phase 3 implementation summary
 6243169 chore(profile): add user profile backfill script
 e5bd2ae feat(profile): add profile navigation to site header
 55b041b feat(profile): add profile links to comment usernames
@@ -247,5 +242,18 @@ f59a219 feat(profile): create ProfileCard component
 c6b21e2 feat(profile): create profile API service client
 ```
 
-**Total Commits:** 8
+**Total Commits:** 10
 **Estimated Tokens Used:** ~52,000 (within 80,000 budget)
+
+## Review Feedback Addressed
+
+### Iteration 1: Admin Check Implementation
+
+**Issue:** Profile page route had hardcoded `isAdmin = false` instead of checking Cognito groups
+
+**Fix:** Implemented proper admin check using `$currentUser?.['cognito:groups']?.includes('Admins') || false`
+- Matches pattern used in CommentSection.svelte
+- Admins can now properly view private profiles
+- Satisfies Phase Verification requirement "Admin can view all profiles"
+
+**Commit:** `ce99471`
