@@ -1,0 +1,18 @@
+NEW COMMENT ON YOUR POST
+
+Hi there,
+
+{userName} commented on "{itemTitle}":
+
+---
+{commentText}
+---
+
+View the full discussion here:
+{itemUrl}
+
+---
+You're receiving this email because you're subscribed to notifications for this item.
+Manage notification preferences: {unsubscribeUrl}
+
+© 2025 Hold That Thought - Family Letter Sharing
