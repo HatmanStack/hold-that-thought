@@ -246,6 +246,52 @@ describe('Profile API Lambda', () => {
       const body = JSON.parse(response.body);
       expect(body.error).toContain('Display name must be 100 characters or less');
     });
+
+    test('should sanitize XSS payloads in bio and displayName', async () => {
+      ddbMock.on(UpdateCommand).resolves({
+        Attributes: {
+          userId: 'test-user-123',
+          email: 'test@example.com',
+          displayName: 'alert(XSS)',
+          bio: 'scriptalert(XSS)/script',
+          updatedAt: '2025-01-15T10:00:00.000Z'
+        }
+      });
+
+      const event = {
+        httpMethod: 'PUT',
+        resource: '/profile',
+        body: JSON.stringify({
+          displayName: '<script>alert("XSS")</script>',
+          bio: '<script>alert("XSS")</script>'
+        }),
+        requestContext: {
+          authorizer: {
+            claims: {
+              sub: 'test-user-123',
+              email: 'test@example.com'
+            }
+          }
+        }
+      };
+
+      const response = await handler(event);
+
+      expect(response.statusCode).toBe(200);
+
+      // Verify UpdateCommand was called with sanitized values
+      const updateCalls = ddbMock.commandCalls(UpdateCommand);
+      expect(updateCalls.length).toBeGreaterThan(0);
+
+      const lastCall = updateCalls[updateCalls.length - 1];
+      const values = lastCall.args[0].input.ExpressionAttributeValues;
+
+      // HTML tags should be stripped
+      expect(values[':displayName']).not.toContain('<script>');
+      expect(values[':displayName']).not.toContain('</script>');
+      expect(values[':bio']).not.toContain('<script>');
+      expect(values[':bio']).not.toContain('</script>');
+    });
   });
 
   describe('GET /profile/{userId}/comments', () => {
