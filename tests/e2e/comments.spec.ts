@@ -46,7 +46,7 @@ test.describe('Comments Flow', () => {
     await expect(page.locator(`text=${originalText}`)).toBeVisible();
 
     // Click edit button
-    await page.click('button[aria-label="Edit comment"], button:has-text("Edit")').first();
+    await page.locator('button[aria-label="Edit comment"], button:has-text("Edit")').first().click();
 
     // Modify the comment
     const editedText = `Edited comment ${Date.now()}`;
@@ -70,7 +70,7 @@ test.describe('Comments Flow', () => {
     await expect(page.locator(`text=${commentText}`)).toBeVisible();
 
     // Click delete button
-    await page.click('button[aria-label="Delete comment"], button:has-text("Delete")').first();
+    await page.locator('button[aria-label="Delete comment"], button:has-text("Delete")').first().click();
 
     // Confirm deletion if there's a confirmation dialog
     const confirmButton = page.locator('button:has-text("Confirm"), button:has-text("Yes")');
