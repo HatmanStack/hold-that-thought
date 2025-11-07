@@ -151,6 +151,37 @@ export async function getCommentHistory(
 }
 
 /**
+ * Get all users (for selecting conversation participants)
+ */
+export async function getAllUsers(): Promise<ProfileApiResponse> {
+  try {
+    const response = await fetch(`${API_BASE}/users`, {
+      headers: getAuthHeader()
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Failed to fetch users' }))
+      return {
+        success: false,
+        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`
+      }
+    }
+
+    const data = await response.json()
+    return {
+      success: true,
+      data: data.items || data
+    }
+  } catch (error) {
+    console.error('Error fetching users:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch users'
+    }
+  }
+}
+
+/**
  * Upload a profile photo and get the S3 URL
  * This function gets a presigned URL from the backend and uploads the file to S3
  */
