@@ -3,8 +3,11 @@
   import { googleOAuth } from '$lib/auth/google-oauth'
   import { currentUser, isAuthenticated } from '$lib/auth/auth-store'
   import { goto } from '$app/navigation'
+  import { onMount, onDestroy } from 'svelte'
+  import { unreadCount, updateUnreadCount } from '$lib/stores/messages'
 
   let showDropdown = false
+  let updateInterval: number | null = null
 
   async function handleSignOut() {
     try {
@@ -34,6 +37,26 @@
   function closeDropdown() {
     showDropdown = false
   }
+
+  onMount(() => {
+    // Update unread count immediately
+    if ($isAuthenticated) {
+      updateUnreadCount()
+
+      // Update every 60 seconds
+      updateInterval = window.setInterval(() => {
+        if ($isAuthenticated) {
+          updateUnreadCount()
+        }
+      }, 60000)
+    }
+  })
+
+  onDestroy(() => {
+    if (updateInterval) {
+      clearInterval(updateInterval)
+    }
+  })
 </script>
 
 {#if $isAuthenticated && $currentUser}
@@ -75,6 +98,30 @@
               />
             </svg>
             My Profile
+          </a>
+        </li>
+        <li>
+          <a href="/messages" on:click={closeDropdown} class="relative">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+              />
+            </svg>
+            <span class="flex items-center gap-2">
+              Messages
+              {#if $unreadCount > 0}
+                <span class="badge badge-primary badge-sm">{$unreadCount}</span>
+              {/if}
+            </span>
           </a>
         </li>
         <li>
