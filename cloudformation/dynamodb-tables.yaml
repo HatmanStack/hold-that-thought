@@ -1,16 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: 'DynamoDB tables for Hold That Thought social features (profiles, comments, messaging)'
 
-Parameters:
-  EnvironmentName:
-    Type: String
-    Default: prod
-    Description: Environment name (dev, staging, prod)
-    AllowedValues:
-      - dev
-      - staging
-      - prod
-
 Resources:
   # ========================================
   # UserProfiles Table
@@ -18,7 +8,7 @@ Resources:
   UserProfilesTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub 'hold-that-thought-user-profiles-${EnvironmentName}'
+      TableName: 'hold-that-thought-user-profiles'
       AttributeDefinitions:
         - AttributeName: userId
           AttributeType: S
@@ -45,8 +35,6 @@ Resources:
       Tags:
         - Key: Application
           Value: HoldThatThought
-        - Key: Environment
-          Value: !Ref EnvironmentName
         - Key: ManagedBy
           Value: CloudFormation
 
@@ -56,7 +44,7 @@ Resources:
   CommentsTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub 'hold-that-thought-comments-${EnvironmentName}'
+      TableName: 'hold-that-thought-comments'
       AttributeDefinitions:
         - AttributeName: itemId
           AttributeType: S
@@ -91,8 +79,6 @@ Resources:
       Tags:
         - Key: Application
           Value: HoldThatThought
-        - Key: Environment
-          Value: !Ref EnvironmentName
         - Key: ManagedBy
           Value: CloudFormation
 
@@ -102,7 +88,7 @@ Resources:
   CommentReactionsTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub 'hold-that-thought-comment-reactions-${EnvironmentName}'
+      TableName: 'hold-that-thought-comment-reactions'
       AttributeDefinitions:
         - AttributeName: commentId
           AttributeType: S
@@ -124,8 +110,6 @@ Resources:
       Tags:
         - Key: Application
           Value: HoldThatThought
-        - Key: Environment
-          Value: !Ref EnvironmentName
         - Key: ManagedBy
           Value: CloudFormation
 
@@ -135,7 +119,7 @@ Resources:
   MessagesTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub 'hold-that-thought-messages-${EnvironmentName}'
+      TableName: 'hold-that-thought-messages'
       AttributeDefinitions:
         - AttributeName: conversationId
           AttributeType: S
@@ -157,8 +141,6 @@ Resources:
       Tags:
         - Key: Application
           Value: HoldThatThought
-        - Key: Environment
-          Value: !Ref EnvironmentName
         - Key: ManagedBy
           Value: CloudFormation
 
@@ -168,7 +150,7 @@ Resources:
   ConversationMembersTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub 'hold-that-thought-conversation-members-${EnvironmentName}'
+      TableName: 'hold-that-thought-conversation-members'
       AttributeDefinitions:
         - AttributeName: userId
           AttributeType: S
@@ -201,8 +183,6 @@ Resources:
       Tags:
         - Key: Application
           Value: HoldThatThought
-        - Key: Environment
-          Value: !Ref EnvironmentName
         - Key: ManagedBy
           Value: CloudFormation
 
