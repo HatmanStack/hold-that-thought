@@ -1,5 +1,5 @@
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand, BatchWriteCommand } = require('@aws-sdk/lib-dynamodb');
+const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand, BatchWriteCommand, BatchGetCommand } = require('@aws-sdk/lib-dynamodb');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { v4: uuidv4 } = require('uuid');
@@ -379,10 +379,11 @@ async function createMessage(conversationId, senderId, messageText, participantI
 async function updateConversationMembers(conversationId, senderId, participantIds) {
   const now = new Date().toISOString();
 
-  for (const participantId of participantIds) {
+  // Use Promise.all for parallel updates instead of sequential loop
+  const updatePromises = participantIds.map(participantId => {
     if (participantId === senderId) {
       // Sender: just update lastMessageAt
-      await docClient.send(new UpdateCommand({
+      return docClient.send(new UpdateCommand({
         TableName: CONVERSATION_MEMBERS_TABLE,
         Key: { userId: participantId, conversationId },
         UpdateExpression: 'SET lastMessageAt = :now',
@@ -392,7 +393,7 @@ async function updateConversationMembers(conversationId, senderId, participantId
       }));
     } else {
       // Recipients: update lastMessageAt and increment unreadCount
-      await docClient.send(new UpdateCommand({
+      return docClient.send(new UpdateCommand({
         TableName: CONVERSATION_MEMBERS_TABLE,
         Key: { userId: participantId, conversationId },
         UpdateExpression: 'SET lastMessageAt = :now ADD unreadCount :one',
@@ -402,22 +403,36 @@ async function updateConversationMembers(conversationId, senderId, participantId
         }
       }));
     }
-  }
+  });
+
+  await Promise.all(updatePromises);
 }
 
 /**
  * Helper: Fetch user display names
  */
 async function fetchUserNames(userIds) {
-  const names = [];
-  for (const userId of userIds) {
-    const result = await docClient.send(new GetCommand({
-      TableName: USER_PROFILES_TABLE,
-      Key: { userId }
-    }));
-    names.push(result.Item?.displayName || 'Anonymous');
+  if (userIds.length === 0) {
+    return [];
   }
-  return names;
+
+  // Use BatchGetCommand for parallel reads instead of sequential loop
+  const result = await docClient.send(new BatchGetCommand({
+    RequestItems: {
+      [USER_PROFILES_TABLE]: {
+        Keys: userIds.map(userId => ({ userId }))
+      }
+    }
+  }));
+
+  // Create a map of userId to displayName for quick lookup
+  const userMap = {};
+  (result.Responses?.[USER_PROFILES_TABLE] || []).forEach(item => {
+    userMap[item.userId] = item.displayName || 'Anonymous';
+  });
+
+  // Return names in the same order as userIds
+  return userIds.map(userId => userMap[userId] || 'Anonymous');
 }
 
 /**
