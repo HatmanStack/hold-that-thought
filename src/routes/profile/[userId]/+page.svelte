@@ -13,7 +13,7 @@
 
   $: userId = $page.params.userId
   $: isOwner = $currentUser?.sub === userId
-  $: isAdmin = false // TODO: Check if user is in Admins group when available
+  $: isAdmin = $currentUser?.['cognito:groups']?.includes('Admins') || false
 
   /**
    * Load profile data
