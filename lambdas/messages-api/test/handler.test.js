@@ -1,6 +1,6 @@
 const { handler } = require('../index');
 const { mockClient } = require('aws-sdk-client-mock');
-const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand, BatchWriteCommand } = require('@aws-sdk/lib-dynamodb');
+const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand, BatchWriteCommand, BatchGetCommand } = require('@aws-sdk/lib-dynamodb');
 const { S3Client } = require('@aws-sdk/client-s3');
 
 const ddbMock = mockClient(DynamoDBDocumentClient);
@@ -20,6 +20,14 @@ beforeEach(() => {
 describe('Messages API Lambda', () => {
   describe('POST /messages/conversations', () => {
     test('should create 1-on-1 conversation with sorted user IDs', async () => {
+      ddbMock.on(BatchGetCommand).resolves({
+        Responses: {
+          'test-user-profiles': [
+            { userId: 'user-1', displayName: 'User 1' },
+            { userId: 'user-2', displayName: 'User 2' }
+          ]
+        }
+      });
       ddbMock.on(GetCommand).resolves({
         Item: { userId: 'user-1', displayName: 'User 1' }
       });
@@ -49,6 +57,15 @@ describe('Messages API Lambda', () => {
     });
 
     test('should create group conversation with UUID', async () => {
+      ddbMock.on(BatchGetCommand).resolves({
+        Responses: {
+          'test-user-profiles': [
+            { userId: 'user-1', displayName: 'User 1' },
+            { userId: 'user-2', displayName: 'User 2' },
+            { userId: 'user-3', displayName: 'User 3' }
+          ]
+        }
+      });
       ddbMock.on(GetCommand).resolves({
         Item: { userId: 'user-1', displayName: 'User 1' }
       });
