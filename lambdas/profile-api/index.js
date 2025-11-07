@@ -1,5 +1,6 @@
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+const sanitizeHtml = require('sanitize-html');
 
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
@@ -96,7 +97,29 @@ async function getProfile(event, requesterId, isAdmin) {
 async function updateProfile(event, requesterId, requesterEmail) {
   const body = JSON.parse(event.body || '{}');
 
-  // Validate inputs
+  // Sanitize HTML in text fields to prevent XSS
+  if (body.bio) {
+    body.bio = sanitizeHtml(body.bio, {
+      allowedTags: [],
+      allowedAttributes: {}
+    }).trim();
+  }
+
+  if (body.displayName) {
+    body.displayName = sanitizeHtml(body.displayName, {
+      allowedTags: [],
+      allowedAttributes: {}
+    }).trim();
+  }
+
+  if (body.familyRelationship) {
+    body.familyRelationship = sanitizeHtml(body.familyRelationship, {
+      allowedTags: [],
+      allowedAttributes: {}
+    }).trim();
+  }
+
+  // Validate inputs after sanitization
   const errors = [];
 
   if (body.bio && body.bio.length > 500) {
