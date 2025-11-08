@@ -1,0 +1,332 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Lambda functions for Hold That Thought social features'
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: prod
+    AllowedValues: [dev, staging, prod]
+
+  LambdaBucket:
+    Type: String
+    Default: hold-that-thought-lambda-deployments
+    Description: S3 bucket containing Lambda deployment packages
+
+  DynamoDBStackName:
+    Type: String
+    Default: hold-that-thought-dynamodb
+    Description: Name of the DynamoDB CloudFormation stack
+
+  SESFromEmail:
+    Type: String
+    Default: noreply@holdthatthought.family
+    Description: Verified SES email identity for sending notifications
+
+Resources:
+  # ========================================
+  # IAM Role for API Lambda Functions
+  # ========================================
+  ApiLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:BatchWriteItem
+                Resource:
+                  - Fn::ImportValue: !Sub '${DynamoDBStackName}-UserProfilesTableArn'
+                  - Fn::ImportValue: !Sub '${DynamoDBStackName}-CommentsTableArn'
+                  - Fn::ImportValue: !Sub '${DynamoDBStackName}-CommentReactionsTableArn'
+                  - Fn::ImportValue: !Sub '${DynamoDBStackName}-MessagesTableArn'
+                  - Fn::ImportValue: !Sub '${DynamoDBStackName}-ConversationMembersTableArn'
+                  - !Sub
+                    - '${TableArn}/index/*'
+                    - TableArn:
+                        Fn::ImportValue: !Sub '${DynamoDBStackName}-CommentsTableArn'
+                  - !Sub
+                    - '${TableArn}/index/*'
+                    - TableArn:
+                        Fn::ImportValue: !Sub '${DynamoDBStackName}-ConversationMembersTableArn'
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                Resource: !Sub 'arn:aws:s3:::hold-that-thought-bucket-${EnvironmentName}/messages/attachments/*'
+
+  # ========================================
+  # IAM Role for Stream Processor Lambdas
+  # ========================================
+  StreamProcessorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBStreamAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetRecords
+                  - dynamodb:GetShardIterator
+                  - dynamodb:DescribeStream
+                  - dynamodb:ListStreams
+                Resource:
+                  - Fn::ImportValue: !Sub '${DynamoDBStackName}-CommentsTableStreamArn'
+                  - Fn::ImportValue: !Sub '${DynamoDBStackName}-CommentReactionsTableStreamArn'
+                  - Fn::ImportValue: !Sub '${DynamoDBStackName}-MessagesTableStreamArn'
+              - Effect: Allow
+                Action:
+                  - dynamodb:UpdateItem
+                  - dynamodb:GetItem
+                Resource:
+                  - Fn::ImportValue: !Sub '${DynamoDBStackName}-UserProfilesTableArn'
+        - PolicyName: SESAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ses:SendEmail
+                  - ses:SendRawEmail
+                Resource:
+                  # Restrict to specific verified SES identity
+                  - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${SESFromEmail}'
+                  # If using domain-level verification, also add:
+                  # - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/holdthatthought.family'
+
+  # ========================================
+  # Profile API Lambda
+  # ========================================
+  ProfileApiFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'htt-profile-api-${EnvironmentName}'
+      Runtime: nodejs22.x
+      Handler: index.handler
+      Role: !GetAtt ApiLambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaBucket
+        S3Key: !Sub '${EnvironmentName}/profile-api.zip'
+      Environment:
+        Variables:
+          USER_PROFILES_TABLE:
+            Fn::ImportValue: !Sub '${DynamoDBStackName}-UserProfilesTable'
+          COMMENTS_TABLE:
+            Fn::ImportValue: !Sub '${DynamoDBStackName}-CommentsTable'
+      MemorySize: 512
+      Timeout: 30
+
+  # ========================================
+  # Comments API Lambda
+  # ========================================
+  CommentsApiFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'htt-comments-api-${EnvironmentName}'
+      Runtime: nodejs22.x
+      Handler: index.handler
+      Role: !GetAtt ApiLambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaBucket
+        S3Key: !Sub '${EnvironmentName}/comments-api.zip'
+      Environment:
+        Variables:
+          USER_PROFILES_TABLE:
+            Fn::ImportValue: !Sub '${DynamoDBStackName}-UserProfilesTable'
+          COMMENTS_TABLE:
+            Fn::ImportValue: !Sub '${DynamoDBStackName}-CommentsTable'
+      MemorySize: 512
+      Timeout: 30
+
+  # ========================================
+  # Reactions API Lambda
+  # ========================================
+  ReactionsApiFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'htt-reactions-api-${EnvironmentName}'
+      Runtime: nodejs22.x
+      Handler: index.handler
+      Role: !GetAtt ApiLambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaBucket
+        S3Key: !Sub '${EnvironmentName}/reactions-api.zip'
+      Environment:
+        Variables:
+          COMMENT_REACTIONS_TABLE:
+            Fn::ImportValue: !Sub '${DynamoDBStackName}-CommentReactionsTable'
+          COMMENTS_TABLE:
+            Fn::ImportValue: !Sub '${DynamoDBStackName}-CommentsTable'
+      MemorySize: 256
+      Timeout: 15
+
+  # ========================================
+  # Messages API Lambda
+  # ========================================
+  MessagesApiFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'htt-messages-api-${EnvironmentName}'
+      Runtime: nodejs22.x
+      Handler: index.handler
+      Role: !GetAtt ApiLambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaBucket
+        S3Key: !Sub '${EnvironmentName}/messages-api.zip'
+      Environment:
+        Variables:
+          USER_PROFILES_TABLE:
+            Fn::ImportValue: !Sub '${DynamoDBStackName}-UserProfilesTable'
+          MESSAGES_TABLE:
+            Fn::ImportValue: !Sub '${DynamoDBStackName}-MessagesTable'
+          CONVERSATION_MEMBERS_TABLE:
+            Fn::ImportValue: !Sub '${DynamoDBStackName}-ConversationMembersTable'
+          BUCKET_NAME: !Sub 'hold-that-thought-bucket-${EnvironmentName}'
+      MemorySize: 512
+      Timeout: 30
+
+  # ========================================
+  # Notification Processor Lambda
+  # ========================================
+  NotificationProcessorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'htt-notification-processor-${EnvironmentName}'
+      Runtime: python3.13
+      Handler: index.lambda_handler
+      Role: !GetAtt StreamProcessorRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaBucket
+        S3Key: !Sub '${EnvironmentName}/notification-processor.zip'
+      Environment:
+        Variables:
+          USER_PROFILES_TABLE:
+            Fn::ImportValue: !Sub '${DynamoDBStackName}-UserProfilesTable'
+          SES_FROM_EMAIL: noreply@holdthatthought.family
+          BASE_URL: https://holdthatthought.family
+      MemorySize: 256
+      Timeout: 60
+
+  # Event Source Mappings for Notification Processor
+  CommentsStreamMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn:
+        Fn::ImportValue: !Sub '${DynamoDBStackName}-CommentsTableStreamArn'
+      FunctionName: !Ref NotificationProcessorFunction
+      StartingPosition: LATEST
+      MaximumBatchingWindowInSeconds: 10
+      BatchSize: 100
+
+  ReactionsStreamMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn:
+        Fn::ImportValue: !Sub '${DynamoDBStackName}-CommentReactionsTableStreamArn'
+      FunctionName: !Ref NotificationProcessorFunction
+      StartingPosition: LATEST
+      MaximumBatchingWindowInSeconds: 10
+      BatchSize: 100
+
+  MessagesStreamMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn:
+        Fn::ImportValue: !Sub '${DynamoDBStackName}-MessagesTableStreamArn'
+      FunctionName: !Ref NotificationProcessorFunction
+      StartingPosition: LATEST
+      MaximumBatchingWindowInSeconds: 10
+      BatchSize: 100
+
+  # ========================================
+  # Activity Aggregator Lambda
+  # ========================================
+  ActivityAggregatorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'htt-activity-aggregator-${EnvironmentName}'
+      Runtime: python3.13
+      Handler: index.lambda_handler
+      Role: !GetAtt StreamProcessorRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaBucket
+        S3Key: !Sub '${EnvironmentName}/activity-aggregator.zip'
+      Environment:
+        Variables:
+          USER_PROFILES_TABLE:
+            Fn::ImportValue: !Sub '${DynamoDBStackName}-UserProfilesTable'
+      MemorySize: 256
+      Timeout: 60
+
+  # Event Source Mappings for Activity Aggregator
+  CommentsStreamMappingActivity:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn:
+        Fn::ImportValue: !Sub '${DynamoDBStackName}-CommentsTableStreamArn'
+      FunctionName: !Ref ActivityAggregatorFunction
+      StartingPosition: LATEST
+      MaximumBatchingWindowInSeconds: 10
+      BatchSize: 100
+
+  MessagesStreamMappingActivity:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn:
+        Fn::ImportValue: !Sub '${DynamoDBStackName}-MessagesTableStreamArn'
+      FunctionName: !Ref ActivityAggregatorFunction
+      StartingPosition: LATEST
+      MaximumBatchingWindowInSeconds: 10
+      BatchSize: 100
+
+Outputs:
+  ProfileApiFunctionArn:
+    Value: !GetAtt ProfileApiFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-ProfileApiArn'
+
+  CommentsApiFunctionArn:
+    Value: !GetAtt CommentsApiFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-CommentsApiArn'
+
+  ReactionsApiFunctionArn:
+    Value: !GetAtt ReactionsApiFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-ReactionsApiArn'
+
+  MessagesApiFunctionArn:
+    Value: !GetAtt MessagesApiFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-MessagesApiArn'

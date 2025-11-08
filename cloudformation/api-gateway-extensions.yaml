@@ -1,0 +1,499 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'API Gateway extensions for Hold That Thought social features'
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: prod
+    AllowedValues: [dev, staging, prod]
+
+  RestApiId:
+    Type: String
+    Description: Existing API Gateway REST API ID
+
+  RootResourceId:
+    Type: String
+    Description: Root resource ID of existing API Gateway
+
+  CognitoUserPoolArn:
+    Type: String
+    Description: Cognito User Pool ARN for authorization
+
+  LambdaStackName:
+    Type: String
+    Default: hold-that-thought-lambdas
+    Description: Name of the Lambda functions CloudFormation stack
+
+Resources:
+  # ========================================
+  # Cognito Authorizer
+  # ========================================
+  CognitoAuthorizer:
+    Type: AWS::ApiGateway::Authorizer
+    Properties:
+      Name: CognitoUserPoolAuthorizer
+      Type: COGNITO_USER_POOLS
+      IdentitySource: method.request.header.Authorization
+      RestApiId: !Ref RestApiId
+      ProviderARNs:
+        - !Ref CognitoUserPoolArn
+
+  # ========================================
+  # Lambda Invoke Permissions
+  # ========================================
+  ProfileApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName:
+        Fn::ImportValue: !Sub '${LambdaStackName}-ProfileApiArn'
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApiId}/*'
+
+  CommentsApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName:
+        Fn::ImportValue: !Sub '${LambdaStackName}-CommentsApiArn'
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApiId}/*'
+
+  ReactionsApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName:
+        Fn::ImportValue: !Sub '${LambdaStackName}-ReactionsApiArn'
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApiId}/*'
+
+  MessagesApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName:
+        Fn::ImportValue: !Sub '${LambdaStackName}-MessagesApiArn'
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApiId}/*'
+
+  # ========================================
+  # /profile Resource
+  # ========================================
+  ProfileResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref RootResourceId
+      PathPart: profile
+      RestApiId: !Ref RestApiId
+
+  ProfileUserIdResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref ProfileResource
+      PathPart: '{userId}'
+      RestApiId: !Ref RestApiId
+
+  ProfileCommentsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref ProfileUserIdResource
+      PathPart: comments
+      RestApiId: !Ref RestApiId
+
+  # GET /profile/{userId}
+  ProfileGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId: !Ref ProfileUserIdResource
+      RestApiId: !Ref RestApiId
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FunctionArn}/invocations'
+          - FunctionArn:
+              Fn::ImportValue: !Sub '${LambdaStackName}-ProfileApiArn'
+
+  # PUT /profile
+  ProfilePutMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: PUT
+      ResourceId: !Ref ProfileResource
+      RestApiId: !Ref RestApiId
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FunctionArn}/invocations'
+          - FunctionArn:
+              Fn::ImportValue: !Sub '${LambdaStackName}-ProfileApiArn'
+
+  # GET /profile/{userId}/comments
+  ProfileCommentsGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId: !Ref ProfileCommentsResource
+      RestApiId: !Ref RestApiId
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FunctionArn}/invocations'
+          - FunctionArn:
+              Fn::ImportValue: !Sub '${LambdaStackName}-ProfileApiArn'
+
+  # ========================================
+  # /comments Resource
+  # ========================================
+  CommentsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref RootResourceId
+      PathPart: comments
+      RestApiId: !Ref RestApiId
+
+  CommentsItemIdResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref CommentsResource
+      PathPart: '{itemId}'
+      RestApiId: !Ref RestApiId
+
+  CommentsCommentIdResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref CommentsItemIdResource
+      PathPart: '{commentId}'
+      RestApiId: !Ref RestApiId
+
+  # GET /comments/{itemId}
+  CommentsGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId: !Ref CommentsItemIdResource
+      RestApiId: !Ref RestApiId
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FunctionArn}/invocations'
+          - FunctionArn:
+              Fn::ImportValue: !Sub '${LambdaStackName}-CommentsApiArn'
+
+  # POST /comments/{itemId}
+  CommentsPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId: !Ref CommentsItemIdResource
+      RestApiId: !Ref RestApiId
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FunctionArn}/invocations'
+          - FunctionArn:
+              Fn::ImportValue: !Sub '${LambdaStackName}-CommentsApiArn'
+
+  # PUT /comments/{itemId}/{commentId}
+  CommentsPutMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: PUT
+      ResourceId: !Ref CommentsCommentIdResource
+      RestApiId: !Ref RestApiId
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FunctionArn}/invocations'
+          - FunctionArn:
+              Fn::ImportValue: !Sub '${LambdaStackName}-CommentsApiArn'
+
+  # DELETE /comments/{itemId}/{commentId}
+  CommentsDeleteMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: DELETE
+      ResourceId: !Ref CommentsCommentIdResource
+      RestApiId: !Ref RestApiId
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FunctionArn}/invocations'
+          - FunctionArn:
+              Fn::ImportValue: !Sub '${LambdaStackName}-CommentsApiArn'
+
+  # ========================================
+  # /admin/comments/{commentId} Resource (Admin delete)
+  # ========================================
+
+  AdminResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt RestApi.RootResourceId
+      PathPart: 'admin'
+      RestApiId: !Ref RestApiId
+
+  AdminCommentsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref AdminResource
+      PathPart: 'comments'
+      RestApiId: !Ref RestApiId
+
+  AdminCommentsCommentIdResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref AdminCommentsResource
+      PathPart: '{commentId}'
+      RestApiId: !Ref RestApiId
+
+  # DELETE /admin/comments/{commentId}
+  AdminCommentsDeleteMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: DELETE
+      ResourceId: !Ref AdminCommentsCommentIdResource
+      RestApiId: !Ref RestApiId
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FunctionArn}/invocations'
+          - FunctionArn:
+              Fn::ImportValue: !Sub '${LambdaStackName}-CommentsApiArn'
+
+  # ========================================
+  # /reactions Resource
+  # ========================================
+  ReactionsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref RootResourceId
+      PathPart: reactions
+      RestApiId: !Ref RestApiId
+
+  ReactionsCommentIdResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref ReactionsResource
+      PathPart: '{commentId}'
+      RestApiId: !Ref RestApiId
+
+  # POST /reactions/{commentId}
+  ReactionsPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId: !Ref ReactionsCommentIdResource
+      RestApiId: !Ref RestApiId
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FunctionArn}/invocations'
+          - FunctionArn:
+              Fn::ImportValue: !Sub '${LambdaStackName}-ReactionsApiArn'
+
+  # GET /reactions/{commentId}
+  ReactionsGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId: !Ref ReactionsCommentIdResource
+      RestApiId: !Ref RestApiId
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FunctionArn}/invocations'
+          - FunctionArn:
+              Fn::ImportValue: !Sub '${LambdaStackName}-ReactionsApiArn'
+
+  # ========================================
+  # /messages Resource
+  # ========================================
+  MessagesResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref RootResourceId
+      PathPart: messages
+      RestApiId: !Ref RestApiId
+
+  ConversationsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref MessagesResource
+      PathPart: conversations
+      RestApiId: !Ref RestApiId
+
+  ConversationIdResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref ConversationsResource
+      PathPart: '{conversationId}'
+      RestApiId: !Ref RestApiId
+
+  ConversationReadResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref ConversationIdResource
+      PathPart: read
+      RestApiId: !Ref RestApiId
+
+  UploadResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref MessagesResource
+      PathPart: upload
+      RestApiId: !Ref RestApiId
+
+  # GET /messages/conversations
+  ConversationsGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId: !Ref ConversationsResource
+      RestApiId: !Ref RestApiId
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FunctionArn}/invocations'
+          - FunctionArn:
+              Fn::ImportValue: !Sub '${LambdaStackName}-MessagesApiArn'
+
+  # POST /messages/conversations
+  ConversationsPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId: !Ref ConversationsResource
+      RestApiId: !Ref RestApiId
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FunctionArn}/invocations'
+          - FunctionArn:
+              Fn::ImportValue: !Sub '${LambdaStackName}-MessagesApiArn'
+
+  # GET /messages/conversations/{conversationId}
+  ConversationGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId: !Ref ConversationIdResource
+      RestApiId: !Ref RestApiId
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FunctionArn}/invocations'
+          - FunctionArn:
+              Fn::ImportValue: !Sub '${LambdaStackName}-MessagesApiArn'
+
+  # POST /messages/conversations/{conversationId}
+  ConversationPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId: !Ref ConversationIdResource
+      RestApiId: !Ref RestApiId
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FunctionArn}/invocations'
+          - FunctionArn:
+              Fn::ImportValue: !Sub '${LambdaStackName}-MessagesApiArn'
+
+  # PUT /messages/conversations/{conversationId}/read
+  ConversationReadPutMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: PUT
+      ResourceId: !Ref ConversationReadResource
+      RestApiId: !Ref RestApiId
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FunctionArn}/invocations'
+          - FunctionArn:
+              Fn::ImportValue: !Sub '${LambdaStackName}-MessagesApiArn'
+
+  # POST /messages/upload
+  UploadPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId: !Ref UploadResource
+      RestApiId: !Ref RestApiId
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref CognitoAuthorizer
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub
+          - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FunctionArn}/invocations'
+          - FunctionArn:
+              Fn::ImportValue: !Sub '${LambdaStackName}-MessagesApiArn'
+
+  # ========================================
+  # API Gateway Deployment
+  # ========================================
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - ProfileGetMethod
+      - ProfilePutMethod
+      - CommentsGetMethod
+      - CommentsPostMethod
+      - ReactionsPostMethod
+      - ConversationsGetMethod
+    Properties:
+      RestApiId: !Ref RestApiId
+      StageName: !Ref EnvironmentName
+
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${RestApiId}.execute-api.${AWS::Region}.amazonaws.com/${EnvironmentName}'

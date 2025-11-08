@@ -1,0 +1,358 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudWatch Monitoring and Alerting for Hold That Thought'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues:
+      - development
+      - staging
+      - production
+    Description: Environment name
+
+  AlertEmail:
+    Type: String
+    Description: Email address for CloudWatch alerts
+    Default: admin@holdthatthought.family
+
+  CommentsApiLambdaName:
+    Type: String
+    Description: Comments API Lambda function name
+    Default: comments-api-lambda
+
+  MessagesApiLambdaName:
+    Type: String
+    Description: Messages API Lambda function name
+    Default: messages-api-lambda
+
+  ProfileApiLambdaName:
+    Type: String
+    Description: Profile API Lambda function name
+    Default: profile-api-lambda
+
+Resources:
+  # SNS Topic for Alerts
+  AlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub ${Environment}-hold-that-thought-alerts
+      DisplayName: Hold That Thought Alerts
+      KmsMasterKeyId: alias/aws/sns  # Encrypt topic with AWS-managed key
+      Subscription:
+        - Endpoint: !Ref AlertEmail
+          Protocol: email
+
+  # CloudWatch Dashboard
+  MonitoringDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub ${Environment}-hold-that-thought
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "properties": {
+                "metrics": [
+                  ["AWS/Lambda", "Invocations", {"stat": "Sum", "label": "Comments API"}],
+                  [".", ".", {"stat": "Sum", "label": "Messages API"}],
+                  [".", ".", {"stat": "Sum", "label": "Profile API"}]
+                ],
+                "period": 300,
+                "stat": "Sum",
+                "region": "${AWS::Region}",
+                "title": "Lambda Invocations",
+                "yAxis": {"left": {"min": 0}}
+              }
+            },
+            {
+              "type": "metric",
+              "properties": {
+                "metrics": [
+                  ["AWS/Lambda", "Errors", {"stat": "Sum"}],
+                  [".", "Throttles", {"stat": "Sum"}]
+                ],
+                "period": 300,
+                "stat": "Sum",
+                "region": "${AWS::Region}",
+                "title": "Lambda Errors & Throttles",
+                "yAxis": {"left": {"min": 0}}
+              }
+            },
+            {
+              "type": "metric",
+              "properties": {
+                "metrics": [
+                  ["AWS/Lambda", "Duration", {"stat": "Average"}],
+                  ["...", {"stat": "p95"}],
+                  ["...", {"stat": "p99"}]
+                ],
+                "period": 300,
+                "region": "${AWS::Region}",
+                "title": "Lambda Duration (ms)",
+                "yAxis": {"left": {"min": 0}}
+              }
+            },
+            {
+              "type": "metric",
+              "properties": {
+                "metrics": [
+                  ["AWS/DynamoDB", "UserErrors", {"stat": "Sum"}],
+                  [".", "SystemErrors", {"stat": "Sum"}],
+                  [".", "ConditionalCheckFailedRequests", {"stat": "Sum"}]
+                ],
+                "period": 300,
+                "stat": "Sum",
+                "region": "${AWS::Region}",
+                "title": "DynamoDB Errors",
+                "yAxis": {"left": {"min": 0}}
+              }
+            },
+            {
+              "type": "metric",
+              "properties": {
+                "metrics": [
+                  ["AWS/DynamoDB", "ConsumedReadCapacityUnits", {"stat": "Sum"}],
+                  [".", "ConsumedWriteCapacityUnits", {"stat": "Sum"}]
+                ],
+                "period": 300,
+                "stat": "Sum",
+                "region": "${AWS::Region}",
+                "title": "DynamoDB Capacity Consumption",
+                "yAxis": {"left": {"min": 0}}
+              }
+            },
+            {
+              "type": "metric",
+              "properties": {
+                "metrics": [
+                  ["AWS/ApiGateway", "4XXError", {"stat": "Sum"}],
+                  [".", "5XXError", {"stat": "Sum"}]
+                ],
+                "period": 300,
+                "stat": "Sum",
+                "region": "${AWS::Region}",
+                "title": "API Gateway Errors",
+                "yAxis": {"left": {"min": 0}}
+              }
+            },
+            {
+              "type": "metric",
+              "properties": {
+                "metrics": [
+                  ["AWS/ApiGateway", "Latency", {"stat": "Average"}],
+                  ["...", {"stat": "p95"}],
+                  ["...", {"stat": "p99"}]
+                ],
+                "period": 300,
+                "region": "${AWS::Region}",
+                "title": "API Gateway Latency (ms)",
+                "yAxis": {"left": {"min": 0}}
+              }
+            },
+            {
+              "type": "metric",
+              "properties": {
+                "metrics": [
+                  ["AWS/SES", "Send"],
+                  [".", "Bounce"],
+                  [".", "Complaint"],
+                  [".", "Reject"]
+                ],
+                "period": 300,
+                "stat": "Sum",
+                "region": "${AWS::Region}",
+                "title": "SES Email Delivery",
+                "yAxis": {"left": {"min": 0}}
+              }
+            }
+          ]
+        }
+
+  # Lambda Error Rate Alarm - Comments API
+  CommentsApiErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${Environment}-comments-api-high-error-rate
+      AlarmDescription: Alert when Comments API error rate exceeds 1%
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 300 # 5 minutes
+      EvaluationPeriods: 1
+      Threshold: 5 # 5 errors in 5 min (~1% for 500 requests)
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref CommentsApiLambdaName
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+
+  # Lambda Error Rate Alarm - Messages API
+  MessagesApiErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${Environment}-messages-api-high-error-rate
+      AlarmDescription: Alert when Messages API error rate exceeds 1%
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref MessagesApiLambdaName
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+
+  # Lambda Error Rate Alarm - Profile API
+  ProfileApiErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${Environment}-profile-api-high-error-rate
+      AlarmDescription: Alert when Profile API error rate exceeds 1%
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ProfileApiLambdaName
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+
+  # Lambda High Duration Alarm
+  LambdaHighDurationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${Environment}-lambda-high-duration
+      AlarmDescription: Alert when Lambda duration exceeds 3 seconds
+      MetricName: Duration
+      Namespace: AWS/Lambda
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 3000 # 3 seconds in milliseconds
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+
+  # DynamoDB Throttling Alarm
+  DynamoDBThrottleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${Environment}-dynamodb-throttling
+      AlarmDescription: Alert when DynamoDB throttles requests
+      MetricName: UserErrors
+      Namespace: AWS/DynamoDB
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1 # Any throttling is a problem
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+
+  # API Gateway 5XX Error Alarm
+  ApiGateway5XXAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${Environment}-api-gateway-5xx-errors
+      AlarmDescription: Alert when API Gateway returns 5XX errors
+      MetricName: 5XXError
+      Namespace: AWS/ApiGateway
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 10 # 10 errors in 5 minutes
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+
+  # API Gateway High Latency Alarm
+  ApiGatewayLatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${Environment}-api-gateway-high-latency
+      AlarmDescription: Alert when API Gateway latency exceeds 3 seconds
+      MetricName: Latency
+      Namespace: AWS/ApiGateway
+      ExtendedStatistic: p95
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 3000 # 3 seconds in milliseconds
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+
+  # SES Bounce Rate Alarm
+  SESBounceRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${Environment}-ses-high-bounce-rate
+      AlarmDescription: Alert when SES bounce rate exceeds 5%
+      Metrics:
+        - Id: bounceRate
+          Expression: (bounces / sends) * 100
+          Label: Bounce Rate (%)
+        - Id: bounces
+          MetricStat:
+            Metric:
+              Namespace: AWS/SES
+              MetricName: Bounce
+            Period: 3600 # 1 hour
+            Stat: Sum
+          ReturnData: false
+        - Id: sends
+          MetricStat:
+            Metric:
+              Namespace: AWS/SES
+              MetricName: Send
+            Period: 3600
+            Stat: Sum
+          ReturnData: false
+      EvaluationPeriods: 1
+      Threshold: 5 # 5% bounce rate
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+
+Outputs:
+  DashboardURL:
+    Description: URL to CloudWatch Dashboard
+    Value: !Sub https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${Environment}-hold-that-thought
+
+  AlertTopicARN:
+    Description: SNS Topic ARN for alerts
+    Value: !Ref AlertTopic
+    Export:
+      Name: !Sub ${Environment}-alert-topic-arn
+
+  DeploymentInstructions:
+    Description: How to deploy this stack
+    Value: |
+      aws cloudformation deploy \
+        --template-file cloudformation/monitoring.yaml \
+        --stack-name hold-that-thought-monitoring-prod \
+        --parameter-overrides \
+          Environment=production \
+          AlertEmail=admin@holdthatthought.family \
+          CommentsApiLambdaName=comments-api-lambda \
+          MessagesApiLambdaName=messages-api-lambda \
+          ProfileApiLambdaName=profile-api-lambda \
+        --capabilities CAPABILITY_IAM \
+        --region us-east-1

@@ -1,0 +1,477 @@
+<script lang="ts">
+  import { onMount } from 'svelte'
+  import { goto } from '$app/navigation'
+  import { currentUser, isAuthenticated } from '$lib/auth/auth-store'
+  import { getProfile, updateProfile, uploadProfilePhoto } from '$lib/services/profileService'
+  import type { UserProfile } from '$lib/types/profile'
+
+  let profile: UserProfile | null = null
+  let loading = true
+  let saving = false
+  let error = ''
+  let successMessage = ''
+
+  // Form fields
+  let displayName = ''
+  let bio = ''
+  let familyRelationship = ''
+  let generation = ''
+  let familyBranch = ''
+  let isProfilePrivate = false
+
+  // Photo upload
+  let photoFile: File | null = null
+  let previewUrl = ''
+  let uploading = false
+  let uploadError = ''
+
+  $: bioLength = bio.length
+  $: bioRemaining = 500 - bioLength
+  $: bioExceeded = bioLength > 500
+
+  /**
+   * Load current user's profile
+   */
+  async function loadProfile() {
+    if (!$currentUser?.sub) {
+      goto('/login')
+      return
+    }
+
+    loading = true
+    error = ''
+
+    const result = await getProfile($currentUser.sub)
+
+    if (result.success && result.data) {
+      profile = result.data as UserProfile
+
+      // Populate form fields
+      displayName = profile.displayName || ''
+      bio = profile.bio || ''
+      familyRelationship = profile.familyRelationship || ''
+      generation = profile.generation || ''
+      familyBranch = profile.familyBranch || ''
+      isProfilePrivate = profile.isProfilePrivate || false
+      previewUrl = profile.profilePhotoUrl || ''
+    } else {
+      error = result.error || 'Failed to load profile'
+    }
+
+    loading = false
+  }
+
+  /**
+   * Handle photo file selection
+   */
+  function handleFileSelect(event: Event) {
+    const target = event.target as HTMLInputElement
+    const file = target.files?.[0]
+
+    if (file) {
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/png', 'image/gif']
+      if (!validTypes.includes(file.type)) {
+        uploadError = 'Invalid file type. Please use JPG, PNG, or GIF.'
+        return
+      }
+
+      // Validate file size (5MB max)
+      const maxSize = 5 * 1024 * 1024
+      if (file.size > maxSize) {
+        uploadError = 'File too large. Maximum size is 5MB.'
+        return
+      }
+
+      photoFile = file
+      uploadError = ''
+
+      // Create preview URL
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        previewUrl = e.target?.result as string
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  /**
+   * Remove selected photo
+   */
+  function removePhoto() {
+    photoFile = null
+    previewUrl = profile?.profilePhotoUrl || ''
+    uploadError = ''
+
+    // Reset file input
+    const fileInput = document.getElementById('photo-input') as HTMLInputElement
+    if (fileInput) {
+      fileInput.value = ''
+    }
+  }
+
+  /**
+   * Save profile changes
+   */
+  async function handleSave() {
+    if (!$currentUser?.sub) {
+      goto('/login')
+      return
+    }
+
+    // Validate
+    if (!displayName.trim()) {
+      error = 'Display name is required'
+      return
+    }
+
+    if (bioLength > 500) {
+      error = 'Bio must be 500 characters or less'
+      return
+    }
+
+    saving = true
+    error = ''
+    successMessage = ''
+
+    try {
+      // Upload photo if changed
+      let photoUrl: string | undefined
+
+      if (photoFile) {
+        uploading = true
+        const uploadResult = await uploadProfilePhoto(photoFile)
+
+        if (uploadResult.success && uploadResult.url) {
+          photoUrl = uploadResult.url
+        } else {
+          error = uploadResult.error || 'Failed to upload photo'
+          saving = false
+          uploading = false
+          return
+        }
+        uploading = false
+      }
+
+      // Update profile
+      const result = await updateProfile({
+        displayName: displayName.trim(),
+        bio: bio.trim() || undefined,
+        familyRelationship: familyRelationship.trim() || undefined,
+        generation: generation.trim() || undefined,
+        familyBranch: familyBranch.trim() || undefined,
+        isProfilePrivate,
+        ...(photoUrl && { profilePhotoUrl: photoUrl })
+      })
+
+      if (result.success) {
+        successMessage = 'Profile updated successfully!'
+
+        // Redirect to profile page after short delay
+        setTimeout(() => {
+          goto(`/profile/${$currentUser?.sub}`)
+        }, 1500)
+      } else {
+        error = result.error || 'Failed to update profile'
+      }
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to update profile'
+    }
+
+    saving = false
+  }
+
+  /**
+   * Cancel editing and go back to profile
+   */
+  function handleCancel() {
+    if ($currentUser?.sub) {
+      goto(`/profile/${$currentUser.sub}`)
+    } else {
+      goto('/')
+    }
+  }
+
+  onMount(() => {
+    // Check authentication
+    if (!$isAuthenticated) {
+      goto('/login')
+      return
+    }
+
+    loadProfile()
+  })
+</script>
+
+<svelte:head>
+  <title>Profile Settings | Hold That Thought</title>
+</svelte:head>
+
+<div class="max-w-3xl mx-auto px-4 py-8">
+  <div class="mb-6">
+    <h1 class="text-3xl font-bold">Profile Settings</h1>
+    <p class="text-base-content/60 mt-2">Update your profile information</p>
+  </div>
+
+  {#if loading}
+    <!-- Loading skeleton -->
+    <div class="card bg-base-100 shadow-xl">
+      <div class="card-body">
+        <div class="animate-pulse space-y-4">
+          <div class="h-4 bg-base-300 rounded w-1/4"></div>
+          <div class="h-10 bg-base-300 rounded"></div>
+          <div class="h-4 bg-base-300 rounded w-1/4"></div>
+          <div class="h-24 bg-base-300 rounded"></div>
+        </div>
+      </div>
+    </div>
+  {:else if error && !profile}
+    <!-- Error loading profile -->
+    <div class="alert alert-error">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="stroke-current shrink-0 h-6 w-6"
+        fill="none"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
+      </svg>
+      <span>{error}</span>
+    </div>
+  {:else}
+    <!-- Settings form -->
+    <form on:submit|preventDefault={handleSave}>
+      <div class="card bg-base-100 shadow-xl">
+        <div class="card-body space-y-6">
+          <!-- Success message -->
+          {#if successMessage}
+            <div class="alert alert-success">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="stroke-current shrink-0 h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span>{successMessage}</span>
+            </div>
+          {/if}
+
+          <!-- Error message -->
+          {#if error}
+            <div class="alert alert-error">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="stroke-current shrink-0 h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span>{error}</span>
+            </div>
+          {/if}
+
+          <!-- Profile Photo -->
+          <div class="form-control">
+            <label class="label" for="photo-input">
+              <span class="label-text font-semibold">Profile Photo</span>
+            </label>
+            <div class="flex items-center gap-4">
+              <!-- Preview -->
+              <div class="avatar">
+                {#if previewUrl}
+                  <div class="w-24 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
+                    <img src={previewUrl} alt="Preview" />
+                  </div>
+                {:else}
+                  <div class="placeholder">
+                    <div class="bg-neutral text-neutral-content rounded-full w-24">
+                      <span class="text-3xl">{displayName.charAt(0).toUpperCase() || 'U'}</span>
+                    </div>
+                  </div>
+                {/if}
+              </div>
+
+              <!-- Upload controls -->
+              <div class="flex-1">
+                <input
+                  id="photo-input"
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif"
+                  class="file-input file-input-bordered file-input-sm w-full max-w-xs"
+                  on:change={handleFileSelect}
+                  disabled={saving || uploading}
+                />
+                {#if photoFile}
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm mt-2"
+                    on:click={removePhoto}
+                    disabled={saving || uploading}
+                  >
+                    Remove
+                  </button>
+                {/if}
+                {#if uploadError}
+                  <p class="text-error text-xs mt-1">{uploadError}</p>
+                {:else}
+                  <p class="text-xs text-base-content/60 mt-1">JPG, PNG, or GIF (max 5MB)</p>
+                {/if}
+              </div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <!-- Display Name -->
+          <div class="form-control">
+            <label class="label" for="displayName">
+              <span class="label-text font-semibold">Display Name *</span>
+            </label>
+            <input
+              id="displayName"
+              type="text"
+              class="input input-bordered"
+              bind:value={displayName}
+              disabled={saving}
+              required
+              maxlength="100"
+            />
+          </div>
+
+          <!-- Bio -->
+          <div class="form-control">
+            <label class="label" for="bio">
+              <span class="label-text font-semibold">Bio</span>
+              <span class="label-text-alt" class:text-error={bioExceeded}>
+                {bioRemaining} characters remaining
+              </span>
+            </label>
+            <textarea
+              id="bio"
+              class="textarea textarea-bordered h-24"
+              class:textarea-error={bioExceeded}
+              bind:value={bio}
+              disabled={saving}
+              maxlength="500"
+              placeholder="Tell your family about yourself..."
+            />
+          </div>
+
+          <div class="divider">Family Information</div>
+
+          <!-- Family Relationship -->
+          <div class="form-control">
+            <label class="label" for="familyRelationship">
+              <span class="label-text font-semibold">Family Relationship</span>
+            </label>
+            <input
+              id="familyRelationship"
+              type="text"
+              class="input input-bordered"
+              bind:value={familyRelationship}
+              disabled={saving}
+              maxlength="100"
+              placeholder="e.g., Father, Mother, Son, Daughter, Grandparent"
+            />
+          </div>
+
+          <!-- Generation -->
+          <div class="form-control">
+            <label class="label" for="generation">
+              <span class="label-text font-semibold">Generation</span>
+            </label>
+            <input
+              id="generation"
+              type="text"
+              class="input input-bordered"
+              bind:value={generation}
+              disabled={saving}
+              maxlength="50"
+              placeholder="e.g., Gen 1, Gen 2, Founder"
+            />
+          </div>
+
+          <!-- Family Branch -->
+          <div class="form-control">
+            <label class="label" for="familyBranch">
+              <span class="label-text font-semibold">Family Branch</span>
+            </label>
+            <input
+              id="familyBranch"
+              type="text"
+              class="input input-bordered"
+              bind:value={familyBranch}
+              disabled={saving}
+              maxlength="100"
+              placeholder="e.g., Smith Family, Jones Branch"
+            />
+          </div>
+
+          <div class="divider">Privacy</div>
+
+          <!-- Privacy Toggle -->
+          <div class="form-control">
+            <label class="label cursor-pointer justify-start gap-4">
+              <input
+                type="checkbox"
+                class="toggle toggle-primary"
+                bind:checked={isProfilePrivate}
+                disabled={saving}
+              />
+              <div>
+                <span class="label-text font-semibold">Make profile private</span>
+                <p class="text-xs text-base-content/60 mt-1">
+                  Only you can view your profile when private
+                </p>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex gap-3 mt-6 justify-end">
+        <button
+          type="button"
+          class="btn btn-ghost"
+          on:click={handleCancel}
+          disabled={saving || uploading}
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          class="btn btn-primary"
+          class:loading={saving || uploading}
+          disabled={saving || uploading || bioExceeded || !displayName.trim()}
+        >
+          {#if uploading}
+            Uploading...
+          {:else if saving}
+            Saving...
+          {:else}
+            Save Changes
+          {/if}
+        </button>
+      </div>
+    </form>
+  {/if}
+</div>

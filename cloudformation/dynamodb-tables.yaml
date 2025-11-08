@@ -1,0 +1,278 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'DynamoDB tables for Hold That Thought social features (profiles, comments, messaging)'
+
+Resources:
+  # ========================================
+  # UserProfiles Table
+  # ========================================
+  UserProfilesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: 'hold-that-thought-user-profiles'
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+      GlobalSecondaryIndexes:
+        - IndexName: EmailIndex
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Application
+          Value: HoldThatThought
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # ========================================
+  # Comments Table
+  # ========================================
+  CommentsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: 'hold-that-thought-comments'
+      AttributeDefinitions:
+        - AttributeName: itemId
+          AttributeType: S
+        - AttributeName: commentId
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: itemId
+          KeyType: HASH
+        - AttributeName: commentId
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+      GlobalSecondaryIndexes:
+        - IndexName: UserCommentsIndex
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Application
+          Value: HoldThatThought
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # ========================================
+  # CommentReactions Table
+  # ========================================
+  CommentReactionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: 'hold-that-thought-comment-reactions'
+      AttributeDefinitions:
+        - AttributeName: commentId
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: commentId
+          KeyType: HASH
+        - AttributeName: userId
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+      Tags:
+        - Key: Application
+          Value: HoldThatThought
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # ========================================
+  # Messages Table
+  # ========================================
+  MessagesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: 'hold-that-thought-messages'
+      AttributeDefinitions:
+        - AttributeName: conversationId
+          AttributeType: S
+        - AttributeName: messageId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: conversationId
+          KeyType: HASH
+        - AttributeName: messageId
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+      Tags:
+        - Key: Application
+          Value: HoldThatThought
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # ========================================
+  # ConversationMembers Table
+  # ========================================
+  ConversationMembersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: 'hold-that-thought-conversation-members'
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: conversationId
+          AttributeType: S
+        - AttributeName: lastMessageAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: conversationId
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+      GlobalSecondaryIndexes:
+        - IndexName: RecentConversationsIndex
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+            - AttributeName: lastMessageAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Application
+          Value: HoldThatThought
+        - Key: ManagedBy
+          Value: CloudFormation
+
+Outputs:
+  UserProfilesTableName:
+    Description: Name of the UserProfiles DynamoDB table
+    Value: !Ref UserProfilesTable
+    Export:
+      Name: !Sub '${AWS::StackName}-UserProfilesTable'
+
+  UserProfilesTableArn:
+    Description: ARN of the UserProfiles DynamoDB table
+    Value: !GetAtt UserProfilesTable.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-UserProfilesTableArn'
+
+  UserProfilesTableStreamArn:
+    Description: Stream ARN of the UserProfiles DynamoDB table
+    Value: !GetAtt UserProfilesTable.StreamArn
+    Export:
+      Name: !Sub '${AWS::StackName}-UserProfilesTableStreamArn'
+
+  CommentsTableName:
+    Description: Name of the Comments DynamoDB table
+    Value: !Ref CommentsTable
+    Export:
+      Name: !Sub '${AWS::StackName}-CommentsTable'
+
+  CommentsTableArn:
+    Description: ARN of the Comments DynamoDB table
+    Value: !GetAtt CommentsTable.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-CommentsTableArn'
+
+  CommentsTableStreamArn:
+    Description: Stream ARN of the Comments DynamoDB table
+    Value: !GetAtt CommentsTable.StreamArn
+    Export:
+      Name: !Sub '${AWS::StackName}-CommentsTableStreamArn'
+
+  CommentReactionsTableName:
+    Description: Name of the CommentReactions DynamoDB table
+    Value: !Ref CommentReactionsTable
+    Export:
+      Name: !Sub '${AWS::StackName}-CommentReactionsTable'
+
+  CommentReactionsTableArn:
+    Description: ARN of the CommentReactions DynamoDB table
+    Value: !GetAtt CommentReactionsTable.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-CommentReactionsTableArn'
+
+  CommentReactionsTableStreamArn:
+    Description: Stream ARN of the CommentReactions DynamoDB table
+    Value: !GetAtt CommentReactionsTable.StreamArn
+    Export:
+      Name: !Sub '${AWS::StackName}-CommentReactionsTableStreamArn'
+
+  MessagesTableName:
+    Description: Name of the Messages DynamoDB table
+    Value: !Ref MessagesTable
+    Export:
+      Name: !Sub '${AWS::StackName}-MessagesTable'
+
+  MessagesTableArn:
+    Description: ARN of the Messages DynamoDB table
+    Value: !GetAtt MessagesTable.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-MessagesTableArn'
+
+  MessagesTableStreamArn:
+    Description: Stream ARN of the Messages DynamoDB table
+    Value: !GetAtt MessagesTable.StreamArn
+    Export:
+      Name: !Sub '${AWS::StackName}-MessagesTableStreamArn'
+
+  ConversationMembersTableName:
+    Description: Name of the ConversationMembers DynamoDB table
+    Value: !Ref ConversationMembersTable
+    Export:
+      Name: !Sub '${AWS::StackName}-ConversationMembersTable'
+
+  ConversationMembersTableArn:
+    Description: ARN of the ConversationMembers DynamoDB table
+    Value: !GetAtt ConversationMembersTable.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-ConversationMembersTableArn'
+
+  ConversationMembersTableStreamArn:
+    Description: Stream ARN of the ConversationMembers DynamoDB table
+    Value: !GetAtt ConversationMembersTable.StreamArn
+    Export:
+      Name: !Sub '${AWS::StackName}-ConversationMembersTableStreamArn'

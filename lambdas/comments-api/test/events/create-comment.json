@@ -1,0 +1,17 @@
+{
+  "httpMethod": "POST",
+  "resource": "/comments/{itemId}",
+  "pathParameters": {
+    "itemId": "/2015/christmas-letter"
+  },
+  "body": "{\"commentText\":\"This is a wonderful letter! Brings back great memories.\",\"itemType\":\"letter\",\"itemTitle\":\"Christmas Letter 2015\"}",
+  "requestContext": {
+    "authorizer": {
+      "claims": {
+        "sub": "user-123",
+        "email": "user@example.com",
+        "cognito:groups": "ApprovedUsers"
+      }
+    }
+  }
+}

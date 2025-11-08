@@ -1,0 +1,15 @@
+{
+  "name": "hold-that-thought-integration-tests",
+  "version": "1.0.0",
+  "description": "Integration tests for Hold That Thought backend APIs",
+  "scripts": {
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch --runInBand"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.700.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}

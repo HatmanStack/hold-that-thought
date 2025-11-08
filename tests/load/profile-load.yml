@@ -1,0 +1,40 @@
+config:
+  target: "{{ $processEnvironment.API_URL || 'https://api.holdthatthought.family' }}"
+  phases:
+    - duration: 60
+      arrivalRate: 10
+      name: "Warm up"
+    - duration: 120
+      arrivalRate: 20
+      name: "Sustained load"
+  http:
+    timeout: 30
+
+scenarios:
+  - name: "View profiles"
+    flow:
+      # Get own profile
+      - get:
+          url: "/profile/me"
+          headers:
+            Authorization: "Bearer {{ $processEnvironment.TEST_TOKEN }}"
+          capture:
+            - json: "$.userId"
+              as: "userId"
+      - think: 2
+
+      # Get profile details
+      - get:
+          url: "/profile/{{ userId }}"
+          headers:
+            Authorization: "Bearer {{ $processEnvironment.TEST_TOKEN }}"
+          ifTrue: "userId"
+      - think: 3
+
+      # Get comment history
+      - get:
+          url: "/profile/{{ userId }}/comments"
+          headers:
+            Authorization: "Bearer {{ $processEnvironment.TEST_TOKEN }}"
+          ifTrue: "userId"
+      - think: 1

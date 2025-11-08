@@ -14,7 +14,7 @@ venv
 python_scripts
 urara
 .env
-
+lambdas/*/coverage
 
 # logs
 pnpm-debug.log*

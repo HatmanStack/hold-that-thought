@@ -1,0 +1,19 @@
+{
+  "httpMethod": "GET",
+  "resource": "/comments/{itemId}",
+  "pathParameters": {
+    "itemId": "/2015/christmas-letter"
+  },
+  "queryStringParameters": {
+    "limit": "50"
+  },
+  "requestContext": {
+    "authorizer": {
+      "claims": {
+        "sub": "user-123",
+        "email": "user@example.com",
+        "cognito:groups": "ApprovedUsers"
+      }
+    }
+  }
+}

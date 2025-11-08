@@ -1,0 +1,16 @@
+{
+  "httpMethod": "GET",
+  "resource": "/profile/{userId}",
+  "pathParameters": {
+    "userId": "test-user-123"
+  },
+  "requestContext": {
+    "authorizer": {
+      "claims": {
+        "sub": "test-user-123",
+        "email": "test@example.com",
+        "cognito:groups": "ApprovedUsers"
+      }
+    }
+  }
+}
