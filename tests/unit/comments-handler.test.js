@@ -1,4 +1,4 @@
-const { handler } = require('../index');
+const { handler } = require('../../backend/lambdas/comments-api/index');
 const { mockClient } = require('aws-sdk-client-mock');
 const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 

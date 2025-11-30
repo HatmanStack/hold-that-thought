@@ -17,7 +17,7 @@ process.env.COMMENTS_TABLE = 'test-comments-table';
 process.env.PROFILE_PHOTOS_BUCKET = 'test-photos-bucket';
 process.env.RATE_LIMIT_TABLE = 'test-rate-limit-table';
 
-const { handler } = require('../index');
+const { handler } = require('../../backend/lambdas/profile-api/index');
 
 describe('Profile API Security Tests', () => {
   beforeEach(() => {
