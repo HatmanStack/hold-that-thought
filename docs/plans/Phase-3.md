@@ -590,14 +590,14 @@ Expected output should match:
 Compare against target and document any deviations.
 
 **Verification Checklist:**
-- [ ] backend/ contains all Lambda directories
-- [ ] backend/infra/ contains CloudFormation templates
-- [ ] backend/scripts/ contains deployment scripts
-- [ ] frontend/ contains lib/ and routes/
-- [ ] tests/ contains e2e/, integration/, load/
-- [ ] docs/plans/ contains all phase files
-- [ ] .github/workflows/ contains ci.yml
-- [ ] No orphaned directories from old structure
+- [x] backend/lambdas/ contains all Lambda directories
+- [x] backend/template.yaml contains SAM template
+- [x] backend/scripts/ contains deployment scripts
+- [x] frontend/ contains lib/ and routes/
+- [x] tests/ contains e2e/, integration/, load/, unit/
+- [x] docs/plans/ contains all phase files
+- [x] .github/workflows/ contains ci.yml
+- [x] No orphaned directories from old structure
 
 **Testing Instructions:**
 - Run tree command
