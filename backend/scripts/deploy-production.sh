@@ -56,6 +56,7 @@ FUNCTIONS=(
   "profile-api"
   "reactions-api"
   "notification-processor"
+  "activity-aggregator"
 )
 
 for FUNCTION in "${FUNCTIONS[@]}"; do
