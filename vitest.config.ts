@@ -10,7 +10,7 @@ export default defineConfig({
       'backend/**/*.test.{js,ts}'
     ],
     exclude: [
-      'node_modules',
+      '**/node_modules/**',
       'frontend',
       '.svelte-kit'
     ],

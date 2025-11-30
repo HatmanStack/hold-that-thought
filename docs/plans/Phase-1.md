@@ -919,3 +919,49 @@ Run `tree -L 2 -d` and verify output matches:
 - Python Lambdas not yet ported (Phase-2)
 - CI workflow not yet created (Phase-3)
 - Some deployment scripts in `backend/scripts/` reference old paths (will be cleaned in Phase-2)
+
+---
+
+## Review Feedback (Iteration 1)
+
+### Task 2 & Task 3: Directory Structure Deviation
+
+> **Consider:** Looking at the plan's target architecture diagram, Lambda functions should be at `backend/comments-api/`, not `backend/lambdas/comments-api/`. Does the current structure match what was specified?
+>
+> **Think about:** The plan explicitly states "Move `lambdas/comments-api/` → `backend/comments-api/`" (flat structure). Why was an extra `lambdas/` subdirectory created?
+>
+> **Reflect:** The SAM template at `backend/template.yaml:58` references `CodeUri: lambdas/comments-api/`. If Lambdas were flat at `backend/comments-api/`, what would the CodeUri be?
+
+### Task 3: Missing backend/infra/
+
+> **Consider:** The plan specifies "Move `aws-infrastructure/*.yaml` → `backend/infra/`" and "Move `cloudformation/*.yaml` → `backend/infra/`". Running `ls backend/infra/` returns "does not exist". Where did the 12 CloudFormation YAML files go?
+>
+> **Think about:** The commit message "consolidate Lambda structure and remove old infra" says files were "replaced by SAM template". But the plan says to **consolidate** infrastructure files, not delete them. Are these files needed for non-SAM deployments (Cognito, DynamoDB tables, monitoring)?
+>
+> **Reflect:** If someone needs to deploy DynamoDB tables or Cognito user pools, where would they find those templates now?
+
+### Task 11: Vitest Configuration - Exclude Pattern
+
+> **Consider:** Running `pnpm test` shows tests from `backend/lambdas/comments-api/node_modules/` being scanned. The vitest.config.ts excludes `node_modules` but not nested ones. How would you exclude `**/node_modules/**`?
+>
+> **Think about:** The test output shows "0 tests" for unit tests but the error is "Cannot find module 'aws-sdk-client-mock'". What happens when a test file fails to load?
+
+### Missing Root Dependencies
+
+> **Consider:** Unit tests require `aws-sdk-client-mock` and `@aws-sdk/lib-dynamodb`. These are in Lambda's `package.json` but unit tests run from root. Should testing dependencies be added to root `package.json` devDependencies?
+>
+> **Reflect:** Run `grep -r "aws-sdk-client-mock" package.json` - is it in root devDependencies?
+
+### Verification Commands to Run
+
+After addressing feedback, verify with:
+```bash
+# Directory structure matches plan
+ls backend/  # Should show comments-api/, messages-api/, infra/, scripts/
+
+# Infrastructure files exist
+ls backend/infra/*.yaml | wc -l  # Should be 12
+
+# Tests load and run
+pnpm test  # Unit tests should show actual test counts, not "0 test"
+```
