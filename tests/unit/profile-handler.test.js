@@ -1,12 +1,16 @@
-const { handler } = require('../../backend/lambdas/profile-api/index');
+// Import SDK from the SAME location as the Lambda handler uses
 const { mockClient } = require('aws-sdk-client-mock');
-const { DynamoDBDocumentClient, GetCommand, QueryCommand, UpdateCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
+const { DynamoDBDocumentClient, GetCommand, QueryCommand, UpdateCommand, PutCommand } = require('../../backend/lambdas/profile-api/node_modules/@aws-sdk/lib-dynamodb');
 
+// Create mock BEFORE setting env vars or importing handler
 const ddbMock = mockClient(DynamoDBDocumentClient);
 
 // Set environment variables
 process.env.USER_PROFILES_TABLE = 'test-user-profiles';
 process.env.COMMENTS_TABLE = 'test-comments';
+
+// Import handler after mock is created
+const { handler } = require('../../backend/lambdas/profile-api/index');
 
 // Use valid UUIDs for testing
 const TEST_USER_UUID = '550e8400-e29b-41d4-a716-446655440000';

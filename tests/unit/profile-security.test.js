@@ -1,14 +1,17 @@
+// Import SDK from the SAME location as the Lambda handler uses
 const { mockClient } = require('aws-sdk-client-mock');
-const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
-const { vi } = require('vitest');
+const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } = require('../../backend/lambdas/profile-api/node_modules/@aws-sdk/lib-dynamodb');
+const { S3Client, PutObjectCommand } = require('../../backend/lambdas/profile-api/node_modules/@aws-sdk/client-s3');
 
-vi.mock('@aws-sdk/s3-request-presigner', () => ({
-  getSignedUrl: vi.fn().mockResolvedValue('https://s3.amazonaws.com/test-bucket/presigned-url')
-}));
-
+// Create mocks BEFORE setting env vars or importing handler
 const ddbMock = mockClient(DynamoDBDocumentClient);
 const s3Mock = mockClient(S3Client);
+
+// Mock the s3-request-presigner module
+const mockGetSignedUrl = async () => 'https://s3.amazonaws.com/test-bucket/presigned-url';
+require.cache[require.resolve('../../backend/lambdas/profile-api/node_modules/@aws-sdk/s3-request-presigner')] = {
+  exports: { getSignedUrl: mockGetSignedUrl }
+};
 
 process.env.USER_PROFILES_TABLE = 'test-profiles-table';
 process.env.COMMENTS_TABLE = 'test-comments-table';

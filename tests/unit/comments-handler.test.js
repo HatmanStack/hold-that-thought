@@ -1,11 +1,15 @@
+// Import SDK from the SAME location as the Lambda handler uses
 const { mockClient } = require('aws-sdk-client-mock');
-const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } = require('../../backend/lambdas/comments-api/node_modules/@aws-sdk/lib-dynamodb');
 
+// Create mock BEFORE setting env vars or importing handler
 const ddbMock = mockClient(DynamoDBDocumentClient);
 
+// Set env vars BEFORE importing handler
 process.env.USER_PROFILES_TABLE = 'test-user-profiles';
 process.env.COMMENTS_TABLE = 'test-comments';
 
+// Import handler after mock is created
 const { handler } = require('../../backend/lambdas/comments-api/index');
 
 beforeEach(() => {
