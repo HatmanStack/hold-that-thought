@@ -1,12 +1,12 @@
-const { handler } = require('../../backend/lambdas/comments-api/index');
 const { mockClient } = require('aws-sdk-client-mock');
 const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 
 const ddbMock = mockClient(DynamoDBDocumentClient);
 
-// Set environment variables
 process.env.USER_PROFILES_TABLE = 'test-user-profiles';
 process.env.COMMENTS_TABLE = 'test-comments';
+
+const { handler } = require('../../backend/lambdas/comments-api/index');
 
 beforeEach(() => {
   ddbMock.reset();

@@ -802,3 +802,61 @@ Files deleted in this phase:
 - Notification processor email sending is still stubbed
 - Some deployment scripts may need further testing with live AWS
 - Comment stripping is manual; could miss edge cases
+
+---
+
+## Review Feedback (Iteration 1)
+
+### Critical: Unit Tests Failing (12 failures out of 52 tests)
+
+> **Consider:** The unit test file `tests/unit/comments-handler.test.js` is trying to mock AWS SDK using `aws-sdk-client-mock`, but tests are returning 500 errors with "tableName null". Are the environment variables being set _before_ the handler is required?
+
+> **Think about:** In the test file line 8-9, `process.env.COMMENTS_TABLE` and `process.env.USER_PROFILES_TABLE` are set, but the handler at line 1 requires `../../backend/lambdas/comments-api/index`. Does the handler read environment variables at module load time or at runtime?
+
+> **Reflect:** Looking at the error messages, the actual AWS DynamoDB client is being called with `null` tableName. Is the mock properly intercepting the DynamoDB client? Are you requiring the module at the right time relative to when mocks and env vars are set?
+
+### Critical: profile-security.test.js Has 0 Tests Discovered
+
+> **Consider:** The test file `tests/unit/profile-security.test.js` reports "(0 test)" despite having many test cases defined. Looking at lines 6-7 of that file, you're using `jest.mock()` and `jest.fn()`. Have these been updated to Vitest equivalents?
+
+> **Think about:** Task 4 specified: "Jest: `jest.fn()` → Vitest: `vi.fn()`" and "Jest: `jest.mock()` → Vitest: `vi.mock()`". Have all `jest.*` references been converted? You can verify with: `grep -r "jest\." tests/`
+
+> **Reflect:** When Vitest encounters `jest.mock()` without Jest being installed, does it fail silently or throw an error? What does the test output show for this file?
+
+### Task 2: notification-processor templates directory not deleted
+
+> **Consider:** The plan at line 151 specifies deleting `backend/notification-processor/templates/` (if exists). Looking at the directory listing, `backend/lambdas/notification-processor/templates/` still exists with 4 HTML/TXT files. Was this intentional, or should the templates be removed?
+
+> **Think about:** The notification processor currently has stubbed email functionality. Are these templates being used? Should they be preserved for future email implementation, or deleted per the plan?
+
+### Task 6: console.error Statements Remain
+
+> **Consider:** Both ported Lambda handlers (`activity-aggregator/index.js:15` and `notification-processor/index.js:20,73`) still contain `console.error()` calls. The plan states: "Keep `console.error(...)` for critical error logging". Is this intentional and acceptable for production CloudWatch logging?
+
+### Task 8: Deployment Scripts Path Issue
+
+> **Consider:** Looking at `deploy-lambdas.sh:22` and `deploy-production.sh:65`, the scripts reference `lambdas/` directory (e.g., `lambdas/profile-api`). However, the Phase-2 plan at line 549-553 suggests paths like `../lambdas/` → `../`. Is the current path structure (`backend/lambdas/`) correct for these scripts which run from `backend/scripts/`?
+
+> **Reflect:** Run through the script logic: if you `cd backend/scripts && ./deploy-lambdas.sh`, would `lambdas/profile-api` resolve correctly? The script does `cd "$lambda_dir"` - from which working directory?
+
+### Build Failure
+
+> **Consider:** The `pnpm build` command fails with `Error: ENOENT: no such file or directory, scandir 'urara'`. This appears to be a frontend/Urara configuration issue, not related to Phase 2 backend changes. Has the frontend directory structure been affected by Phase 1 migrations?
+
+> **Think about:** Looking at the project structure, there's a `frontend/` directory. Has the Urara framework been properly configured to look for content in the right location after the Phase 1 restructuring?
+
+### Verification Status
+
+| Check | Status | Notes |
+|-------|--------|-------|
+| No Python files in Lambda dirs | ✓ PASS | Only Python in node_modules (flatted package) |
+| No comments in handlers | ✓ PASS | Grep returns empty |
+| No console.log in handlers | ✓ PASS | Only console.error remains (intentional) |
+| SAM template valid | ✓ PASS | `sam validate` passes |
+| All tests pass | ✗ FAIL | 12 unit tests failing, profile-security has 0 tests |
+| Frontend build | ✗ FAIL | urara directory not found |
+| Lambda ports complete | ✓ PASS | Node.js handlers exist with tests |
+| Documentation consolidated | ✓ PASS | docs/README.md exists |
+| Migration script | ✓ PASS | docs/migration-script.sh valid |
+
+**Action Required:** Fix the test issues before this phase can be approved. The Jest→Vitest migration in Task 4 was not fully completed for `profile-security.test.js`, and the comments-handler tests have mock timing issues.

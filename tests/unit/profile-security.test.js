@@ -1,17 +1,15 @@
 const { mockClient } = require('aws-sdk-client-mock');
 const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { vi } = require('vitest');
 
-// Mock getSignedUrl before requiring the handler
-jest.mock('@aws-sdk/s3-request-presigner', () => ({
-  getSignedUrl: jest.fn().mockResolvedValue('https://s3.amazonaws.com/test-bucket/presigned-url')
+vi.mock('@aws-sdk/s3-request-presigner', () => ({
+  getSignedUrl: vi.fn().mockResolvedValue('https://s3.amazonaws.com/test-bucket/presigned-url')
 }));
 
-// Mock AWS SDK clients
 const ddbMock = mockClient(DynamoDBDocumentClient);
 const s3Mock = mockClient(S3Client);
 
-// Mock environment variables
 process.env.USER_PROFILES_TABLE = 'test-profiles-table';
 process.env.COMMENTS_TABLE = 'test-comments-table';
 process.env.PROFILE_PHOTOS_BUCKET = 'test-photos-bucket';
@@ -192,7 +190,6 @@ describe('Profile API Security Tests', () => {
     test('should reject non-image content types for profile photos', async () => {
       const validUserId = '550e8400-e29b-41d4-a716-446655440000';
 
-      // Mock rate limit check to pass
       ddbMock.on(GetCommand).resolves({ Item: null });
       ddbMock.on(PutCommand).resolves({});
 
@@ -221,7 +218,6 @@ describe('Profile API Security Tests', () => {
     test('should reject filename with path traversal', async () => {
       const validUserId = '550e8400-e29b-41d4-a716-446655440000';
 
-      // Mock rate limit check to pass
       ddbMock.on(GetCommand).resolves({ Item: null });
       ddbMock.on(PutCommand).resolves({});
 
@@ -250,7 +246,6 @@ describe('Profile API Security Tests', () => {
     test('should reject invalid file extension', async () => {
       const validUserId = '550e8400-e29b-41d4-a716-446655440000';
 
-      // Mock rate limit check to pass
       ddbMock.on(GetCommand).resolves({ Item: null });
       ddbMock.on(PutCommand).resolves({});
 
@@ -279,7 +274,6 @@ describe('Profile API Security Tests', () => {
     test('should accept valid image upload request', async () => {
       const validUserId = '550e8400-e29b-41d4-a716-446655440000';
 
-      // Mock rate limit check to pass
       ddbMock.on(GetCommand).resolves({ Item: null });
       ddbMock.on(PutCommand).resolves({});
 
@@ -312,7 +306,6 @@ describe('Profile API Security Tests', () => {
     test('should sanitize HTML in bio field', async () => {
       const validUserId = '550e8400-e29b-41d4-a716-446655440000';
 
-      // Mock rate limit check to pass
       ddbMock.on(GetCommand).resolves({ Item: null });
       ddbMock.on(PutCommand).resolves({});
       ddbMock.on(UpdateCommand).resolves({
@@ -344,7 +337,6 @@ describe('Profile API Security Tests', () => {
       const response = await handler(event);
       expect(response.statusCode).toBe(200);
 
-      // Verify UpdateCommand was called
       const updateCalls = ddbMock.commandCalls(UpdateCommand);
       expect(updateCalls.length).toBeGreaterThan(0);
     });
@@ -352,7 +344,6 @@ describe('Profile API Security Tests', () => {
     test('should sanitize HTML in displayName field', async () => {
       const validUserId = '550e8400-e29b-41d4-a716-446655440000';
 
-      // Mock rate limit check to pass
       ddbMock.on(GetCommand).resolves({ Item: null });
       ddbMock.on(PutCommand).resolves({});
       ddbMock.on(UpdateCommand).resolves({
@@ -389,7 +380,6 @@ describe('Profile API Security Tests', () => {
       const validUserId = '550e8400-e29b-41d4-a716-446655440000';
       const now = Math.floor(Date.now() / 1000);
 
-      // Mock rate limit exceeded
       ddbMock.on(GetCommand).resolves({
         Item: {
           rateLimitKey: `${validUserId}:updateProfile`,
@@ -424,7 +414,6 @@ describe('Profile API Security Tests', () => {
       const validUserId = '550e8400-e29b-41d4-a716-446655440000';
       const now = Math.floor(Date.now() / 1000);
 
-      // Mock rate limit exceeded
       ddbMock.on(GetCommand).resolves({
         Item: {
           rateLimitKey: `${validUserId}:photoUpload`,
