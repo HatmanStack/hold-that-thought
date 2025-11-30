@@ -1,116 +1,79 @@
-# Implementation Plan: User Profiles, Comments & Messaging
+# Monorepo Refactor Implementation Plan
 
-## Feature Overview
+## Overview
 
-This plan implements a comprehensive social layer for the "Hold That Thought" family letter-sharing application. The feature adds three interconnected capabilities: a commenting system for letters and media items, rich user profile pages with activity tracking, and a direct messaging system for family communication.
+This plan restructures the Hold That Thought codebase from a loosely organized repository into a clean monorepo architecture with standardized CI/CD pipelines. The refactor consolidates the SvelteKit frontend, AWS Lambda backends, infrastructure-as-code, and documentation into a predictable four-directory structure (`frontend/`, `backend/`, `docs/`, `tests/`).
 
-The implementation follows a serverless-first architecture using AWS DynamoDB for data persistence, Lambda functions for business logic, and API Gateway for HTTP endpoints. All features integrate with the existing Cognito authentication system and maintain the family-private nature of the application (ApprovedUsers only).
+The migration involves moving directories, updating all import paths and asset references programmatically, porting two Python Lambdas to Node.js, stripping development noise (comments, console.logs, dead code), and implementing a SAM-based deployment workflow. The result is a maintainable codebase with automated linting, Vitest-based testing, and a single `npm run deploy` command for backend deployment.
 
-The design prioritizes simplicity and maintainability: flat comment structures (no threading), asynchronous messaging (no WebSockets), and email-based notifications. This approach keeps infrastructure costs low (~$15-30/month for 50 users) while delivering a robust social experience for family members sharing memories.
+Key deliverables include a bash migration script for reproducibility, updated GitHub Actions CI workflow, and consolidated documentation following the established pattern from similar projects.
 
 ## Prerequisites
 
-**Backend:**
-- AWS CLI configured with appropriate credentials
-- CloudFormation CLI (for infrastructure deployment)
-- Node.js v22+ (for Lambda development)
-- Python 3.13+ with uv (for stream processors)
-- Access to existing AWS resources: S3 bucket, Cognito User Pool, API Gateway
+### Required Tools
+- **Node.js** v24 LTS (via nvm)
+- **pnpm** v9.10+ (package manager)
+- **AWS CLI** v2 configured with credentials
+- **AWS SAM CLI** v1.100+ for serverless deployment
+- **Git** for version control
 
-**Frontend:**
-- SvelteKit development environment
-- pnpm package manager
-- Familiarity with Svelte 4.x, TailwindCSS, DaisyUI
+### Environment Setup
+```bash
+nvm use 24
+pnpm install
+aws configure  # If not already configured
+```
 
-**Tools:**
-- Git (conventional commits workflow)
-- Code editor with TypeScript support
-- Postman or curl (for API testing)
-
-**Knowledge Requirements:**
-- DynamoDB single-table design patterns
-- AWS Lambda event-driven architecture
-- SvelteKit SSR and routing
-- REST API design
-- JWT authentication flows
+### Required Knowledge
+- SvelteKit project structure and configuration
+- AWS Lambda + API Gateway concepts
+- SAM template.yaml syntax
+- Vitest testing patterns
 
 ## Phase Summary
 
-| Phase | Goal | Key Deliverables | Est. Tokens |
-|-------|------|------------------|-------------|
-| 0 | Foundation & Architecture | ADRs, schema design, patterns | N/A (reference) |
-| 1 | Backend Foundation | DynamoDB tables, Lambda functions, API endpoints | ~95,000 |
-| 2 | Comments System | UI components, letter integration, notifications | ~85,000 |
-| 3 | User Profiles | Profile pages, activity tracking, privacy controls | ~80,000 |
-| 4 | Messaging System | DM backend, conversation UI, attachments | ~90,000 |
-| 5 | Polish & Launch | Testing, optimization, documentation, deployment | ~50,000 |
-| **Total** | **Complete Feature** | **Production-ready social layer** | **~400,000** |
+| Phase | Goal | Token Estimate |
+|-------|------|----------------|
+| [Phase-0](./Phase-0.md) | Foundation: Architecture decisions, deployment scripts, testing strategy | ~15k |
+| [Phase-1](./Phase-1.md) | Structure migration: Move directories, update paths, create SAM template | ~45k |
+| [Phase-2](./Phase-2.md) | Code cleanup: Port Python Lambdas, strip comments, sanitize code, consolidate docs | ~40k |
+| [Phase-3](./Phase-3.md) | CI/CD integration: GitHub Actions, root package.json scripts, final verification | ~25k |
 
-## Phase Navigation
+## Architecture Target
 
-- **[Phase 0: Foundation & Architecture](./Phase-0.md)** - Start here for design decisions and patterns
-- **[Phase 1: Backend Foundation](./Phase-1.md)** - DynamoDB + Lambda infrastructure
-- **[Phase 2: Comments System](./Phase-2.md)** - Comment UI and integration
-- **[Phase 3: User Profiles](./Phase-3.md)** - Profile pages and activity tracking
-- **[Phase 4: Messaging System](./Phase-4.md)** - Direct messaging implementation
-- **[Phase 5: Polish & Launch](./Phase-5.md)** - Testing, optimization, deployment
+```text
+hold-that-thought/
+├── frontend/           # SvelteKit client (renamed from src/)
+│   ├── lib/
+│   ├── routes/
+│   └── ...
+├── backend/            # All Lambda functions + infra
+│   ├── comments-api/
+│   ├── messages-api/
+│   ├── profile-api/
+│   ├── reactions-api/
+│   ├── media-upload-lambda/
+│   ├── pdf-download-lambda/
+│   ├── download-presigned-url-lambda/
+│   ├── activity-aggregator/      # Ported from Python
+│   ├── notification-processor/   # Ported from Python
+│   ├── infra/                    # Consolidated CloudFormation
+│   ├── scripts/                  # Deployment scripts
+│   └── template.yaml             # SAM template
+├── docs/               # Consolidated documentation
+├── tests/              # Centralized test suites
+│   ├── e2e/            # Playwright E2E tests
+│   ├── integration/    # Live API integration tests
+│   ├── load/           # Artillery load tests
+│   └── unit/           # Lambda handler unit tests
+├── .github/workflows/  # CI configuration
+├── package.json        # Root orchestration
+└── [config files]      # svelte.config.js, vite.config.ts, etc.
+```
 
-## Implementation Strategy
+## Navigation
 
-**Sequential Phases:** Each phase builds on the previous. Do not skip ahead.
-
-**Testing Approach:** Test-driven development with unit tests before integration tests.
-
-**Deployment Model:** Infrastructure as Code (CloudFormation) with blue/green Lambda deployments.
-
-**Rollback Safety:** Feature flags allow disabling incomplete features in production.
-
-## Success Criteria
-
-The implementation is complete when:
-
-1. ✅ Family members can comment on any letter or media item
-2. ✅ Comments support reactions (likes) and can be edited/deleted
-3. ✅ User profiles display bio, family relationships, and activity stats
-4. ✅ Comment history on profiles links back to original items
-5. ✅ Direct messaging works for 1-on-1 and group conversations
-6. ✅ Message attachments (photos, documents) upload successfully
-7. ✅ Email notifications sent for comments, reactions, and DMs
-8. ✅ Admin moderation tools allow comment deletion
-9. ✅ Privacy controls hide private profiles from non-owners
-10. ✅ All features work on mobile and desktop browsers
-
-## Cost & Performance Targets
-
-**Monthly Cost:** $15-30 for 50 active users (PAY_PER_REQUEST DynamoDB)
-
-**Performance:**
-- API response time: < 500ms (p95)
-- Page load time: < 2s (p95)
-- Comment submission: < 1s
-- Email notification delivery: < 5 minutes
-
-## Timeline Estimate
-
-- Phase 1: 2 weeks (backend foundation)
-- Phase 2: 1 week (comments UI)
-- Phase 3: 1 week (profiles)
-- Phase 4: 2 weeks (messaging)
-- Phase 5: 1 week (polish)
-
-**Total: ~7 weeks** for a single full-time developer
-
-## Getting Started
-
-1. Read **Phase 0** thoroughly to understand architecture decisions
-2. Set up local development environment per prerequisites
-3. Begin **Phase 1** - each task builds sequentially
-4. Commit frequently using conventional commit format
-5. Test each task before moving to the next
-
-## Questions or Issues?
-
-- Architecture questions: Review Phase 0 ADRs
-- Implementation blockers: Check phase prerequisites
-- Test failures: Review verification checklists
-- Deployment issues: See Phase 5 deployment guide
+- [Phase-0: Foundation](./Phase-0.md) - Start here
+- [Phase-1: Structure Migration](./Phase-1.md)
+- [Phase-2: Code Cleanup & Lambda Ports](./Phase-2.md)
+- [Phase-3: CI/CD & Final Integration](./Phase-3.md)

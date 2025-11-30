@@ -1,1097 +1,921 @@
-# Phase 1: Backend Foundation
+# Phase 1: Structure Migration
+
+**Estimated Tokens:** ~45,000
+
+This phase moves all files to their target locations, updates import paths, creates the SAM template, and configures the deployment script. At the end of this phase, the directory structure matches the target architecture and `npm run deploy` works.
+
+---
 
 ## Phase Goal
 
-Build the complete backend infrastructure for comments, profiles, and messaging features. This includes deploying 5 DynamoDB tables, 6 Lambda functions, and extending API Gateway with new endpoints. By the end of this phase, all backend APIs will be functional and testable via Postman/curl, ready for frontend integration.
+Restructure the codebase into the monorepo architecture defined in Phase-0. This involves:
+- Moving `src/` to `frontend/`
+- Moving `lambdas/` to `backend/` with consolidated infrastructure
+- Updating all configuration files to reference new paths
+- Creating the SAM template for unified Lambda deployment
+- Implementing the deployment script
 
 **Success Criteria:**
-- All DynamoDB tables created and accessible
-- All Lambda functions deployed and tested
-- API endpoints return correct responses with valid JWT tokens
-- CloudWatch logging configured
-- Unit tests pass for all Lambda handlers
-
-**Estimated Tokens: ~95,000**
+- Directory structure matches target architecture
+- `pnpm install` succeeds
+- `pnpm dev` starts the SvelteKit dev server
+- `pnpm run deploy` prompts for config and generates `samconfig.toml`
+- All existing tests pass with updated import paths
 
 ---
 
 ## Prerequisites
 
-Before starting this phase:
-
-- [ ] Read Phase 0 thoroughly (architecture decisions and patterns)
-- [ ] AWS CLI configured with credentials (`aws sts get-caller-identity` succeeds)
-- [ ] Access to existing Cognito User Pool and S3 bucket
-- [ ] Node.js v22+ installed (`node --version`)
-- [ ] Python 3.13+ with uv installed (`uv --version`)
-- [ ] Existing API Gateway REST API ID (find with `aws apigateway get-rest-apis`)
+- Phase-0 complete (read and understand ADRs)
+- Git working tree clean (commit or stash changes)
+- Node.js 24, pnpm, AWS CLI, SAM CLI installed
 
 ---
 
-## Task 1: Create CloudFormation Template for DynamoDB Tables
+## Tasks
 
-**Goal:** Define infrastructure as code for all 5 DynamoDB tables with proper keys, indexes, and streams.
+### Task 1: Create Target Directory Structure
+
+**Goal:** Create the skeleton directories for the new structure before moving files.
 
 **Files to Create:**
-- `cloudformation/dynamodb-tables.yaml` - DynamoDB table definitions
+- `backend/` directory
+- `backend/infra/` directory
+- `backend/scripts/` directory
+
+**Prerequisites:**
+- None
 
 **Implementation Steps:**
-
-1. Create CloudFormation template following AWS best practices
-2. Define all 5 tables: UserProfiles, Comments, CommentReactions, Messages, ConversationMembers
-3. Configure partition keys and sort keys per Phase 0 schema
-4. Add GSIs where specified (EmailIndex, UserCommentsIndex, RecentConversationsIndex)
-5. Enable DynamoDB Streams with `NEW_AND_OLD_IMAGES` view type (needed for notifications)
-6. Use `PAY_PER_REQUEST` billing mode (serverless, auto-scaling)
-7. Add encryption at rest with AWS-managed keys
-8. Enable point-in-time recovery for data protection
-9. Add CloudFormation outputs for table names and ARNs (used by Lambda functions)
+- Create the `backend/` directory at project root
+- Create `backend/infra/` subdirectory for CloudFormation templates
+- Create `backend/scripts/` subdirectory for deployment scripts
+- Do NOT create `frontend/` yet (will be renamed from `src/`)
 
 **Verification Checklist:**
-
-- [ ] Template validates: `aws cloudformation validate-template --template-body file://cloudformation/dynamodb-tables.yaml`
-- [ ] All table names follow pattern: `hold-that-thought-{resource}`
-- [ ] Partition/sort keys match Phase 0 schema exactly
-- [ ] GSIs configured for UserComments, Email, RecentConversations
-- [ ] Streams enabled on Comments, Reactions, Messages tables
-- [ ] Outputs include all table names and ARNs
+- [ ] `backend/` directory exists
+- [ ] `backend/infra/` directory exists
+- [ ] `backend/scripts/` directory exists
 
 **Testing Instructions:**
-
-- Deploy to test stack: `aws cloudformation create-stack --stack-name htt-dynamo-test --template-body file://cloudformation/dynamodb-tables.yaml`
-- Verify tables exist: `aws dynamodb list-tables`
-- Check stream status: `aws dynamodb describe-table --table-name hold-that-thought-comments --query 'Table.StreamSpecification'`
-- Clean up test stack: `aws cloudformation delete-stack --stack-name htt-dynamo-test`
+- Run `ls -la` to verify directories exist
+- No automated tests needed for directory creation
 
 **Commit Message Template:**
 ```
-feat(infra): add DynamoDB tables CloudFormation template
+Author & Committer: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
 
-- Define UserProfiles, Comments, Reactions, Messages, ConversationMembers tables
-- Configure GSIs for user lookups and comment history
-- Enable DynamoDB Streams for notification triggers
-- Add point-in-time recovery and encryption
+chore(structure): create backend directory skeleton
 
-Estimated tokens: ~8000
+- Add backend/ root directory
+- Add backend/infra/ for CloudFormation templates
+- Add backend/scripts/ for deployment scripts
 ```
-
-**Estimated Tokens: ~8000**
 
 ---
 
-## Task 2: Deploy DynamoDB Tables to AWS
+### Task 2: Move Lambda Functions to Backend
 
-**Goal:** Create actual DynamoDB tables in AWS account using CloudFormation.
+**Goal:** Move all Lambda function directories from `lambdas/` to `backend/`, preserving their individual package.json files.
+
+**Files to Modify/Create:**
+- Move `lambdas/comments-api/` → `backend/comments-api/`
+- Move `lambdas/messages-api/` → `backend/messages-api/`
+- Move `lambdas/profile-api/` → `backend/profile-api/`
+- Move `lambdas/reactions-api/` → `backend/reactions-api/`
+- Move `lambdas/media-upload-lambda/` → `backend/media-upload-lambda/`
+- Move `lambdas/pdf-download-lambda/` → `backend/pdf-download-lambda/`
+- Move `lambdas/download-presigned-url-lambda/` → `backend/download-presigned-url-lambda/`
+- Move `lambdas/activity-aggregator/` → `backend/activity-aggregator/` (temporary, will be rewritten in Phase-2)
+- Move `lambdas/notification-processor/` → `backend/notification-processor/` (temporary, will be rewritten in Phase-2)
 
 **Prerequisites:**
-- Task 1 complete (CloudFormation template created)
+- Task 1 complete
 
 **Implementation Steps:**
-
-1. Review CloudFormation template one final time
-2. Deploy to production: `aws cloudformation create-stack --stack-name hold-that-thought-dynamodb --template-body file://cloudformation/dynamodb-tables.yaml`
-3. Monitor stack creation: `aws cloudformation describe-stack-events --stack-name hold-that-thought-dynamodb`
-4. Wait for CREATE_COMPLETE status (~2-3 minutes)
-5. Export table names to environment variables for later use
-6. Test table access: List tables, describe one table, put/get a test item
+- Use `git mv` to move each Lambda directory to preserve history
+- Move all nine Lambda directories from `lambdas/` to `backend/`
+- After all moves, delete the empty `lambdas/` directory
+- Verify no files remain in `lambdas/`
 
 **Verification Checklist:**
-
-- [ ] Stack status is CREATE_COMPLETE: `aws cloudformation describe-stacks --stack-name hold-that-thought-dynamodb --query 'Stacks[0].StackStatus'`
-- [ ] All 5 tables visible in AWS Console DynamoDB section
-- [ ] Can write test item to UserProfiles table
-- [ ] Can read test item back
-- [ ] Streams are active on Comments, Reactions, Messages tables
+- [ ] `backend/comments-api/index.js` exists
+- [ ] `backend/messages-api/index.js` exists
+- [ ] `backend/profile-api/index.js` exists
+- [ ] `backend/reactions-api/index.js` exists
+- [ ] `backend/media-upload-lambda/index.js` exists
+- [ ] `backend/pdf-download-lambda/index.js` exists
+- [ ] `backend/download-presigned-url-lambda/index.js` exists
+- [ ] `backend/activity-aggregator/index.py` exists
+- [ ] `backend/notification-processor/index.py` exists
+- [ ] `lambdas/` directory no longer exists
 
 **Testing Instructions:**
-
-```bash
-# Test write to UserProfiles table
-aws dynamodb put-item \
-  --table-name hold-that-thought-user-profiles \
-  --item '{"userId": {"S": "test-123"}, "email": {"S": "test@example.com"}, "displayName": {"S": "Test User"}}'
-
-# Test read
-aws dynamodb get-item \
-  --table-name hold-that-thought-user-profiles \
-  --key '{"userId": {"S": "test-123"}}'
-
-# Clean up test item
-aws dynamodb delete-item \
-  --table-name hold-that-thought-user-profiles \
-  --key '{"userId": {"S": "test-123"}}'
-```
+- Run `ls backend/*/index.js backend/*/index.py` to verify all handlers moved
+- No code changes, so no tests to run yet
 
 **Commit Message Template:**
 ```
-chore(infra): deploy DynamoDB tables to AWS
+Author & Committer: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
 
-- Create hold-that-thought-dynamodb CloudFormation stack
-- Deploy UserProfiles, Comments, Reactions, Messages, ConversationMembers
-- Verify table access and stream configuration
+refactor(backend): move Lambda functions from lambdas/ to backend/
 
-Estimated tokens: ~2000
+- Move all 9 Lambda directories to backend/
+- Preserve individual package.json files
+- Remove empty lambdas/ directory
 ```
-
-**Estimated Tokens: ~2000**
 
 ---
 
-## Task 3: Create Profile API Lambda Function
+### Task 3: Consolidate Infrastructure to Backend
 
-**Goal:** Implement Lambda function for user profile CRUD operations (GET, PUT profile data).
+**Goal:** Move all CloudFormation/infrastructure YAML files to `backend/infra/`.
 
-**Files to Create:**
-- `lambdas/profile-api/index.js` - Lambda handler
-- `lambdas/profile-api/package.json` - Dependencies
-- `lambdas/profile-api/test/handler.test.js` - Unit tests
+**Files to Modify/Create:**
+- Move `aws-infrastructure/*.yaml` → `backend/infra/`
+- Move `cloudformation/*.yaml` → `backend/infra/`
+- Delete empty `aws-infrastructure/` directory
+- Delete empty `cloudformation/` directory
 
 **Prerequisites:**
-- Task 2 complete (DynamoDB tables deployed)
+- Task 1 complete
+
+**Implementation Steps:**
+- Use `git mv` to move all YAML files from `aws-infrastructure/` to `backend/infra/`
+- Use `git mv` to move all YAML files from `cloudformation/` to `backend/infra/`
+- Remove empty source directories
+- Files to move from `aws-infrastructure/`:
+  - `api-gateway-with-auth.yaml`
+  - `cognito-user-pool.yaml`
+  - `gallery-api-gateway.yaml`
+  - `gallery-upload-lambda.yaml`
+  - `lambda-integration-api-gateway.yaml`
+  - `media-upload-lambda.yaml`
+  - `pdf-download-lambda.yaml`
+  - `signup-notification-lambda.yaml`
+- Files to move from `cloudformation/`:
+  - `api-gateway-extensions.yaml`
+  - `dynamodb-tables.yaml`
+  - `lambda-functions.yaml`
+  - `monitoring.yaml`
+
+**Verification Checklist:**
+- [ ] `backend/infra/` contains 12 YAML files
+- [ ] `aws-infrastructure/` directory no longer exists
+- [ ] `cloudformation/` directory no longer exists
+
+**Testing Instructions:**
+- Run `ls backend/infra/*.yaml | wc -l` should output 12
+- Validate YAML syntax with `yamllint backend/infra/*.yaml` (optional)
+
+**Commit Message Template:**
+```
+Author & Committer: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+
+refactor(infra): consolidate CloudFormation to backend/infra/
+
+- Move aws-infrastructure/ contents to backend/infra/
+- Move cloudformation/ contents to backend/infra/
+- Remove empty source directories
+```
+
+---
+
+### Task 4: Move Scripts to Backend
+
+**Goal:** Move all deployment and utility scripts to `backend/scripts/`.
+
+**Files to Modify/Create:**
+- Move `scripts/*.sh` → `backend/scripts/`
+- Move `scripts/*.js` → `backend/scripts/`
+
+**Prerequisites:**
+- Task 1 complete
+
+**Implementation Steps:**
+- Use `git mv` to move all files from `scripts/` to `backend/scripts/`
+- Files to move:
+  - `add-approved-user.js`
+  - `backfill-user-profiles.js`
+  - `deploy-all-infrastructure.sh`
+  - `deploy-auth-infrastructure.sh`
+  - `deploy-gallery-infrastructure.sh`
+  - `deploy-lambda-integration-api.sh`
+  - `deploy-lambdas.sh`
+  - `deploy-media-upload-lambda.sh`
+  - `deploy-pdf-download-lambda.sh`
+  - `deploy-production.sh`
+  - `deploy-signup-notifications.sh`
+  - `rollback.sh`
+  - `test-media-upload-endpoint.sh`
+  - `test-pdf-download-endpoint.sh`
+- Remove empty `scripts/` directory
+
+**Verification Checklist:**
+- [ ] `backend/scripts/` contains 14 files
+- [ ] `scripts/` directory no longer exists
+- [ ] Shell scripts retain executable permissions
+
+**Testing Instructions:**
+- Run `ls backend/scripts/ | wc -l` should output 14
+- Run `file backend/scripts/*.sh` to verify executable type
+
+**Commit Message Template:**
+```
+Author & Committer: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+
+refactor(backend): move scripts to backend/scripts/
+
+- Move all deployment scripts
+- Move utility scripts
+- Remove empty scripts/ directory
+```
+
+---
+
+### Task 5: Rename src/ to frontend/
+
+**Goal:** Rename the SvelteKit source directory from `src/` to `frontend/`.
+
+**Files to Modify/Create:**
+- Rename `src/` → `frontend/`
+
+**Prerequisites:**
+- None (independent of backend tasks)
+
+**Implementation Steps:**
+- Use `git mv src frontend` to rename the directory
+- This single command moves all contents including:
+  - `lib/` (components, auth, services, stores, types, utils)
+  - `routes/` (all page routes)
+  - `app.d.ts`, `app.html`, `app.pcss`, `hooks.server.ts`
+
+**Verification Checklist:**
+- [ ] `frontend/` directory exists
+- [ ] `frontend/routes/+page.svelte` exists
+- [ ] `frontend/lib/` directory exists
+- [ ] `src/` directory no longer exists
+
+**Testing Instructions:**
+- Run `ls frontend/` to verify contents moved
+- Build will fail until configs updated (next task)
+
+**Commit Message Template:**
+```
+Author & Committer: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+
+refactor(frontend): rename src/ to frontend/
+
+- Rename source directory for monorepo clarity
+- Configs updated in following commit
+```
+
+---
+
+### Task 6: Update SvelteKit Configuration
+
+**Goal:** Update all configuration files to reference `frontend/` instead of `src/`.
+
+**Files to Modify/Create:**
+- `svelte.config.js` - Add `files.lib` and `files.routes` config
+- `vite.config.ts` - No changes needed (uses SvelteKit defaults)
+- `tsconfig.json` - Update `paths` alias if present
+- `tailwind.config.ts` - Update content paths
+- `uno.config.ts` - Update content paths if using file scanning
+
+**Prerequisites:**
+- Task 5 complete
 
 **Implementation Steps:**
 
-1. Create Lambda function directory structure
-2. Initialize npm project: `pnpm init` in `lambdas/profile-api/`
-3. Install dependencies: `@aws-sdk/client-dynamodb`, `@aws-sdk/lib-dynamodb`
-4. Implement handler with routes:
-   - GET /profile/{userId} - Retrieve user profile
-   - PUT /profile - Update own profile
-   - GET /profile/{userId}/comments - Get user's comment history (paginated)
-5. Extract userId from JWT claims: `event.requestContext.authorizer.claims.sub`
-6. Validate privacy: Return 403 if profile is private and requester is not owner/admin
-7. Validate inputs: Check required fields, max lengths (bio 500 chars)
-8. Use DynamoDB DocumentClient for cleaner API
-9. Handle errors gracefully (400, 403, 404, 500)
-10. Add structured logging with context
-11. Write unit tests using `aws-sdk-client-mock`
+**svelte.config.js:**
+- Add `files` configuration to `kit` object:
+  ```javascript
+  kit: {
+    files: {
+      assets: 'static',
+      lib: 'frontend/lib',
+      params: 'frontend/params',
+      routes: 'frontend/routes',
+      serviceWorker: 'frontend/service-worker',
+      appTemplate: 'frontend/app.html',
+      errorTemplate: 'frontend/error.html',
+      hooks: {
+        client: 'frontend/hooks.client',
+        server: 'frontend/hooks.server'
+      }
+    },
+    // ... existing config
+  }
+  ```
 
-**Architecture Guidance:**
+**tsconfig.json:**
+- Update `$lib` path alias:
+  ```json
+  "paths": {
+    "$lib": ["frontend/lib"],
+    "$lib/*": ["frontend/lib/*"]
+  }
+  ```
 
-- Use route-based handler pattern: Check `event.httpMethod` and `event.resource` to determine action
-- For GET profile: Query UserProfiles table by PK (userId)
-- For PUT profile: Only allow user to update their own profile (validate `userId === JWT.sub`)
-- For privacy check: If `isProfilePrivate === true`, check if requester is owner or admin
-- Admin check: Look for `cognito:groups` claim containing "Admins" group
-- Denormalize: When profile updated, do NOT backfill comments (intentional staleness)
+**tailwind.config.ts:**
+- Update content array to scan `frontend/`:
+  ```typescript
+  content: [
+    './frontend/**/*.{html,js,svelte,ts}',
+    // ... other paths
+  ]
+  ```
+
+**uno.config.ts:**
+- If using file scanning, update to `frontend/` paths
 
 **Verification Checklist:**
-
-- [ ] Handler exports `exports.handler` function
-- [ ] Handles GET /profile/{userId} correctly
-- [ ] Handles PUT /profile with validation
-- [ ] Returns 403 for private profiles (non-owner)
-- [ ] Returns 400 for invalid inputs (missing fields, too-long bio)
-- [ ] Returns 404 if userId doesn't exist
-- [ ] Logs errors with structured context
-- [ ] Unit tests cover happy path and error cases
-- [ ] All tests pass: `pnpm test`
+- [ ] `pnpm dev` starts successfully
+- [ ] Hot reload works on file changes in `frontend/`
+- [ ] `$lib` imports resolve correctly
+- [ ] Tailwind classes apply to components
 
 **Testing Instructions:**
+- Run `pnpm dev` and verify no errors
+- Make a trivial change to a component and verify HMR works
+- Run `pnpm check` for TypeScript validation
 
-Create test event files:
+**Commit Message Template:**
+```
+Author & Committer: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
 
-`test/events/get-profile.json`:
+refactor(frontend): update configs for frontend/ directory
+
+- Update svelte.config.js files paths
+- Update tsconfig.json $lib alias
+- Update tailwind.config.ts content paths
+```
+
+---
+
+### Task 7: Organize Test Structure
+
+**Goal:** Consolidate and organize test files. The repository has two types of tests that must be distinguished:
+
+1. **Lambda Unit Tests** (`backend/*/test/handler.test.js`) - Mock AWS SDK, test handler logic in isolation
+2. **Live Integration Tests** (`tests/integration/*.test.js`) - Hit real API endpoints via HTTP
+
+**Current State Analysis:**
+- `tests/integration/comments.test.js` - Live API tests (uses `apiRequest` helper)
+- `backend/comments-api/test/handler.test.js` - Unit tests (uses `aws-sdk-client-mock`)
+- These are NOT duplicates - they serve different purposes
+
+**Files to Modify/Create:**
+- Move `backend/comments-api/test/handler.test.js` → `tests/unit/comments-handler.test.js`
+- Move `backend/messages-api/test/handler.test.js` → `tests/unit/messages-handler.test.js`
+- Move `backend/profile-api/test/handler.test.js` → `tests/unit/profile-handler.test.js`
+- Move `backend/profile-api/test/security.test.js` → `tests/unit/profile-security.test.js`
+- Move `backend/reactions-api/test/handler.test.js` → `tests/unit/reactions-handler.test.js`
+- Create `tests/unit/` directory
+- Keep `tests/integration/*.test.js` as-is (live API tests)
+- Update import paths in moved test files
+
+**Prerequisites:**
+- Task 2 complete (Lambdas moved to backend/)
+
+**Implementation Steps:**
+- Create `tests/unit/` directory for Lambda unit tests
+- Move Lambda test files using `git mv` with renamed filenames
+- Update import statements in each moved test file:
+  - Change `const { handler } = require('../index');`
+  - To `const { handler } = require('../../backend/comments-api/index');`
+- Remove empty `test/` directories from Lambda folders
+- Remove individual `jest.config.js` files from Lambdas
+- Remove `tests/integration/jest.config.js` (will use root Vitest)
+- Keep `tests/integration/setup.js` (used by live API tests)
+
+**Verification Checklist:**
+- [ ] `tests/unit/` directory exists
+- [ ] `tests/unit/comments-handler.test.js` exists with updated imports
+- [ ] `tests/unit/messages-handler.test.js` exists with updated imports
+- [ ] `tests/unit/profile-handler.test.js` exists with updated imports
+- [ ] `tests/unit/reactions-handler.test.js` exists with updated imports
+- [ ] `tests/integration/comments.test.js` unchanged (live API tests)
+- [ ] No `test/` directories remain in `backend/*/`
+- [ ] No `jest.config.js` files remain in `backend/*/` or `tests/integration/`
+
+**Testing Instructions:**
+- Tests will not run until Vitest configuration (Task 11)
+- Verify structure: `ls tests/unit/*.test.js && ls tests/integration/*.test.js`
+
+**Commit Message Template:**
+```
+Author & Committer: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+
+refactor(tests): organize unit and integration tests
+
+- Create tests/unit/ for Lambda handler unit tests
+- Move Lambda tests with updated import paths
+- Keep tests/integration/ for live API tests
+- Remove scattered jest.config.js files
+```
+
+---
+
+### Task 8: Create SAM Template
+
+**Goal:** Create a SAM template.yaml that defines all Lambda functions for unified deployment.
+
+**Files to Create:**
+- `backend/template.yaml` - SAM template defining all Lambdas
+
+**Prerequisites:**
+- Task 2 complete (Lambdas in backend/)
+- Review existing CloudFormation in `backend/infra/lambda-functions.yaml` for reference
+
+**Implementation Steps:**
+
+Create `backend/template.yaml` with:
+- SAM Transform header
+- Parameters section for:
+  - `AllowedOrigins` (CORS origins, default '*')
+  - `UserProfilesTable` (DynamoDB table name)
+  - `CommentsTable` (DynamoDB table name)
+  - `MessagesTable` (DynamoDB table name)
+  - `ReactionsTable` (DynamoDB table name)
+  - `MediaBucket` (S3 bucket name)
+- Globals section:
+  - Runtime: `nodejs20.x`
+  - Timeout: 30
+  - MemorySize: 256
+  - Architectures: x86_64
+- Resources for each Lambda:
+  - CommentsApiFunction
+  - MessagesApiFunction
+  - ProfileApiFunction
+  - ReactionsApiFunction
+  - MediaUploadFunction
+  - PdfDownloadFunction
+  - DownloadPresignedUrlFunction
+  - ActivityAggregatorFunction (placeholder, updated in Phase-2)
+  - NotificationProcessorFunction (placeholder, updated in Phase-2)
+- Each function resource needs:
+  - Type: AWS::Serverless::Function
+  - Properties: CodeUri, Handler, Environment variables
+  - Events: API Gateway events with appropriate paths
+
+Reference the existing `backend/infra/lambda-functions.yaml` for environment variable names and API paths.
+
+**SAM Template Structure:**
+
+```yaml
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Hold That Thought - Lambda API Functions
+
+Parameters:
+  AllowedOrigins:
+    Type: String
+    Default: '*'
+  # ... other parameters
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Timeout: 30
+    MemorySize: 256
+    Architectures:
+      - x86_64
+
+Resources:
+  CommentsApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: comments-api/
+      Handler: index.handler
+      Environment:
+        Variables:
+          COMMENTS_TABLE: !Ref CommentsTable
+          USER_PROFILES_TABLE: !Ref UserProfilesTable
+      Events:
+        GetComments:
+          Type: Api
+          Properties:
+            Path: /comments/{itemId}
+            Method: get
+        # ... other events
+
+  # ... other functions
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/'
+```
+
+**Verification Checklist:**
+- [ ] `backend/template.yaml` exists
+- [ ] `sam validate` passes
+- [ ] All 9 Lambda functions defined
+- [ ] API Gateway events defined for each endpoint
+
+**Testing Instructions:**
+- Run `cd backend && sam validate` to check template syntax
+- Run `sam build` to verify all CodeUri paths resolve
+
+**Commit Message Template:**
+```
+Author & Committer: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+
+feat(backend): add SAM template for Lambda deployment
+
+- Define all Lambda functions in template.yaml
+- Configure API Gateway events
+- Set environment variables for DynamoDB tables
+- Add outputs for API URL
+```
+
+---
+
+### Task 9: Create Deployment Script
+
+**Goal:** Create the interactive deployment script that manages configuration, generates samconfig.toml, and runs SAM deploy.
+
+**Files to Create:**
+- `backend/scripts/deploy.js` - Main deployment script
+- `backend/.gitignore` - Ignore deploy config and SAM artifacts
+
+**Prerequisites:**
+- Task 8 complete (SAM template exists)
+- Read Phase-0 deployment script specification
+
+**Implementation Steps:**
+
+Create `backend/scripts/deploy.js` following the specification in Phase-0. The script must:
+
+1. **Check Prerequisites**
+   - Verify AWS CLI configured (`aws sts get-caller-identity`)
+   - Verify SAM CLI installed (`sam --version`)
+   - Exit with helpful error if missing
+
+2. **Load or Prompt Configuration**
+   - Check for `backend/.deploy-config.json`
+   - If exists, load and validate
+   - If missing, prompt for:
+     - AWS Region (default: us-east-1)
+     - Stack Name (default: hold-that-thought)
+     - Allowed Origins (default: *)
+   - Save responses to `.deploy-config.json`
+
+3. **Generate samconfig.toml**
+   - Build parameter_overrides from config
+   - Write to `backend/samconfig.toml`
+
+4. **Build and Deploy**
+   - Run `sam build` from backend directory
+   - Run `sam deploy --no-confirm-changeset --no-fail-on-empty-changeset`
+   - Stream output to console
+
+5. **Update .env**
+   - Get stack outputs via `aws cloudformation describe-stacks`
+   - Extract ApiUrl output
+   - Update root `.env` with `URARA_API_URL=<value>`
+
+Create `backend/.gitignore`:
+```
+.deploy-config.json
+samconfig.toml
+.aws-sam/
+```
+
+**Verification Checklist:**
+- [ ] `backend/scripts/deploy.js` exists and is executable
+- [ ] Script prompts for config when `.deploy-config.json` missing
+- [ ] Script loads existing config without prompting
+- [ ] `samconfig.toml` generated with correct values
+- [ ] `.gitignore` ignores config and SAM artifacts
+
+**Testing Instructions:**
+- Run `node backend/scripts/deploy.js` and verify prompts appear
+- Check generated `samconfig.toml` format
+- Script tests will be added in Phase-3 (Vitest setup)
+
+**Commit Message Template:**
+```
+Author & Committer: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+
+feat(backend): add interactive deployment script
+
+- Implement config loading/prompting
+- Generate samconfig.toml from config
+- Run sam build and deploy
+- Update root .env with API URL
+```
+
+---
+
+### Task 10: Update Root package.json Scripts
+
+**Goal:** Update the root package.json with new script commands for the monorepo structure.
+
+**Files to Modify:**
+- `package.json` - Add/update scripts
+
+**Prerequisites:**
+- Task 6 complete (frontend config updated)
+- Task 9 complete (deploy script exists)
+- Task 11 complete (Vitest installed - must be installed before test scripts work)
+
+**Implementation Steps:**
+
+Update the scripts section in root `package.json`:
+
 ```json
 {
-  "httpMethod": "GET",
-  "resource": "/profile/{userId}",
-  "pathParameters": { "userId": "test-user-123" },
-  "requestContext": {
-    "authorizer": {
-      "claims": {
-        "sub": "test-user-123",
-        "email": "test@example.com"
-      }
-    }
+  "scripts": {
+    "dev": "run-s tsc \"dev:parallel {@} \" --",
+    "dev:parallel": "run-p -r tsc:watch urara:watch \"kit:dev {@} \" --",
+    "build": "run-s tsc urara:build kit:build clean",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "lint": "eslint --flag unstable_ts_config .",
+    "lint:fix": "eslint --flag unstable_ts_config . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:load": "artillery run tests/load/comments-load.yml",
+    "deploy": "node backend/scripts/deploy.js",
+    "clean": "node urara.js clean",
+    "tsc": "tsc -p tsconfig.node.json",
+    "tsc:watch": "tsc -w -p tsconfig.node.json",
+    "kit:build": "cross-env NODE_OPTIONS=--max_old_space_size=7680 vite build",
+    "kit:dev": "cross-env NODE_OPTIONS=--max_old_space_size=7680 vite dev",
+    "urara:build": "node urara.js build",
+    "urara:watch": "node urara.js watch"
   }
 }
 ```
 
-Test locally:
+Key changes:
+- `test`: Changed from undefined to `vitest run`
+- `deploy`: Points to new deploy script
+- Existing scripts preserved for SvelteKit build process
+
+**Verification Checklist:**
+- [ ] `pnpm test` invokes Vitest (will fail until Vitest configured)
+- [ ] `pnpm deploy` runs the deployment script
+- [ ] `pnpm dev` still works
+- [ ] `pnpm build` still works
+
+**Testing Instructions:**
+- Run `pnpm dev` to verify development still works
+- Run `pnpm deploy` to verify script invoked (cancel after prompts)
+
+**Commit Message Template:**
+```
+Author & Committer: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+
+chore(root): update package.json scripts for monorepo
+
+- Add test command for Vitest
+- Add deploy command for SAM deployment
+- Preserve existing SvelteKit scripts
+```
+
+---
+
+### Task 11: Add Vitest Configuration
+
+**Goal:** Configure Vitest as the test runner for all JavaScript tests.
+
+**IMPORTANT:** This task must be completed BEFORE Task 10, as the test scripts in package.json depend on Vitest being installed.
+
+**Files to Create:**
+- `vitest.config.ts` - Root Vitest configuration
+- Add `vitest` to devDependencies
+
+**Prerequisites:**
+- Task 7 complete (tests organized)
+
+**Implementation Steps:**
+
+Install Vitest (run before updating scripts):
 ```bash
-# Set environment variables
-export USER_PROFILES_TABLE=hold-that-thought-user-profiles
-export COMMENTS_TABLE=hold-that-thought-comments
-
-# Run tests
-pnpm test
-
-# Test handler locally (requires DynamoDB Local or real AWS)
-node -e "require('./index').handler(require('./test/events/get-profile.json'), {}).then(console.log)"
+pnpm add -D vitest@^2.1.0 @vitest/coverage-v8@^2.1.0
 ```
 
-**Commit Message Template:**
-```
-feat(profile): create profile API Lambda function
+Create `vitest.config.ts`:
 
-- Implement GET /profile/{userId} endpoint
-- Implement PUT /profile for self-updates
-- Add privacy checks (private profiles return 403)
-- Validate bio length (max 500 chars)
-- Add unit tests for CRUD operations
+```typescript
+import { defineConfig } from 'vitest/config';
 
-Estimated tokens: ~12000
-```
-
-**Estimated Tokens: ~12000**
-
----
-
-## Task 4: Create Comments API Lambda Function
-
-**Goal:** Implement Lambda function for comment CRUD operations on letters and media.
-
-**Files to Create:**
-- `lambdas/comments-api/index.js` - Lambda handler
-- `lambdas/comments-api/package.json` - Dependencies
-- `lambdas/comments-api/test/handler.test.js` - Unit tests
-
-**Prerequisites:**
-- Task 2 complete (DynamoDB tables deployed)
-- Task 3 complete (profile API pattern established)
-
-**Implementation Steps:**
-
-1. Create Lambda function directory and initialize npm
-2. Install dependencies: `@aws-sdk/client-dynamodb`, `@aws-sdk/lib-dynamodb`
-3. Implement handler with routes:
-   - GET /comments/{itemId} - List comments for letter/media (paginated)
-   - POST /comments/{itemId} - Create new comment
-   - PUT /comments/{itemId}/{commentId} - Edit own comment
-   - DELETE /comments/{itemId}/{commentId} - Delete own comment (soft delete)
-   - DELETE /admin/comments/{commentId} - Admin delete any comment
-4. For POST: Generate commentId as `${new Date().toISOString()}#${uuid()}`
-5. Denormalize user data: Fetch userName and userPhotoUrl from UserProfiles table, store in Comments
-6. Validate comment text: Sanitize HTML (strip tags), enforce max 2000 chars
-7. Track edit history: Store last 5 edits in `editHistory` array
-8. Soft delete: Set `isDeleted: true`, keep item in table for audit
-9. Add pagination support: Return `lastEvaluatedKey` for "Load More"
-10. Write comprehensive unit tests
-
-**Architecture Guidance:**
-
-- **Pagination:** Use DynamoDB `Query` with `Limit` parameter, return `LastEvaluatedKey`
-- **Sanitization:** Use library like `sanitize-html` or regex to strip HTML tags
-- **Edit History:** When editing, prepend to `editHistory` array: `[{text: oldText, timestamp: now}, ...history].slice(0, 5)`
-- **Denormalization:** Before creating comment, query UserProfiles table for displayName and profilePhotoUrl
-- **Soft Delete:** For DELETE, use UpdateCommand to set `isDeleted: true` instead of DeleteCommand
-- **Admin Check:** Extract `cognito:groups` from JWT, check if contains "Admins"
-
-**Verification Checklist:**
-
-- [ ] GET returns paginated comments (oldest first by default)
-- [ ] POST creates comment with denormalized user data
-- [ ] POST sanitizes HTML input (e.g., `<script>` tags removed)
-- [ ] PUT only allows editing own comments
-- [ ] PUT tracks edit history (max 5 entries)
-- [ ] DELETE (user) soft-deletes own comments
-- [ ] DELETE (admin) soft-deletes any comment
-- [ ] Returns 400 for text > 2000 chars
-- [ ] Returns 403 if editing someone else's comment
-- [ ] Unit tests cover all routes and error cases
-- [ ] All tests pass: `pnpm test`
-
-**Testing Instructions:**
-
-Create test events for each route (GET, POST, PUT, DELETE).
-
-Example POST test:
-```javascript
-// test/handler.test.js
-const { handler } = require('../index');
-const { mockClient } = require('aws-sdk-client-mock');
-const { DynamoDBDocumentClient, GetCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
-
-const ddbMock = mockClient(DynamoDBDocumentClient);
-
-beforeEach(() => {
-  ddbMock.reset();
-});
-
-test('POST /comments/{itemId} creates comment', async () => {
-  // Mock UserProfiles lookup
-  ddbMock.on(GetCommand).resolves({
-    Item: { userId: 'user-123', displayName: 'John Doe', profilePhotoUrl: 'https://...' }
-  });
-  
-  // Mock comment creation
-  ddbMock.on(PutCommand).resolves({});
-  
-  const event = {
-    httpMethod: 'POST',
-    resource: '/comments/{itemId}',
-    pathParameters: { itemId: '/2015/christmas' },
-    body: JSON.stringify({ commentText: 'Great letter!' }),
-    requestContext: {
-      authorizer: { claims: { sub: 'user-123', email: 'john@example.com' } }
-    }
-  };
-  
-  const response = await handler(event);
-  expect(response.statusCode).toBe(201);
-  
-  const body = JSON.parse(response.body);
-  expect(body.commentText).toBe('Great letter!');
-  expect(body.userName).toBe('John Doe');
-});
-```
-
-**Commit Message Template:**
-```
-feat(comments): create comments API Lambda function
-
-- Implement GET /comments/{itemId} with pagination
-- Implement POST /comments/{itemId} with HTML sanitization
-- Implement PUT for editing own comments
-- Implement DELETE with soft-delete pattern
-- Add admin moderation endpoint
-- Denormalize user name/photo for performance
-- Track edit history (last 5 edits)
-- Add comprehensive unit tests
-
-Estimated tokens: ~15000
-```
-
-**Estimated Tokens: ~15000**
-
----
-
-## Task 5: Create Reactions API Lambda Function
-
-**Goal:** Implement Lambda function for adding/removing reactions (likes) on comments.
-
-**Files to Create:**
-- `lambdas/reactions-api/index.js` - Lambda handler
-- `lambdas/reactions-api/package.json` - Dependencies
-- `lambdas/reactions-api/test/handler.test.js` - Unit tests
-
-**Prerequisites:**
-- Task 2 complete (DynamoDB tables deployed)
-- Task 4 complete (comments API for updating reaction counts)
-
-**Implementation Steps:**
-
-1. Create Lambda function directory and initialize npm
-2. Install dependencies: `@aws-sdk/client-dynamodb`, `@aws-sdk/lib-dynamodb`
-3. Implement handler with routes:
-   - POST /reactions/{commentId} - Toggle reaction (add if absent, remove if present)
-   - GET /reactions/{commentId} - Get all reactions for a comment
-4. For POST: Check if reaction exists (GET), then either PUT or DELETE
-5. Update `reactionCount` in Comments table atomically (use UpdateCommand with ADD)
-6. Return current reaction state (liked: true/false)
-7. Write unit tests for toggle behavior
-
-**Architecture Guidance:**
-
-- **Toggle Pattern:** Query CommentReactions table for PK=commentId, SK=userId. If exists, delete; if not, create.
-- **Atomic Counter:** Use DynamoDB UpdateExpression: `ADD reactionCount :val` where `:val` is 1 (add) or -1 (remove)
-- **Idempotency:** POST should be idempotent - calling twice doesn't create duplicate reactions
-- **Return Value:** Return `{ liked: true }` after adding, `{ liked: false }` after removing
-
-**Verification Checklist:**
-
-- [ ] POST toggles reaction (add → remove → add on repeated calls)
-- [ ] POST updates reactionCount in Comments table
-- [ ] GET returns list of all users who reacted
-- [ ] Returns 404 if commentId doesn't exist
-- [ ] Unit tests verify toggle behavior
-- [ ] Unit tests verify atomic counter updates
-- [ ] All tests pass: `pnpm test`
-
-**Testing Instructions:**
-
-Test toggle behavior:
-```javascript
-test('POST /reactions/{commentId} toggles reaction', async () => {
-  // Mock: reaction doesn't exist initially
-  ddbMock.on(GetCommand).resolvesOnce({ Item: undefined });
-  ddbMock.on(PutCommand).resolves({});
-  ddbMock.on(UpdateCommand).resolves({});
-  
-  const event = {
-    httpMethod: 'POST',
-    resource: '/reactions/{commentId}',
-    pathParameters: { commentId: 'comment-123' },
-    requestContext: { authorizer: { claims: { sub: 'user-123' } } }
-  };
-  
-  let response = await handler(event);
-  expect(response.statusCode).toBe(200);
-  expect(JSON.parse(response.body).liked).toBe(true);
-  
-  // Mock: reaction exists now
-  ddbMock.on(GetCommand).resolvesOnce({ Item: { commentId: 'comment-123', userId: 'user-123' } });
-  ddbMock.on(DeleteCommand).resolves({});
-  
-  response = await handler(event);
-  expect(JSON.parse(response.body).liked).toBe(false);
-});
-```
-
-**Commit Message Template:**
-```
-feat(comments): create reactions API Lambda function
-
-- Implement POST /reactions/{commentId} toggle endpoint
-- Implement GET /reactions/{commentId} to list all reactions
-- Update reactionCount in Comments table atomically
-- Add idempotent toggle behavior (add/remove)
-- Write unit tests for toggle logic
-
-Estimated tokens: ~8000
-```
-
-**Estimated Tokens: ~8000**
-
----
-
-## Task 6: Create Messages API Lambda Function
-
-**Goal:** Implement Lambda function for direct messaging (1-on-1 and group conversations).
-
-**Files to Create:**
-- `lambdas/messages-api/index.js` - Lambda handler
-- `lambdas/messages-api/package.json` - Dependencies
-- `lambdas/messages-api/test/handler.test.js` - Unit tests
-
-**Prerequisites:**
-- Task 2 complete (DynamoDB tables deployed)
-
-**Implementation Steps:**
-
-1. Create Lambda function directory and initialize npm
-2. Install dependencies: `@aws-sdk/client-dynamodb`, `@aws-sdk/lib-dynamodb`, `@aws-sdk/client-s3`, `uuid`
-3. Implement handler with routes:
-   - GET /messages/conversations - List user's conversations (sorted by recent activity)
-   - GET /messages/conversations/{convId} - Get messages in conversation (paginated)
-   - POST /messages/conversations - Create new conversation
-   - POST /messages/conversations/{convId} - Send message
-   - POST /messages/upload - Generate presigned URL for attachment upload
-   - PUT /messages/conversations/{convId}/read - Mark conversation as read
-4. For 1-on-1 conversations: Generate conversationId as `{smaller-userId}#{larger-userId}` (consistent ordering)
-5. For group conversations: Generate UUID as conversationId
-6. Denormalize sender name in each message
-7. Update ConversationMembers table with lastMessageAt and unreadCount
-8. Handle attachments: Store S3 key, filename, contentType, size in message
-9. Write unit tests for conversation creation, message sending, pagination
-
-**Architecture Guidance:**
-
-- **ConversationId Generation:**
-  ```javascript
-  function getConversationId(userIds) {
-    if (userIds.length === 2) {
-      return userIds.sort().join('#'); // e.g., "user-1#user-2"
-    } else {
-      return uuid(); // Group conversation
-    }
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: 'node',
+    include: [
+      'tests/unit/**/*.test.{js,ts}',
+      'tests/integration/**/*.test.{js,ts}',
+      'backend/**/*.test.{js,ts}'
+    ],
+    exclude: [
+      'node_modules',
+      'frontend',
+      '.svelte-kit'
+    ],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      include: ['backend/**/index.js']
+    },
+    testTimeout: 10000
   }
-  ```
-
-- **Pagination:** Query Messages table by conversationId, sort by messageId (timestamp-based), return lastEvaluatedKey
-
-- **ConversationMembers Update:** When sending message, update all participants' ConversationMembers records:
-  - Increment `unreadCount` for recipients (not sender)
-  - Update `lastMessageAt` to current timestamp
-
-- **Attachments:** POST /messages/upload returns presigned S3 URL. Client uploads file, then includes S3 key in message.
-
-**Verification Checklist:**
-
-- [ ] GET /messages/conversations returns sorted list (most recent first)
-- [ ] POST /messages/conversations creates 1-on-1 and group conversations
-- [ ] POST /messages/conversations/{convId} sends message
-- [ ] Message includes denormalized sender name
-- [ ] ConversationMembers table updated with lastMessageAt
-- [ ] Unread count increments for recipients only
-- [ ] PUT /read resets unreadCount to 0
-- [ ] POST /upload returns valid presigned S3 URL (15-minute expiry)
-- [ ] Returns 403 if user not in conversation participants
-- [ ] Unit tests cover conversation creation, messaging, read receipts
-- [ ] All tests pass: `pnpm test`
-
-**Testing Instructions:**
-
-Test conversation creation:
-```javascript
-test('POST /messages/conversations creates 1-on-1 conversation', async () => {
-  ddbMock.on(PutCommand).resolves({});
-  
-  const event = {
-    httpMethod: 'POST',
-    resource: '/messages/conversations',
-    body: JSON.stringify({ 
-      participantIds: ['user-1', 'user-2'], 
-      messageText: 'Hey!' 
-    }),
-    requestContext: { authorizer: { claims: { sub: 'user-1' } } }
-  };
-  
-  const response = await handler(event);
-  expect(response.statusCode).toBe(201);
-  
-  const body = JSON.parse(response.body);
-  expect(body.conversationId).toBe('user-1#user-2'); // Sorted
-  expect(body.message.messageText).toBe('Hey!');
 });
 ```
 
+**Verification Checklist:**
+- [ ] `vitest.config.ts` exists
+- [ ] `vitest` in devDependencies
+- [ ] `pnpm test` runs without configuration errors
+- [ ] Tests discover files in `tests/` and `backend/`
+
+**Testing Instructions:**
+- Run `pnpm install` to install Vitest
+- Run `pnpm test` to verify test discovery
+- Tests may fail due to Jest-specific syntax (addressed in Phase-2)
+
 **Commit Message Template:**
 ```
-feat(messages): create messages API Lambda function
+Author & Committer: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
 
-- Implement GET /messages/conversations (inbox view)
-- Implement POST /conversations to create 1-on-1 and group chats
-- Implement POST /conversations/{convId} to send messages
-- Implement PUT /read to mark conversations as read
-- Implement POST /upload for attachment presigned URLs
-- Update ConversationMembers with lastMessageAt and unreadCount
-- Add authorization checks (only participants can access)
-- Write unit tests for messaging flows
+feat(test): add Vitest configuration
 
-Estimated tokens: ~18000
+- Install vitest and coverage plugin
+- Configure test discovery paths
+- Set up code coverage reporting
 ```
-
-**Estimated Tokens: ~18000**
 
 ---
 
-## Task 7: Create Notification Processor Lambda Function
+### Task 12: Update .gitignore
 
-**Goal:** Implement stream-triggered Lambda to send email notifications for comments, reactions, and DMs.
+**Goal:** Update root .gitignore for monorepo structure.
 
-**Files to Create:**
-- `lambdas/notification-processor/index.py` - Lambda handler (Python)
-- `lambdas/notification-processor/requirements.txt` - Dependencies
-- `lambdas/notification-processor/test_handler.py` - Unit tests
+**Files to Modify:**
+- `.gitignore` - Add new ignore patterns
 
 **Prerequisites:**
-- Task 2 complete (DynamoDB tables with streams enabled)
+- None
 
 **Implementation Steps:**
 
-1. Create Lambda function directory
-2. Create `requirements.txt` with dependencies: `boto3` (already in Lambda runtime)
-3. Implement handler to process DynamoDB Stream events:
-   - Trigger: Comments table stream (INSERT events) → notify users who commented on same item
-   - Trigger: CommentReactions table stream (INSERT events) → notify comment author
-   - Trigger: Messages table stream (INSERT events) → notify conversation participants
-4. Parse stream event records (event type: INSERT/MODIFY/REMOVE)
-5. Extract relevant data from `NewImage` (comment text, sender name, etc.)
-6. Query UserProfiles table to get recipient email addresses
-7. Send email via SES (boto3 `send_email`)
-8. Implement debouncing: Don't send more than 1 email per 15 minutes per event type per user
-9. Use DynamoDB to track last notification time (create NotificationLog table or use UserProfiles attribute)
-10. Write unit tests using moto (mock boto3)
+Add these entries to root `.gitignore`:
 
-**Architecture Guidance:**
+```
+# Backend deployment
+backend/.deploy-config.json
+backend/samconfig.toml
+backend/.aws-sam/
 
-- **Stream Event Structure:**
-  ```python
-  for record in event['Records']:
-      if record['eventName'] == 'INSERT':
-          new_item = record['dynamodb']['NewImage']
-          # Parse Dynamo JSON format: {'S': 'value'} → 'value'
-  ```
+# Environment
+.env
+.env.local
+.env.*.local
 
-- **Email Template Example (Comment Notification):**
-  ```
-  Subject: New comment on "{itemTitle}"
-  
-  {userName} commented on "{itemTitle}":
-  
-  "{commentText}"
-  
-  View the full discussion: https://holdthatthought.family{itemId}
-  ```
+# Coverage
+coverage/
 
-- **Debouncing:** Store `lastCommentNotificationAt` timestamp in UserProfiles. Before sending, check if `now - last < 15 minutes`. If yes, skip.
-
-- **SES Configuration:** Ensure SES is out of sandbox mode or verify recipient emails. For testing, use SES sandbox with verified emails.
+# Vitest
+vitest.config.ts.timestamp*
+```
 
 **Verification Checklist:**
-
-- [ ] Handler processes DynamoDB Stream events
-- [ ] Parses INSERT events from Comments, Reactions, Messages tables
-- [ ] Queries UserProfiles for recipient emails
-- [ ] Sends email via SES with correct subject/body
-- [ ] Implements debouncing (max 1 email per 15 min)
-- [ ] Handles SES errors gracefully (log and continue)
-- [ ] Unit tests mock DynamoDB and SES calls
-- [ ] All tests pass: `uv run pytest`
+- [ ] `.gitignore` includes backend deploy artifacts
+- [ ] `.gitignore` includes environment files
+- [ ] `git status` doesn't show ignored files
 
 **Testing Instructions:**
-
-Create sample stream event:
-```python
-# test/events/comment_stream.json
-{
-  "Records": [
-    {
-      "eventName": "INSERT",
-      "dynamodb": {
-        "NewImage": {
-          "itemId": {"S": "/2015/christmas"},
-          "commentId": {"S": "2025-01-15T10:00:00.000Z#abc"},
-          "userId": {"S": "user-123"},
-          "userName": {"S": "John Doe"},
-          "commentText": {"S": "Great letter!"},
-          "itemTitle": {"S": "Christmas Letter 2015"}
-        }
-      }
-    }
-  ]
-}
-```
-
-Test locally:
-```bash
-cd lambdas/notification-processor
-uv pip install boto3 moto pytest
-uv run pytest test_handler.py
-```
+- Create a test file matching ignore pattern
+- Run `git status` to verify it's not tracked
 
 **Commit Message Template:**
 ```
-feat(notifications): create email notification processor
+Author & Committer: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
 
-- Process DynamoDB Streams from Comments, Reactions, Messages tables
-- Send email notifications via SES for new comments, reactions, DMs
-- Implement 15-minute debouncing per event type
-- Query UserProfiles for recipient emails
-- Add unit tests with mocked SES calls
+chore: update .gitignore for monorepo structure
 
-Estimated tokens: ~12000
+- Add backend deployment artifacts
+- Add environment file patterns
+- Add coverage and Vitest artifacts
 ```
-
-**Estimated Tokens: ~12000**
 
 ---
 
-## Task 8: Create Activity Aggregator Lambda Function
+### Task 13: Delete Obsolete Files
 
-**Goal:** Implement stream-triggered Lambda to update user activity stats (comment count, last active).
+**Goal:** Remove files that are no longer needed after the migration.
 
-**Files to Create:**
-- `lambdas/activity-aggregator/index.py` - Lambda handler (Python)
-- `lambdas/activity-aggregator/requirements.txt` - Dependencies
-- `lambdas/activity-aggregator/test_handler.py` - Unit tests
+**Files to Delete:**
+- `.kiro/` directory
+- `README.zh.md`
+- Individual `jest.config.js` from Lambda directories (if not already removed in Task 7)
 
 **Prerequisites:**
-- Task 2 complete (DynamoDB tables with streams enabled)
+- All move tasks complete (Tasks 2-7)
 
 **Implementation Steps:**
-
-1. Create Lambda function directory
-2. Create `requirements.txt` with `boto3`
-3. Implement handler to process DynamoDB Stream events:
-   - Comments stream (INSERT) → increment `commentCount` in UserProfiles
-   - Comments/Messages/Reactions stream (INSERT) → update `lastActive` timestamp
-4. Use DynamoDB UpdateCommand with atomic ADD for counters
-5. Write unit tests
-
-**Architecture Guidance:**
-
-- **Atomic Counter Update:**
-  ```python
-  dynamodb.update_item(
-      TableName='hold-that-thought-user-profiles',
-      Key={'userId': {'S': user_id}},
-      UpdateExpression='ADD commentCount :inc SET lastActive = :now',
-      ExpressionAttributeValues={
-          ':inc': {'N': '1'},
-          ':now': {'S': datetime.utcnow().isoformat()}
-      }
-  )
-  ```
-
-- **Handle Multiple Records:** Stream event can contain multiple records in batch. Process all.
+- Use `git rm -rf .kiro` to remove the directory
+- Use `git rm README.zh.md` to remove Chinese README
+- Verify no other obsolete files remain
+- Do NOT delete Python Lambdas yet (addressed in Phase-2)
 
 **Verification Checklist:**
-
-- [ ] Handler processes Comments stream INSERT events
-- [ ] Increments commentCount atomically
-- [ ] Updates lastActive timestamp on any activity
-- [ ] Handles batch stream records (multiple inserts)
-- [ ] Unit tests verify counter increments
-- [ ] All tests pass: `uv run pytest`
+- [ ] `.kiro/` directory no longer exists
+- [ ] `README.zh.md` no longer exists
+- [ ] No orphaned config files in backend Lambda directories
 
 **Testing Instructions:**
-
-Similar to Task 7, create sample stream event and test handler.
+- Run `ls -la` to verify deletions
+- Run `git status` to see staged deletions
 
 **Commit Message Template:**
 ```
-feat(profile): create activity aggregator Lambda
+Author & Committer: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
 
-- Process DynamoDB Streams to update user stats
-- Increment commentCount on new comments
-- Update lastActive timestamp on any activity
-- Use atomic counters for thread-safety
-- Add unit tests for stream processing
+chore: remove obsolete files
 
-Estimated tokens: ~6000
+- Delete .kiro/ external tool config
+- Delete README.zh.md (unmaintained)
 ```
-
-**Estimated Tokens: ~6000**
-
----
-
-## Task 9: Package and Deploy Lambda Functions
-
-**Goal:** Zip Lambda function code and deploy to AWS using CloudFormation or AWS CLI.
-
-**Prerequisites:**
-- Tasks 3-8 complete (all Lambda functions implemented)
-
-**Implementation Steps:**
-
-1. Create deployment script: `scripts/deploy-lambdas.sh`
-2. For each Lambda:
-   - Install dependencies: `pnpm install --prod` (Node.js) or `uv pip install -r requirements.txt -t .` (Python)
-   - Zip code and dependencies: `zip -r function.zip .`
-   - Upload to S3: `aws s3 cp function.zip s3://hold-that-thought-bucket/lambdas/`
-3. Create CloudFormation template: `cloudformation/lambda-functions.yaml`
-4. Define all 6 Lambda functions with:
-   - Runtime (nodejs22.x or python3.13)
-   - Handler (index.handler or index.lambda_handler)
-   - Code location (S3 bucket + key)
-   - Environment variables (table names)
-   - IAM role with DynamoDB, S3, SES permissions
-5. Add event source mappings for stream-triggered Lambdas (notification-processor, activity-aggregator)
-6. Deploy stack: `aws cloudformation create-stack --stack-name hold-that-thought-lambdas --template-body file://cloudformation/lambda-functions.yaml`
-
-**Verification Checklist:**
-
-- [ ] All 6 Lambda functions zipped with dependencies
-- [ ] Zip files uploaded to S3 bucket
-- [ ] CloudFormation template defines all functions
-- [ ] IAM role includes DynamoDB, S3, SES, CloudWatch Logs permissions
-- [ ] Environment variables set (table names, bucket, SES email)
-- [ ] Event source mappings configured for stream processors
-- [ ] Stack deploys successfully: `aws cloudformation describe-stacks --stack-name hold-that-thought-lambdas`
-- [ ] All Lambda functions visible in AWS Console
-- [ ] Can invoke each function manually (test event)
-
-**Testing Instructions:**
-
-Test Lambda invocation:
-```bash
-# Invoke profile API Lambda
-aws lambda invoke \
-  --function-name profile-api-lambda \
-  --payload file://test/events/get-profile.json \
-  response.json
-
-cat response.json
-```
-
-Test stream-triggered Lambda:
-```bash
-# Manually trigger with sample stream event
-aws lambda invoke \
-  --function-name notification-processor-lambda \
-  --payload file://test/events/comment_stream.json \
-  response.json
-```
-
-**Commit Message Template:**
-```
-chore(infra): package and deploy Lambda functions
-
-- Create deployment script for Lambda packaging
-- Upload function zips to S3
-- Define Lambda functions in CloudFormation template
-- Configure IAM roles with DynamoDB, S3, SES permissions
-- Add event source mappings for DynamoDB Streams
-- Deploy hold-that-thought-lambdas stack
-
-Estimated tokens: ~5000
-```
-
-**Estimated Tokens: ~5000**
-
----
-
-## Task 10: Extend API Gateway with New Endpoints
-
-**Goal:** Add new API Gateway resources and methods for profiles, comments, reactions, messages.
-
-**Files to Create:**
-- `cloudformation/api-gateway-extensions.yaml` - API Gateway resource definitions
-
-**Prerequisites:**
-- Task 9 complete (Lambda functions deployed)
-
-**Implementation Steps:**
-
-1. Get existing API Gateway REST API ID: `aws apigateway get-rest-apis`
-2. Create CloudFormation template to extend existing API
-3. Define resources:
-   - /profile, /profile/{userId}, /profile/{userId}/comments
-   - /comments/{itemId}, /comments/{itemId}/{commentId}
-   - /reactions/{commentId}
-   - /messages/conversations, /messages/conversations/{convId}, /messages/upload
-4. For each resource, define methods (GET, POST, PUT, DELETE)
-5. Configure Lambda integrations (AWS_PROXY)
-6. Attach Cognito authorizer to all methods
-7. Enable CORS (OPTIONS method with proper headers)
-8. Deploy to stage (e.g., "prod")
-
-**Architecture Guidance:**
-
-- **Lambda Integration:**
-  ```yaml
-  ProfileGetMethod:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      HttpMethod: GET
-      ResourceId: !Ref ProfileUserIdResource
-      RestApiId: !Ref ExistingRestApi
-      AuthorizationType: COGNITO_USER_POOLS
-      AuthorizerId: !Ref CognitoAuthorizer
-      Integration:
-        Type: AWS_PROXY
-        IntegrationHttpMethod: POST
-        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ProfileApiFunction.Arn}/invocations'
-  ```
-
-- **CORS:** Add OPTIONS method for each resource with headers:
-  - Access-Control-Allow-Origin: *
-  - Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
-  - Access-Control-Allow-Headers: Content-Type, Authorization
-
-**Verification Checklist:**
-
-- [ ] CloudFormation template references existing API Gateway ID
-- [ ] All resources (/profile, /comments, /reactions, /messages) defined
-- [ ] All methods have Cognito authorizer
-- [ ] Lambda integrations use AWS_PROXY
-- [ ] CORS enabled on all resources
-- [ ] Stack deploys successfully
-- [ ] New endpoints visible in API Gateway console
-- [ ] Deployment created for "prod" stage
-
-**Testing Instructions:**
-
-Test API endpoint with curl:
-```bash
-# Get JWT token from Cognito (use existing auth flow)
-TOKEN="<your-jwt-token>"
-
-# Test GET /profile/{userId}
-curl -H "Authorization: Bearer $TOKEN" \
-  https://<api-id>.execute-api.us-east-1.amazonaws.com/prod/profile/test-user-123
-
-# Expected: 200 OK with user profile JSON
-```
-
-**Commit Message Template:**
-```
-feat(api): extend API Gateway with profile, comments, messages endpoints
-
-- Add /profile, /comments, /reactions, /messages resources
-- Configure Lambda integrations for all endpoints
-- Attach Cognito authorizer to all methods
-- Enable CORS for frontend access
-- Deploy to prod stage
-
-Estimated tokens: ~8000
-```
-
-**Estimated Tokens: ~8000**
-
----
-
-## Task 11: Create Integration Tests for Backend APIs
-
-**Goal:** Write end-to-end tests for all API endpoints using real AWS resources.
-
-**Files to Create:**
-- `tests/integration/profile.test.js` - Profile API tests
-- `tests/integration/comments.test.js` - Comments API tests
-- `tests/integration/reactions.test.js` - Reactions API tests
-- `tests/integration/messages.test.js` - Messages API tests
-- `tests/integration/setup.js` - Test setup (Cognito login, test data)
-
-**Prerequisites:**
-- Tasks 1-10 complete (all backend infrastructure deployed)
-
-**Implementation Steps:**
-
-1. Create integration test directory
-2. Install dependencies: `pnpm add -D jest node-fetch aws-sdk`
-3. Implement test setup:
-   - Authenticate test user with Cognito (get JWT token)
-   - Store token for use in API requests
-4. Write tests for each API:
-   - Profile: GET profile, PUT profile, GET comment history
-   - Comments: Create comment, edit comment, delete comment, pagination
-   - Reactions: Toggle reaction, get reactions
-   - Messages: Create conversation, send message, list conversations, mark read
-5. Test error cases: 400 (invalid input), 403 (unauthorized), 404 (not found)
-6. Clean up test data after each test (delete created items)
-7. Run tests: `pnpm test:integration`
-
-**Architecture Guidance:**
-
-- **Cognito Login:** Use AWS SDK to authenticate:
-  ```javascript
-  const { CognitoIdentityProviderClient, InitiateAuthCommand } = require('@aws-sdk/client-cognito-identity-provider');
-  
-  async function getAuthToken() {
-    const client = new CognitoIdentityProviderClient({ region: 'us-east-1' });
-    const response = await client.send(new InitiateAuthCommand({
-      AuthFlow: 'USER_PASSWORD_AUTH',
-      ClientId: process.env.COGNITO_CLIENT_ID,
-      AuthParameters: {
-        USERNAME: 'test@example.com',
-        PASSWORD: 'TestPassword123!'
-      }
-    }));
-    return response.AuthenticationResult.AccessToken;
-  }
-  ```
-
-- **API Requests:**
-  ```javascript
-  const response = await fetch(`${API_URL}/profile/test-user-123`, {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-  expect(response.status).toBe(200);
-  const data = await response.json();
-  expect(data.email).toBe('test@example.com');
-  ```
-
-**Verification Checklist:**
-
-- [ ] All API endpoints have integration tests
-- [ ] Tests authenticate with Cognito before making requests
-- [ ] Happy path tests pass (200 responses)
-- [ ] Error case tests pass (400, 403, 404 responses)
-- [ ] Pagination tested (comments, messages)
-- [ ] Test data cleaned up after each test
-- [ ] All integration tests pass: `pnpm test:integration`
-
-**Testing Instructions:**
-
-Setup test user in Cognito:
-```bash
-# Create test user
-aws cognito-idp admin-create-user \
-  --user-pool-id <pool-id> \
-  --username test@example.com \
-  --temporary-password TempPass123! \
-  --message-action SUPPRESS
-
-# Set permanent password
-aws cognito-idp admin-set-user-password \
-  --user-pool-id <pool-id> \
-  --username test@example.com \
-  --password TestPassword123! \
-  --permanent
-
-# Add to ApprovedUsers group
-aws cognito-idp admin-add-user-to-group \
-  --user-pool-id <pool-id> \
-  --username test@example.com \
-  --group-name ApprovedUsers
-```
-
-Run tests:
-```bash
-export API_URL=https://<api-id>.execute-api.us-east-1.amazonaws.com/prod
-export COGNITO_CLIENT_ID=<client-id>
-pnpm test:integration
-```
-
-**Commit Message Template:**
-```
-test(api): add integration tests for all backend endpoints
-
-- Create integration test suite for profile, comments, reactions, messages
-- Implement Cognito authentication in test setup
-- Test happy path and error cases (400, 403, 404)
-- Test pagination for comments and messages
-- Add cleanup after each test
-
-Estimated tokens: ~10000
-```
-
-**Estimated Tokens: ~10000**
 
 ---
 
 ## Phase Verification
 
-Before proceeding to Phase 2, verify:
+After completing all tasks, verify the phase is complete:
 
-### Infrastructure
-- [ ] All 5 DynamoDB tables exist and accessible
-- [ ] DynamoDB Streams enabled on Comments, Reactions, Messages tables
-- [ ] All 6 Lambda functions deployed and invocable
-- [ ] API Gateway extended with new endpoints
-- [ ] Cognito authorizer attached to all endpoints
-- [ ] CloudWatch Logs configured for all Lambdas
+### Directory Structure Check
 
-### Functionality
-- [ ] Can create/read/update user profile via API
-- [ ] Can create/list/edit/delete comments via API
-- [ ] Can toggle reactions on comments via API
-- [ ] Can create conversations and send messages via API
-- [ ] Email notifications sent when comments/reactions/DMs created (test with real email)
-- [ ] Activity aggregator updates commentCount and lastActive
+Run `tree -L 2 -d` and verify output matches:
 
-### Testing
-- [ ] All Lambda unit tests pass
-- [ ] All integration tests pass
-- [ ] Manual Postman/curl tests confirm expected behavior
-- [ ] Error handling tested (invalid tokens, missing fields, etc.)
+```
+.
+├── backend
+│   ├── activity-aggregator
+│   ├── comments-api
+│   ├── download-presigned-url-lambda
+│   ├── infra
+│   ├── media-upload-lambda
+│   ├── messages-api
+│   ├── notification-processor
+│   ├── pdf-download-lambda
+│   ├── profile-api
+│   ├── reactions-api
+│   └── scripts
+├── docs
+│   ├── developer
+│   ├── plans
+│   └── user-guide
+├── frontend
+│   ├── lib
+│   └── routes
+└── tests
+    ├── e2e
+    ├── integration
+    ├── load
+    └── unit
+```
 
-### Performance
-- [ ] API response times < 500ms (test with `time curl ...`)
-- [ ] DynamoDB queries efficient (check CloudWatch metrics for throttling)
+### Functional Checks
 
-### Cost
-- [ ] DynamoDB PAY_PER_REQUEST (no provisioned capacity)
-- [ ] Lambda function memory sized appropriately (512MB default)
-- [ ] No unexpected charges in AWS Cost Explorer
+- [ ] `pnpm install` completes without errors
+- [ ] `pnpm dev` starts SvelteKit dev server
+- [ ] `pnpm check` passes TypeScript checks
+- [ ] `pnpm lint` runs ESLint
+- [ ] `pnpm test` runs Vitest (tests may fail, that's okay)
+- [ ] `cd backend && sam validate` passes
+- [ ] `node backend/scripts/deploy.js` prompts for config
 
----
+### Git Status
 
-## Known Limitations & Technical Debt
-
-**Limitations introduced in this phase:**
-
-1. **No Message Read Receipts:** Basic read/unread tracking only (unreadCount). No "delivered" or "read by X" indicators.
-   - **Future:** Add `readBy` map to Messages table with timestamps
-
-2. **Basic Notification Debouncing:** Simple 15-minute window. Could be more sophisticated.
-   - **Future:** Use SQS + Lambda to batch notifications (e.g., digest emails)
-
-3. **No Full-Text Search:** Comments/messages use basic DynamoDB queries. No search by keyword.
-   - **Future:** Add OpenSearch for full-text search
-
-4. **Denormalized Data Staleness:** If user changes name, old comments show old name.
-   - **Intentional:** Preserves historical context. Document this as feature, not bug.
-
-5. **No Rate Limiting:** APIs rely on API Gateway throttling only.
-   - **Future:** Add per-user rate limits (e.g., 10 comments/minute)
-
-**Technical Debt:**
-
-- Lambda functions not using layers (duplicated dependencies)
-  - **Refactor:** Create shared Lambda layer for aws-sdk, uuid, etc.
-  
-- Error messages expose internal details (e.g., DynamoDB errors)
-  - **Fix:** Sanitize error messages before returning to client
-
-- No automated CloudFormation rollback testing
-  - **Add:** Test rollback scenarios in CI/CD
+- [ ] All changes committed
+- [ ] No untracked files except ignored patterns
+- [ ] Working tree clean
 
 ---
 
-## Next Steps
+## Known Limitations
 
-Proceed to **Phase 2: Comments System** to build the frontend UI and integrate comments into letter/media pages.
+- Tests may fail due to Jest-specific imports (fixed in Phase-2)
+- Python Lambdas not yet ported (Phase-2)
+- CI workflow not yet created (Phase-3)
+- Some deployment scripts in `backend/scripts/` reference old paths (will be cleaned in Phase-2)

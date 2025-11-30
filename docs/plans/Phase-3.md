@@ -1,784 +1,857 @@
-# Phase 3: User Profiles
+# Phase 3: CI/CD & Final Integration
+
+**Estimated Tokens:** ~25,000
+
+This phase creates the GitHub Actions CI workflow, finalizes the root package.json scripts, runs full verification, and generates the final project tree.
+
+---
 
 ## Phase Goal
 
-Build user profile pages that display bio, family relationships, activity statistics, and comment history. Implement privacy controls allowing users to hide their profiles. Enable users to edit their own profiles and navigate from comments to profiles seamlessly.
+Complete the monorepo refactor by:
+- Creating a comprehensive GitHub Actions CI workflow
+- Finalizing all package.json scripts
+- Running full test suite verification
+- Generating the final directory tree
+- Creating a cleanup verification checklist
 
 **Success Criteria:**
-- Profile pages accessible at `/profile/{userId}`
-- Users can edit their own profiles (bio, family info, photo)
-- Profile displays comment history with links back to original items
-- Activity stats show comment count, media uploads, join date
-- Privacy toggle hides profiles from non-owners
-- Profile links work from comment usernames
-
-**Estimated Tokens: ~80,000**
+- CI workflow runs all checks (lint, tests, e2e)
+- All `pnpm` scripts work as documented
+- All tests pass
+- Final tree matches target architecture
+- Repository is clean and ready for development
 
 ---
 
 ## Prerequisites
 
-Before starting this phase:
-
-- [ ] Phase 1 complete (profile-api Lambda functional)
-- [ ] Phase 2 complete (comments display usernames)
-- [ ] Can fetch user profile via API (verify with curl)
-- [ ] Understand SvelteKit routing ([userId] dynamic routes)
+- Phase-1 complete (structure migrated)
+- Phase-2 complete (code cleaned, Lambdas ported)
+- All existing tests passing with Vitest
 
 ---
 
-## Task 1: Create Profile Service API Client
+## Tasks
 
-**Goal:** Build TypeScript service layer for profile operations.
+### Task 1: Create GitHub Actions CI Workflow
+
+**Goal:** Create a comprehensive CI workflow that runs on push and PR to main/develop branches.
 
 **Files to Create:**
-- `src/lib/services/profileService.ts` - Profile API client
-- `src/lib/types/profile.ts` - TypeScript interfaces
-
-**Implementation Steps:**
-
-1. Define TypeScript interfaces for UserProfile, ActivityStats
-2. Implement API client functions:
-   - `getProfile(userId)` - Fetch user profile
-   - `updateProfile(updates)` - Update own profile
-   - `getCommentHistory(userId, limit, lastKey)` - Get user's comments
-   - `uploadProfilePhoto(file)` - Upload profile photo (presigned URL)
-3. Handle 403 errors (private profiles)
-4. Handle 404 errors (user not found)
-
-**Architecture Guidance:**
-
-Example interface:
-```typescript
-export interface UserProfile {
-  userId: string;
-  email: string;
-  displayName: string;
-  profilePhotoUrl?: string;
-  bio?: string;
-  familyRelationship?: string;
-  generation?: string;
-  familyBranch?: string;
-  joinedDate: string;
-  isProfilePrivate: boolean;
-  commentCount: number;
-  mediaUploadCount: number;
-  lastActive: string;
-}
-```
-
-**Verification Checklist:**
-
-- [ ] TypeScript interfaces defined
-- [ ] All API functions implemented
-- [ ] Error handling for 403 (private profile)
-- [ ] Error handling for 404 (not found)
-- [ ] No TypeScript errors
-
-**Commit Message Template:**
-```
-feat(profile): create profile API service client
-
-- Define UserProfile and ActivityStats interfaces
-- Implement getProfile, updateProfile, getCommentHistory
-- Add uploadProfilePhoto for photo uploads
-- Handle private profile errors (403)
-
-Estimated tokens: ~6000
-```
-
-**Estimated Tokens: ~6000**
-
----
-
-## Task 2: Create ProfileCard Component
-
-**Goal:** Build component to display user profile information.
-
-**Files to Create:**
-- `src/lib/components/profile/ProfileCard.svelte` - Main profile display
-
-**Implementation Steps:**
-
-1. Create component with sections: Header, About, Family, Stats
-2. Header: Show photo, display name, "Edit Profile" button (if own)
-3. About: Show bio text (preserve line breaks)
-4. Family: Show relationship, generation, branch
-5. Stats: Show joined date, comment count, media uploads, last active
-6. If profile private and not owner/admin, show "Private Profile" message
-7. Style with TailwindCSS + DaisyUI cards
-
-**Architecture Guidance:**
-
-- **Component Props:**
-  - `profile: UserProfile`
-  - `isOwner: boolean` - True if viewing own profile
-  - `isAdmin: boolean` - For admin access to private profiles
-
-- **Conditional Rendering:**
-  ```svelte
-  {#if profile.isProfilePrivate && !isOwner && !isAdmin}
-    <div class="private-profile">
-      <p>This profile is private.</p>
-    </div>
-  {:else}
-    <!-- Show full profile -->
-  {/if}
-  ```
-
-**Verification Checklist:**
-
-- [ ] Displays profile photo (or default avatar)
-- [ ] Shows display name prominently
-- [ ] Shows bio with preserved line breaks
-- [ ] Shows family info if set
-- [ ] Shows activity stats (counts, dates)
-- [ ] "Edit Profile" button visible only for owner
-- [ ] Private profiles show minimal info to non-owners
-- [ ] Mobile-responsive
-
-**Commit Message Template:**
-```
-feat(profile): create ProfileCard component
-
-- Display profile photo, name, bio
-- Show family relationship info
-- Display activity stats (comments, uploads, join date)
-- Add privacy check for private profiles
-- Show "Edit Profile" button for owner
-- Style with TailwindCSS + DaisyUI
-
-Estimated tokens: ~8000
-```
-
-**Estimated Tokens: ~8000**
-
----
-
-## Task 3: Create CommentHistory Component
-
-**Goal:** Build component to display user's comment history with links to original items.
-
-**Files to Create:**
-- `src/lib/components/profile/CommentHistory.svelte` - Comment history list
-
-**Implementation Steps:**
-
-1. Fetch user's comments via `getCommentHistory` service
-2. Display list of comments with:
-   - Comment snippet (first 150 characters)
-   - Item title (linked to original letter/media)
-   - Timestamp
-   - Reaction count
-3. Implement pagination ("Load More" button)
-4. Make item title clickable → navigate to item page + scroll to comment
-5. Show empty state if user has no comments
-
-**Architecture Guidance:**
-
-- **Component Props:**
-  - `userId: string`
-
-- **Navigation to Comment:**
-  ```typescript
-  function navigateToComment(itemId: string, commentId: string) {
-    goto(`${itemId}#comment-${commentId}`);
-  }
-  ```
-
-- **URL Fragment:** Use comment ID as fragment, add scroll behavior in CommentSection
-
-**Verification Checklist:**
-
-- [ ] Fetches user's comment history on mount
-- [ ] Displays comment snippets with item titles
-- [ ] Item titles are clickable links
-- [ ] Clicking link navigates to item page
-- [ ] Pagination works ("Load More")
-- [ ] Shows empty state if no comments
-- [ ] Mobile-responsive
-
-**Commit Message Template:**
-```
-feat(profile): create CommentHistory component
-
-- Fetch and display user's comment history
-- Show comment snippets with item titles
-- Link to original items (letters/media)
-- Implement pagination for long histories
-- Add empty state for users with no comments
-
-Estimated tokens: ~8000
-```
-
-**Estimated Tokens: ~8000**
-
----
-
-## Task 4: Create Profile Page Route
-
-**Goal:** Create SvelteKit page at `/profile/[userId]` to display user profiles.
-
-**Files to Create:**
-- `src/routes/profile/[userId]/+page.svelte` - Profile page
-- `src/routes/profile/[userId]/+page.ts` - Page load function (optional)
-
-**Implementation Steps:**
-
-1. Create dynamic route with `[userId]` parameter
-2. Load profile data on page mount
-3. Determine if viewing own profile (compare userId to current user)
-4. Check admin status from auth store
-5. Render ProfileCard and CommentHistory components
-6. Handle loading state
-7. Handle errors (404, 403)
-
-**Architecture Guidance:**
-
-- **Page Load:**
-  ```svelte
-  <script>
-    import { page } from '$app/stores';
-    import { user } from '$lib/stores/auth';
-    import { getProfile } from '$lib/services/profileService';
-    
-    let profile = null;
-    let loading = true;
-    let error = null;
-    
-    $: userId = $page.params.userId;
-    $: isOwner = $user?.userId === userId;
-    $: isAdmin = $user?.groups?.includes('Admins') ?? false;
-    
-    onMount(async () => {
-      const result = await getProfile(userId);
-      if (result.success) {
-        profile = result.data;
-      } else {
-        error = result.error;
-      }
-      loading = false;
-    });
-  </script>
-  ```
-
-**Verification Checklist:**
-
-- [ ] Page accessible at `/profile/{userId}`
-- [ ] Fetches profile data on mount
-- [ ] Shows loading skeleton while fetching
-- [ ] Displays ProfileCard with correct data
-- [ ] Displays CommentHistory below ProfileCard
-- [ ] "Edit Profile" button visible only for owner
-- [ ] Shows error message if profile not found (404)
-- [ ] Shows "Private Profile" if unauthorized (403)
-
-**Commit Message Template:**
-```
-feat(profile): create profile page route
-
-- Add /profile/[userId] dynamic route
-- Fetch profile data on page load
-- Display ProfileCard and CommentHistory components
-- Handle loading and error states
-- Check ownership and admin status
-
-Estimated tokens: ~7000
-```
-
-**Estimated Tokens: ~7000**
-
----
-
-## Task 5: Create Profile Settings Page
-
-**Goal:** Create page at `/profile/settings` for users to edit their own profiles.
-
-**Files to Create:**
-- `src/routes/profile/settings/+page.svelte` - Profile settings form
-
-**Implementation Steps:**
-
-1. Create settings page (auth required)
-2. Load current user's profile
-3. Create form with fields:
-   - Display name (text input)
-   - Bio (textarea, max 500 chars)
-   - Family relationship (text input)
-   - Generation (text input)
-   - Family branch (text input)
-   - Profile photo (file upload)
-   - Privacy toggle (checkbox: "Make profile private")
-4. Validate inputs (max lengths)
-5. Call `updateProfile` service on save
-6. Show success message after save
-7. Redirect to own profile page after save
-
-**Architecture Guidance:**
-
-- **Form State:**
-  ```svelte
-  <script>
-    let displayName = '';
-    let bio = '';
-    let familyRelationship = '';
-    let generation = '';
-    let familyBranch = '';
-    let isProfilePrivate = false;
-    let photoFile = null;
-    
-    async function handleSave() {
-      // Upload photo if changed
-      if (photoFile) {
-        const photoUrl = await uploadProfilePhoto(photoFile);
-        // Include in update
-      }
-      
-      await updateProfile({
-        displayName,
-        bio,
-        familyRelationship,
-        generation,
-        familyBranch,
-        isProfilePrivate
-      });
-      
-      goto(`/profile/${$user.userId}`);
-    }
-  </script>
-  ```
-
-**Verification Checklist:**
-
-- [ ] Page accessible at `/profile/settings`
-- [ ] Requires authentication (redirect to login if not authenticated)
-- [ ] Loads current profile data into form
-- [ ] All fields editable
-- [ ] Bio character counter (max 500)
-- [ ] Photo upload works (preview before save)
-- [ ] Privacy toggle works
-- [ ] Save button disabled while saving
-- [ ] Success message shows after save
-- [ ] Redirects to profile page after save
-
-**Commit Message Template:**
-```
-feat(profile): create profile settings page
-
-- Add /profile/settings route
-- Create form for editing profile fields
-- Add bio character counter (max 500)
-- Implement profile photo upload
-- Add privacy toggle
-- Redirect to profile after save
-
-Estimated tokens: ~10000
-```
-
-**Estimated Tokens: ~10000**
-
----
-
-## Task 6: Add Profile Links to Comments
-
-**Goal:** Make comment usernames clickable links to profile pages.
-
-**Files to Modify:**
-- `src/lib/components/comments/Comment.svelte` - Add link to userName
-
-**Implementation Steps:**
-
-1. Wrap userName in `<a>` tag
-2. Link to `/profile/{userId}`
-3. Style link appropriately (underline on hover, color)
-4. Open in same tab (not new tab)
-
-**Architecture Guidance:**
-
-```svelte
-<a href="/profile/{comment.userId}" class="user-link">
-  {comment.userName}
-</a>
-```
-
-**Verification Checklist:**
-
-- [ ] Comment usernames are clickable
-- [ ] Clicking navigates to user's profile page
-- [ ] Link styling matches site design
-- [ ] Links work from all comment locations (letters, gallery)
-
-**Commit Message Template:**
-```
-feat(profile): add profile links to comment usernames
-
-- Make comment userNames clickable links
-- Link to /profile/{userId}
-- Style links with hover effects
-
-Estimated tokens: ~3000
-```
-
-**Estimated Tokens: ~3000**
-
----
-
-## Task 7: Add Profile Navigation to Site Header
-
-**Goal:** Add "My Profile" link to site navigation header.
-
-**Files to Modify:**
-- Site header/navigation component (identify location)
-
-**Implementation Steps:**
-
-1. Locate site header component
-2. Add dropdown menu or link for authenticated users
-3. Include:
-   - "My Profile" link → `/profile/{currentUserId}`
-   - "Settings" link → `/profile/settings`
-   - Existing logout link
-4. Style dropdown/menu
-
-**Architecture Guidance:**
-
-- **Dropdown Menu:**
-  ```svelte
-  {#if $user}
-    <div class="dropdown">
-      <button>{$user.displayName}</button>
-      <ul class="menu">
-        <li><a href="/profile/{$user.userId}">My Profile</a></li>
-        <li><a href="/profile/settings">Settings</a></li>
-        <li><button on:click={logout}>Logout</button></li>
-      </ul>
-    </div>
-  {/if}
-  ```
-
-**Verification Checklist:**
-
-- [ ] "My Profile" link appears in header for authenticated users
-- [ ] Clicking navigates to own profile page
-- [ ] "Settings" link accessible from dropdown/menu
-- [ ] Dropdown/menu styled consistently with site
-
-**Commit Message Template:**
-```
-feat(profile): add profile navigation to site header
-
-- Add "My Profile" link to header dropdown
-- Add "Settings" link for profile editing
-- Show dropdown only for authenticated users
-
-Estimated tokens: ~4000
-```
-
-**Estimated Tokens: ~4000**
-
----
-
-## Task 8: Implement Profile Photo Upload
-
-**Goal:** Build photo upload functionality with image preview and S3 storage.
-
-**Files to Modify:**
-- `src/routes/profile/settings/+page.svelte` - Add photo upload UI
-- `src/lib/services/profileService.ts` - Add uploadProfilePhoto function
-
-**Implementation Steps:**
-
-1. Add file input to settings form
-2. Show image preview after selection
-3. Validate file type (jpg, png, gif, max 5MB)
-4. On save, get presigned URL from backend
-5. Upload to S3 using presigned URL
-6. Save S3 URL in profile
-7. Update profilePhotoUrl in UserProfiles table
-
-**Architecture Guidance:**
-
-- **File Validation:**
-  ```typescript
-  function validatePhoto(file: File): boolean {
-    const validTypes = ['image/jpeg', 'image/png', 'image/gif'];
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    
-    if (!validTypes.includes(file.type)) {
-      throw new Error('Invalid file type. Use JPG, PNG, or GIF.');
-    }
-    
-    if (file.size > maxSize) {
-      throw new Error('File too large. Max 5MB.');
-    }
-    
-    return true;
-  }
-  ```
-
-- **Image Preview:**
-  ```svelte
-  <script>
-    let previewUrl = '';
-    
-    function handleFileSelect(event) {
-      const file = event.target.files[0];
-      if (file) {
-        previewUrl = URL.createObjectURL(file);
-      }
-    }
-  </script>
-  
-  {#if previewUrl}
-    <img src={previewUrl} alt="Preview" />
-  {/if}
-  ```
-
-**Verification Checklist:**
-
-- [ ] File input accepts only images
-- [ ] Shows preview after selection
-- [ ] Validates file type and size
-- [ ] Uploads to S3 via presigned URL
-- [ ] Updates profile with new photo URL
-- [ ] Photo appears on profile page after save
-
-**Commit Message Template:**
-```
-feat(profile): implement profile photo upload
-
-- Add file input to settings form
-- Show image preview before upload
-- Validate file type (JPG, PNG, GIF) and size (max 5MB)
-- Upload to S3 using presigned URL
-- Update profile with new photo URL
-
-Estimated tokens: ~8000
-```
-
-**Estimated Tokens: ~8000**
-
----
-
-## Task 9: Backfill Existing Users into UserProfiles Table
-
-**Goal:** Create migration script to populate UserProfiles table from Cognito User Pool.
-
-**Files to Create:**
-- `scripts/backfill-user-profiles.js` - Migration script
+- `.github/workflows/ci.yml` - Main CI workflow
 
 **Prerequisites:**
-- Phase 1 complete (UserProfiles table exists)
+- Vitest configured (Phase-1)
+- Tests migrated (Phase-2)
 
 **Implementation Steps:**
 
-1. Create Node.js script
-2. Fetch all users from Cognito User Pool
-3. For each user, create UserProfiles entry:
-   - userId = Cognito sub
-   - email = email attribute
-   - displayName = name attribute (or email if missing)
-   - joinedDate = Cognito UserCreateDate
-   - All other fields = defaults
-4. Check if user already exists before inserting (idempotent)
-5. Log progress and errors
+Create `.github/workflows/ci.yml` with the following structure:
 
-**Architecture Guidance:**
+**Workflow Triggers:**
+- `push` to `main` and `develop` branches
+- `pull_request` to `main` and `develop` branches
 
-```javascript
-const { CognitoIdentityProviderClient, ListUsersCommand } = require('@aws-sdk/client-cognito-identity-provider');
-const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { DynamoDBDocumentClient, PutCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
+**Jobs:**
 
-async function backfillUsers() {
-  const cognitoClient = new CognitoIdentityProviderClient({ region: 'us-east-1' });
-  const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-  
-  const response = await cognitoClient.send(new ListUsersCommand({
-    UserPoolId: process.env.USER_POOL_ID
-  }));
-  
-  for (const user of response.Users) {
-    const userId = user.Attributes.find(a => a.Name === 'sub').Value;
-    const email = user.Attributes.find(a => a.Name === 'email').Value;
-    
-    // Check if already exists
-    const existing = await ddbClient.send(new GetCommand({
-      TableName: 'hold-that-thought-user-profiles',
-      Key: { userId }
-    }));
-    
-    if (!existing.Item) {
-      await ddbClient.send(new PutCommand({
-        TableName: 'hold-that-thought-user-profiles',
-        Item: {
-          userId,
-          email,
-          displayName: email.split('@')[0],
-          joinedDate: user.UserCreateDate.toISOString(),
-          isProfilePrivate: false,
-          commentCount: 0,
-          mediaUploadCount: 0,
-          lastActive: new Date().toISOString()
-        }
-      }));
-      
-      console.log(`Created profile for ${email}`);
-    }
+1. **frontend-lint**
+   - Checkout code
+   - Setup Node.js 24
+   - Setup pnpm
+   - Install dependencies
+   - Run `pnpm lint`
+   - Run `pnpm check` (TypeScript)
+
+2. **frontend-tests**
+   - Checkout code
+   - Setup Node.js 24
+   - Setup pnpm
+   - Install dependencies
+   - Run `pnpm test -- --reporter=verbose`
+   - Upload coverage report (optional)
+
+3. **backend-tests**
+   - Checkout code
+   - Setup Node.js 24
+   - Install Lambda dependencies (each Lambda's package.json)
+   - Run Vitest for backend tests
+   - Set mock environment variables
+
+4. **e2e-tests**
+   - Checkout code
+   - Setup Node.js 24
+   - Setup pnpm
+   - Install dependencies
+   - Install Playwright browsers
+   - Run `pnpm test:e2e`
+   - Upload test artifacts on failure
+
+5. **status-check**
+   - Depends on: frontend-lint, frontend-tests, backend-tests, e2e-tests
+   - Simple job that passes only if all dependencies pass
+   - Used as branch protection required check
+
+**Workflow Template:**
+
+```yaml
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  frontend-lint:
+    name: Frontend Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run ESLint
+        run: pnpm lint
+
+      - name: Run TypeScript check
+        run: pnpm check
+
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        run: pnpm test -- --reporter=verbose
+
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    env:
+      AWS_DEFAULT_REGION: us-east-1
+      USER_PROFILES_TABLE: test-profiles
+      COMMENTS_TABLE: test-comments
+      MESSAGES_TABLE: test-messages
+      REACTIONS_TABLE: test-reactions
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install root dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Lambda dependencies
+        run: |
+          for dir in backend/*/; do
+            if [ -f "$dir/package.json" ]; then
+              echo "Installing dependencies in $dir"
+              (cd "$dir" && npm install)
+            fi
+          done
+
+      - name: Run backend tests
+        run: pnpm test -- --reporter=verbose
+
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Build application
+        run: pnpm build
+
+      - name: Run E2E tests
+        run: pnpm test:e2e
+        env:
+          CI: true
+
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  status-check:
+    name: All Checks Passed
+    runs-on: ubuntu-latest
+    needs: [frontend-lint, frontend-tests, backend-tests, e2e-tests]
+    steps:
+      - name: All checks passed
+        run: echo "All CI checks passed successfully!"
+```
+
+**Verification Checklist:**
+- [ ] `.github/workflows/ci.yml` exists
+- [ ] Workflow YAML is valid (use yamllint or GitHub's validator)
+- [ ] All four test jobs defined
+- [ ] status-check depends on all other jobs
+- [ ] Node.js version is 24
+- [ ] pnpm version matches project
+
+**Testing Instructions:**
+- Push to a branch and verify workflow runs
+- Check each job completes successfully
+- Verify status-check waits for all dependencies
+
+**Commit Message Template:**
+```
+Author & Committer: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+
+ci: add GitHub Actions workflow
+
+- Add frontend-lint job for ESLint and TypeScript
+- Add frontend-tests job for Vitest
+- Add backend-tests job with mocked AWS
+- Add e2e-tests job with Playwright
+- Add status-check gate job
+```
+
+---
+
+### Task 2: Finalize Root package.json Scripts
+
+**Goal:** Ensure all package.json scripts are complete and working.
+
+**Files to Modify:**
+- `package.json` - Verify/update scripts section
+
+**Prerequisites:**
+- All previous phases complete
+
+**Implementation Steps:**
+
+Verify the scripts section contains all required commands:
+
+```json
+{
+  "scripts": {
+    "dev": "run-s tsc \"dev:parallel {@} \" --",
+    "dev:parallel": "run-p -r tsc:watch urara:watch \"kit:dev {@} \" --",
+    "build": "run-s tsc urara:build kit:build clean",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "lint": "eslint --flag unstable_ts_config .",
+    "lint:fix": "eslint --flag unstable_ts_config . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:load": "artillery run tests/load/comments-load.yml",
+    "deploy": "node backend/scripts/deploy.js",
+    "clean": "node urara.js clean",
+    "tsc": "tsc -p tsconfig.node.json",
+    "tsc:watch": "tsc -w -p tsconfig.node.json",
+    "kit:build": "cross-env NODE_OPTIONS=--max_old_space_size=7680 vite build",
+    "kit:dev": "cross-env NODE_OPTIONS=--max_old_space_size=7680 vite dev",
+    "urara:build": "node urara.js build",
+    "urara:watch": "node urara.js watch"
   }
 }
 ```
 
-**Verification Checklist:**
+Test each script:
+- `pnpm dev` - Starts development server
+- `pnpm build` - Builds for production
+- `pnpm check` - Runs TypeScript checks
+- `pnpm lint` - Runs ESLint
+- `pnpm test` - Runs Vitest
+- `pnpm test:e2e` - Runs Playwright
+- `pnpm deploy` - Shows deploy prompts
 
-- [ ] Script fetches all Cognito users
-- [ ] Creates UserProfiles entries for each
-- [ ] Idempotent (can run multiple times safely)
-- [ ] Logs progress
-- [ ] Handles pagination if > 60 users
+**Verification Checklist:**
+- [ ] All scripts defined in package.json
+- [ ] `pnpm dev` starts successfully
+- [ ] `pnpm lint` runs without errors
+- [ ] `pnpm test` runs and discovers tests
+- [ ] `pnpm deploy` prompts for configuration
+
+**Testing Instructions:**
+- Run each script and verify expected behavior
+- Check exit codes for success
 
 **Commit Message Template:**
 ```
-chore(profile): add user profile backfill script
+Author & Committer: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
 
-- Create script to migrate Cognito users to UserProfiles table
-- Extract userId, email, joinedDate from Cognito
-- Set default values for new fields
-- Make script idempotent (check before insert)
+chore: finalize package.json scripts
 
-Estimated tokens: ~6000
+- Add test:coverage command
+- Add test:e2e:ui for debugging
+- Verify all scripts work correctly
 ```
-
-**Estimated Tokens: ~6000**
 
 ---
 
-## Task 10: Add Activity Stats Dashboard (Admin Only)
+### Task 3: Add Deployment Script Tests
 
-**Goal:** Create admin-only page showing aggregate activity stats.
+**Goal:** Add unit tests for the deployment script to ensure it works correctly.
 
 **Files to Create:**
-- `src/routes/admin/activity/+page.svelte` - Activity dashboard (optional, bonus task)
+- `backend/scripts/deploy.test.js` - Unit tests for deploy.js
+
+**Prerequisites:**
+- Task 1 of Phase-1 (deploy.js exists)
 
 **Implementation Steps:**
 
-1. Create admin route (require admin auth)
-2. Create Lambda endpoint to aggregate stats:
-   - Total users
-   - Total comments
-   - Total messages
-   - Active users (last 7 days)
-3. Display stats in dashboard cards
-4. Add charts (optional, use Chart.js or similar)
+Create tests for the deployment script that verify:
 
-**Architecture Guidance:**
+1. **Configuration Loading**
+   - Loads existing config from file
+   - Prompts for missing config values
+   - Saves config to file
 
-- **Admin Check:**
-  ```svelte
-  <script>
-    import { user } from '$lib/stores/auth';
-    import { goto } from '$app/navigation';
-    
-    onMount(() => {
-      if (!$user?.groups?.includes('Admins')) {
-        goto('/'); // Redirect non-admins
-      }
+2. **Configuration Validation**
+   - Validates region format
+   - Validates stack name format
+   - Handles invalid input gracefully
+
+3. **samconfig.toml Generation**
+   - Generates valid TOML format
+   - Includes all required parameters
+   - Handles special characters in values
+
+4. **Prerequisite Checks**
+   - Detects missing AWS CLI
+   - Detects missing SAM CLI
+   - Returns appropriate error messages
+
+Test structure:
+```javascript
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import fs from 'fs';
+import { execSync } from 'child_process';
+import {
+  loadOrPromptConfig,
+  generateSamConfig,
+  validateConfig
+} from './deploy.js';
+
+vi.mock('fs');
+vi.mock('child_process');
+
+describe('deploy.js', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  describe('loadOrPromptConfig', () => {
+    it('should load existing config file', async () => {
+      // Test implementation
     });
-  </script>
-  ```
+
+    it('should prompt for missing values', async () => {
+      // Test implementation
+    });
+  });
+
+  describe('generateSamConfig', () => {
+    it('should generate valid TOML', () => {
+      // Test implementation
+    });
+  });
+
+  describe('validateConfig', () => {
+    it('should accept valid config', () => {
+      // Test implementation
+    });
+
+    it('should reject invalid region', () => {
+      // Test implementation
+    });
+  });
+});
+```
 
 **Verification Checklist:**
+- [ ] `backend/scripts/deploy.test.js` exists
+- [ ] Tests cover config loading
+- [ ] Tests cover TOML generation
+- [ ] Tests cover validation
+- [ ] All tests pass
 
-- [ ] Page requires admin auth
-- [ ] Displays aggregate stats
-- [ ] Stats are accurate
-- [ ] Styled with cards/charts
+**Testing Instructions:**
+- Run `pnpm test backend/scripts/deploy.test.js`
+- Verify all tests pass
+- Check coverage of deploy.js functions
 
 **Commit Message Template:**
 ```
-feat(admin): add activity stats dashboard
+Author & Committer: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
 
-- Create admin-only activity page
-- Display total users, comments, messages
-- Show active users (last 7 days)
-- Add charts for visual display
+test(deploy): add unit tests for deployment script
 
-Estimated tokens: ~7000
+- Test configuration loading and saving
+- Test samconfig.toml generation
+- Test input validation
+- Mock file system and child_process
 ```
 
-**Estimated Tokens: ~7000**
+---
+
+### Task 4: Run Full Test Suite Verification
+
+**Goal:** Execute all tests and verify the complete test suite passes.
+
+**Files to Modify:**
+- None (verification task)
+
+**Prerequisites:**
+- All code tasks complete
+- CI workflow created
+
+**Implementation Steps:**
+
+Execute each test category and document results:
+
+1. **Lint Check**
+   ```bash
+   pnpm lint
+   ```
+   Expected: No errors, possible warnings
+
+2. **TypeScript Check**
+   ```bash
+   pnpm check
+   ```
+   Expected: No errors
+
+3. **Unit Tests**
+   ```bash
+   pnpm test -- --reporter=verbose
+   ```
+   Expected: All tests pass
+
+4. **E2E Tests**
+   ```bash
+   pnpm test:e2e
+   ```
+   Expected: All tests pass (may need dev server running)
+
+5. **SAM Validation**
+   ```bash
+   cd backend && sam validate
+   ```
+   Expected: Template is valid
+
+6. **SAM Build**
+   ```bash
+   cd backend && sam build
+   ```
+   Expected: Build succeeds
+
+Document any failures and fix before proceeding.
+
+**Verification Checklist:**
+- [ ] `pnpm lint` passes
+- [ ] `pnpm check` passes
+- [ ] `pnpm test` all tests pass
+- [ ] `pnpm test:e2e` all tests pass
+- [ ] `sam validate` passes
+- [ ] `sam build` succeeds
+
+**Testing Instructions:**
+- Run each command sequentially
+- Document pass/fail status
+- Fix any failures before completing task
+
+**Commit Message Template:**
+```
+Author & Committer: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+
+test: verify full test suite passes
+
+- All lint checks pass
+- All unit tests pass
+- All E2E tests pass
+- SAM template validates and builds
+```
+
+---
+
+### Task 5: Generate Final Directory Tree
+
+**Goal:** Generate and verify the final directory structure matches the target architecture.
+
+**Files to Create:**
+- Document tree output in commit message or docs
+
+**Prerequisites:**
+- All migration tasks complete
+
+**Implementation Steps:**
+
+Generate the directory tree:
+```bash
+tree -L 3 -d --dirsfirst -I 'node_modules|.git|.svelte-kit|.aws-sam|coverage|build'
+```
+
+Expected output should match:
+```
+.
+├── backend
+│   ├── activity-aggregator
+│   ├── comments-api
+│   ├── download-presigned-url-lambda
+│   ├── infra
+│   ├── media-upload-lambda
+│   ├── messages-api
+│   ├── notification-processor
+│   ├── pdf-download-lambda
+│   ├── profile-api
+│   ├── reactions-api
+│   └── scripts
+├── docs
+│   ├── developer
+│   ├── plans
+│   └── user-guide
+├── frontend
+│   ├── lib
+│   │   ├── auth
+│   │   ├── components
+│   │   ├── config
+│   │   ├── services
+│   │   ├── stores
+│   │   ├── types
+│   │   └── utils
+│   └── routes
+│       ├── about
+│       ├── admin
+│       ├── api
+│       ├── ...
+├── .github
+│   └── workflows
+└── tests
+    ├── e2e
+    ├── integration
+    └── load
+```
+
+Compare against target and document any deviations.
+
+**Verification Checklist:**
+- [ ] backend/ contains all Lambda directories
+- [ ] backend/infra/ contains CloudFormation templates
+- [ ] backend/scripts/ contains deployment scripts
+- [ ] frontend/ contains lib/ and routes/
+- [ ] tests/ contains e2e/, integration/, load/
+- [ ] docs/plans/ contains all phase files
+- [ ] .github/workflows/ contains ci.yml
+- [ ] No orphaned directories from old structure
+
+**Testing Instructions:**
+- Run tree command
+- Compare visually to expected structure
+- List any extra or missing directories
+
+**Commit Message Template:**
+```
+Author & Committer: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+
+docs: verify final directory structure
+
+- Confirm backend structure complete
+- Confirm frontend structure complete
+- Confirm test structure complete
+- Confirm docs structure complete
+```
+
+---
+
+### Task 6: Create Final Cleanup Checklist
+
+**Goal:** Create a checklist documenting all deletions and verifying cleanup is complete.
+
+**Files to Create:**
+- `docs/plans/CLEANUP_VERIFICATION.md` - Cleanup checklist
+
+**Prerequisites:**
+- All previous tasks complete
+
+**Implementation Steps:**
+
+Create a markdown file documenting:
+
+1. **Directories Removed**
+   - `lambdas/` (moved to backend/)
+   - `aws-infrastructure/` (moved to backend/infra/)
+   - `cloudformation/` (moved to backend/infra/)
+   - `scripts/` (moved to backend/scripts/)
+   - `src/` (renamed to frontend/)
+   - `.kiro/` (deleted)
+
+2. **Files Removed**
+   - `README.zh.md` (deleted)
+   - Python files in ported Lambdas (replaced with JS)
+   - Individual `jest.config.js` files (using root Vitest)
+   - Individual Lambda READMEs (consolidated to docs/)
+
+3. **Verification Commands**
+   ```bash
+   # Verify no old directories exist
+   ls lambdas 2>/dev/null && echo "ERROR: lambdas/ still exists"
+   ls aws-infrastructure 2>/dev/null && echo "ERROR: aws-infrastructure/ still exists"
+   ls cloudformation 2>/dev/null && echo "ERROR: cloudformation/ still exists"
+   ls scripts 2>/dev/null && echo "ERROR: scripts/ still exists"
+   ls src 2>/dev/null && echo "ERROR: src/ still exists"
+   ls .kiro 2>/dev/null && echo "ERROR: .kiro/ still exists"
+
+   # Verify no Python files in backend
+   find backend -name "*.py" -type f
+
+   # Verify no stale config files
+   find backend -name "jest.config.js" -type f
+   ```
+
+**Verification Checklist:**
+- [ ] All old directories removed
+- [ ] All Python files removed from Lambdas
+- [ ] All individual Jest configs removed
+- [ ] No orphaned files in root
+- [ ] Git history preserved for moved files
+
+**Testing Instructions:**
+- Run verification commands
+- Check git log shows file moves (not deletes + adds)
+
+**Commit Message Template:**
+```
+Author & Committer: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+
+docs: add cleanup verification checklist
+
+- Document all removed directories
+- Document all removed files
+- Provide verification commands
+```
+
+---
+
+### Task 7: Update .gitignore and Clean Working Directory
+
+**Goal:** Ensure .gitignore is complete and working directory is clean.
+
+**Files to Modify:**
+- `.gitignore` - Final verification and updates
+
+**Prerequisites:**
+- All code tasks complete
+
+**Implementation Steps:**
+
+Verify `.gitignore` contains all necessary patterns:
+
+```gitignore
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+build/
+.svelte-kit/
+.vercel/
+.netlify/
+
+# Backend deployment
+backend/.deploy-config.json
+backend/samconfig.toml
+backend/.aws-sam/
+
+# Environment
+.env
+.env.local
+.env.*.local
+.env.deploy
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing
+coverage/
+playwright-report/
+test-results/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Vitest
+vitest.config.ts.timestamp*
+```
+
+Clean working directory:
+```bash
+git status
+# Should show: "nothing to commit, working tree clean"
+```
+
+**Verification Checklist:**
+- [ ] All environment files ignored
+- [ ] All build artifacts ignored
+- [ ] All IDE files ignored
+- [ ] `git status` shows clean working tree
+- [ ] No untracked files that should be committed
+
+**Testing Instructions:**
+- Run `git status` and verify clean
+- Create test files matching ignore patterns and verify not tracked
+
+**Commit Message Template:**
+```
+Author & Committer: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+
+chore: finalize .gitignore
+
+- Add all deployment artifacts
+- Add all build outputs
+- Add IDE and OS patterns
+- Verify working tree clean
+```
 
 ---
 
 ## Phase Verification
 
-Before proceeding to Phase 4, verify:
+After completing all tasks, perform final verification:
 
-### Functionality
-- [ ] Profile pages load correctly
-- [ ] Can view other users' profiles
-- [ ] Can edit own profile
-- [ ] Profile photo uploads work
-- [ ] Comment history displays correctly
-- [ ] Clicking comment links navigates to original items
-- [ ] Private profiles hidden from non-owners
-- [ ] Admin can view all profiles
+### CI Verification
 
-### UI/UX
-- [ ] ProfileCard displays all info clearly
-- [ ] CommentHistory shows comment snippets with links
-- [ ] Settings form is intuitive
-- [ ] Bio character counter works
-- [ ] Privacy toggle works
-- [ ] Success messages display after save
+- [ ] Push to branch triggers CI workflow
+- [ ] All CI jobs pass (green checkmarks)
+- [ ] status-check job passes
+- [ ] No flaky tests
 
-### Navigation
-- [ ] "My Profile" link in header works
-- [ ] Comment usernames link to profiles
-- [ ] Profile page URL structure makes sense
+### Local Development Verification
 
-### Data
-- [ ] Existing users backfilled into UserProfiles table
-- [ ] Activity stats update correctly (commentCount, lastActive)
-- [ ] Profile data persists across page refreshes
+- [ ] `pnpm install` succeeds
+- [ ] `pnpm dev` starts server
+- [ ] `pnpm build` creates production build
+- [ ] `pnpm test` all tests pass
+- [ ] `pnpm deploy` prompts for config
 
----
+### Repository State
 
-## Known Limitations & Technical Debt
+- [ ] Main branch is clean
+- [ ] All files committed
+- [ ] No merge conflicts
+- [ ] Git history shows file moves (not delete + recreate)
 
-**Limitations:**
+### Documentation Verification
 
-1. **No family tree visualization:** Family relationships are text only
-   - **Future:** Build interactive family tree component
-
-2. **Basic activity stats:** Only comment count and media uploads tracked
-   - **Future:** Add more granular analytics (comments per month, etc.)
-
-3. **No user search:** Cannot search for users by name
-   - **Future:** Add user directory with search
-
-**Technical Debt:**
-
-- Profile photo upload uses presigned URLs (good) but no image resizing
-  - **Refactor:** Add Lambda to resize images on upload (save storage)
-
-- Comment history loads all pages to find specific comment
-  - **Refactor:** Add deep-linking with comment highlighting
+- [ ] Root README.md is accurate
+- [ ] docs/README.md is complete
+- [ ] All links work
+- [ ] Quick start commands work
 
 ---
 
-## Review Feedback (Iteration 1)
+## Final Deliverables Checklist
 
-### Task 4: Profile Page Route - Admin Check Implementation
+The following deliverables were specified in the original request:
 
-> **Consider:** In `src/routes/profile/[userId]/+page.svelte:16`, the admin check is hardcoded to `false` with a TODO comment. Looking at Phase 0 architecture guidance and the implementation in `src/lib/components/comments/CommentSection.svelte:22`, what pattern should be used to properly check if a user is in the Admins group?
->
-> **Think about:** The plan in Phase 3 Task 4 (line 251) states "Check admin status from auth store". The Phase Verification section (line 725) requires "Admin can view all profiles". How does hardcoding `isAdmin = false` affect this requirement?
->
-> **Reflect:** In `src/lib/components/comments/CommentSection.svelte`, you successfully implemented the admin check using `$currentUser?.['cognito:groups']?.includes('Admins')`. Should the profile page use the same pattern for consistency?
+1. **Bash Script** - `docs/migration-script.sh` (created in Phase-2)
+   - Documents all move/delete operations
+   - Runnable for verification
+
+2. **Cleanup List** - `docs/plans/CLEANUP_VERIFICATION.md` (this phase)
+   - Lists all deleted files and directories
+   - Provides verification commands
+
+3. **Final Tree View** - Generated in Task 5
+   - Shows complete directory structure
+   - Matches target architecture
 
 ---
 
-## Next Steps
+## Post-Migration Notes
 
-After addressing the review feedback above, proceed to **Phase 4: Messaging System** to build direct messaging functionality.
+### For Future Development
+
+- All new Lambda functions should be added to `backend/`
+- Update `backend/template.yaml` for new Lambdas
+- Add tests to `tests/integration/` or colocated in Lambda directory
+- Run `pnpm test` before committing
+
+### For Deployment
+
+- Run `pnpm deploy` for first-time setup (will prompt for config)
+- Subsequent deploys use saved config
+- Check `.env` for API URL after deployment
+
+### Known Technical Debt
+
+- Notification processor email sending is stubbed
+- Some old deployment scripts may be obsolete
+- E2E tests may need live backend for full coverage
