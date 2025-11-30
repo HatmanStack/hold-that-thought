@@ -274,6 +274,39 @@ Resources:
             Path: /download/presigned-url
             Method: get
 
+  ActivityAggregatorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/activity-aggregator/
+      Handler: index.handler
+      Description: Activity aggregator - update user stats from DynamoDB streams
+      Environment:
+        Variables:
+          USER_PROFILES_TABLE: !Ref UserProfilesTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UserProfilesTable
+
+  NotificationProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/notification-processor/
+      Handler: index.handler
+      Description: Notification processor - send emails from DynamoDB streams
+      Environment:
+        Variables:
+          USER_PROFILES_TABLE: !Ref UserProfilesTable
+          SES_FROM_EMAIL: noreply@holdthatthought.family
+          BASE_URL: https://holdthatthought.family
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref UserProfilesTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+              Resource: '*'
+
 Outputs:
   ApiUrl:
     Description: API Gateway endpoint URL
