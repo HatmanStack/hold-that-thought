@@ -19,7 +19,7 @@ const config = {
   images: [''],
 }
 
-const check = (ext: string) => (config.extensions.posts.includes(ext) || config.extensions.server.includes(ext) ? 'src/routes' : 'static')
+const check = (ext: string) => (config.extensions.posts.includes(ext) || config.extensions.server.includes(ext) ? 'frontend/routes' : 'static')
 
 const log = (color: string, msg: string, dest?: Error | string) =>
   // eslint-disable-next-line no-console
@@ -49,7 +49,7 @@ const error = (err: { code: string, message: unknown }) => {
 const cpFile = (src: string, { dest = path.join(check(path.parse(src).ext.slice(1)), src.slice(6)), stat = 'copy' } = {}) =>
   config.extensions.images.includes(path.parse(src).ext.slice(1))
     ? fs
-      .copyFile(src, path.join('src/static', src.slice(6)))
+      .copyFile(src, path.join('frontend/static', src.slice(6)))
       .then(() => fs.copyFile(src, path.join('static', src.slice(6))))
       .then(() => log('green', `${stat} file`, dest))
       .catch(error)
@@ -61,7 +61,7 @@ const cpFile = (src: string, { dest = path.join(check(path.parse(src).ext.slice(
 const rmFile = (src: string, { dest = path.join(check(path.parse(src).ext.slice(1)), src.slice(6)) } = {}) =>
   config.extensions.images.includes(path.parse(src).ext.slice(1))
     ? fs
-      .rm(path.join('src/static', src.slice(6)))
+      .rm(path.join('frontend/static', src.slice(6)))
       .then(() => fs.rm(path.join('static', src.slice(6))))
       .then(() => log('yellow', 'remove file', dest))
       .catch(error)
@@ -73,7 +73,7 @@ const rmFile = (src: string, { dest = path.join(check(path.parse(src).ext.slice(
 const mkDir = (
   src: string,
   {
-    dest = [path.join('src/routes', src.slice(6)), path.join('static', src.slice(6)), path.join('src/static', src.slice(6))],
+    dest = [path.join('frontend/routes', src.slice(6)), path.join('static', src.slice(6)), path.join('frontend/static', src.slice(6))],
   } = {},
 ) => {
   dest.forEach(path =>
@@ -104,7 +104,7 @@ const cpDir = (src: string) =>
 const rmDir = (
   src: string,
   {
-    dest = [path.join('src/routes', src.slice(6)), path.join('static', src.slice(6)), path.join('src/static', src.slice(6))],
+    dest = [path.join('frontend/routes', src.slice(6)), path.join('static', src.slice(6)), path.join('frontend/static', src.slice(6))],
   } = {},
 ) => {
   dest.forEach(path =>
@@ -130,14 +130,14 @@ const cleanDir = (src: string) =>
 
 const build = () => {
   mkDir('static', { dest: ['static'] })
-  mkDir('src/static', { dest: ['src/static'] })
+  mkDir('frontend/static', { dest: ['frontend/static'] })
   cpDir('urara')
 }
 
 const clean = () => {
   cleanDir('urara')
   rmDir('static', { dest: ['static'] })
-  rmDir('src/static', { dest: ['src/static'] })
+  rmDir('frontend/static', { dest: ['frontend/static'] })
 }
 
 switch (process.argv[2]) {

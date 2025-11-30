@@ -21,6 +21,16 @@ const adapter = {
 export default {
   extensions: ['.svelte', ...(mdsvexConfig.extensions ?? [])],
   kit: {
+    files: {
+      assets: 'static',
+      lib: 'frontend/lib',
+      params: 'frontend/params',
+      routes: 'frontend/routes',
+      appTemplate: 'frontend/app.html',
+      hooks: {
+        server: 'frontend/hooks.server'
+      }
+    },
     adapter:
       process.env.ADAPTER
         // @ts-expect-error adapter types

@@ -16,7 +16,7 @@ const config = {
     },
     images: [''],
 };
-const check = (ext) => (config.extensions.posts.includes(ext) || config.extensions.server.includes(ext) ? 'src/routes' : 'static');
+const check = (ext) => (config.extensions.posts.includes(ext) || config.extensions.server.includes(ext) ? 'frontend/routes' : 'static');
 const log = (color, msg, dest) => 
 // eslint-disable-next-line no-console
 console.log(chalk.dim(`${new Date().toLocaleTimeString()} `)
@@ -37,7 +37,7 @@ const error = (err) => {
 };
 const cpFile = (src, { dest = path.join(check(path.parse(src).ext.slice(1)), src.slice(6)), stat = 'copy' } = {}) => config.extensions.images.includes(path.parse(src).ext.slice(1))
     ? fs
-        .copyFile(src, path.join('src/static', src.slice(6)))
+        .copyFile(src, path.join('frontend/static', src.slice(6)))
         .then(() => fs.copyFile(src, path.join('static', src.slice(6))))
         .then(() => log('green', `${stat} file`, dest))
         .catch(error)
@@ -47,7 +47,7 @@ const cpFile = (src, { dest = path.join(check(path.parse(src).ext.slice(1)), src
         .catch(error);
 const rmFile = (src, { dest = path.join(check(path.parse(src).ext.slice(1)), src.slice(6)) } = {}) => config.extensions.images.includes(path.parse(src).ext.slice(1))
     ? fs
-        .rm(path.join('src/static', src.slice(6)))
+        .rm(path.join('frontend/static', src.slice(6)))
         .then(() => fs.rm(path.join('static', src.slice(6))))
         .then(() => log('yellow', 'remove file', dest))
         .catch(error)
@@ -55,7 +55,7 @@ const rmFile = (src, { dest = path.join(check(path.parse(src).ext.slice(1)), src
         .rm(dest)
         .then(() => log('yellow', 'remove file', dest))
         .catch(error);
-const mkDir = (src, { dest = [path.join('src/routes', src.slice(6)), path.join('static', src.slice(6)), path.join('src/static', src.slice(6))], } = {}) => {
+const mkDir = (src, { dest = [path.join('frontend/routes', src.slice(6)), path.join('static', src.slice(6)), path.join('frontend/static', src.slice(6))], } = {}) => {
     dest.forEach(path => fs
         .mkdir(path)
         .then(() => log('green', 'make dir', path))
@@ -74,7 +74,7 @@ const cpDir = (src) => fs.readdir(src, { withFileTypes: true }).then(files => fi
         cpFile(dest);
     }
 }));
-const rmDir = (src, { dest = [path.join('src/routes', src.slice(6)), path.join('static', src.slice(6)), path.join('src/static', src.slice(6))], } = {}) => {
+const rmDir = (src, { dest = [path.join('frontend/routes', src.slice(6)), path.join('static', src.slice(6)), path.join('frontend/static', src.slice(6))], } = {}) => {
     dest.forEach(path => fs
         .rm(path, { force: true, recursive: true })
         .then(() => log('yellow', 'remove dir', path))
@@ -93,13 +93,13 @@ const cleanDir = (src) => fs.readdir(src, { withFileTypes: true }).then((files) 
 });
 const build = () => {
     mkDir('static', { dest: ['static'] });
-    mkDir('src/static', { dest: ['src/static'] });
+    mkDir('frontend/static', { dest: ['frontend/static'] });
     cpDir('urara');
 };
 const clean = () => {
     cleanDir('urara');
     rmDir('static', { dest: ['static'] });
-    rmDir('src/static', { dest: ['src/static'] });
+    rmDir('frontend/static', { dest: ['frontend/static'] });
 };
 switch (process.argv[2]) {
     case 'watch':

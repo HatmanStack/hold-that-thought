@@ -14,7 +14,7 @@ import { visit } from 'unist-util-visit'
 const remarkUraraFm
   = () =>
     (tree, { data, filename }) => {
-      const filepath = filename ? filename.split('/src/routes')[1] : 'unknown'
+      const filepath = filename ? filename.split('/frontend/routes')[1] : 'unknown'
       const { dir, name } = parse(filepath)
       if (!data.fm)
         data.fm = {}
@@ -77,7 +77,7 @@ export default {
     },
   },
   layout: {
-    _: './src/lib/components/post_layout.svelte',
+    _: './frontend/lib/components/post_layout.svelte',
   },
   rehypePlugins: [
     rehypeSlug,
@@ -95,7 +95,7 @@ export default {
       remarkFFF,
       {
         autofill: {
-          path: path => path.replace('/src/routes/', '/urara/'),
+          path: path => path.replace('/frontend/routes/', '/urara/'),
           provider: 'fs',
         },
         presets: [],
