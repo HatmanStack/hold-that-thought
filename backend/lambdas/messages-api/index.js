@@ -13,13 +13,8 @@ const MESSAGES_TABLE = process.env.MESSAGES_TABLE;
 const CONVERSATION_MEMBERS_TABLE = process.env.CONVERSATION_MEMBERS_TABLE;
 const BUCKET_NAME = process.env.BUCKET_NAME;
 
-/**
- * Lambda handler for Messages API
- */
 exports.handler = async (event) => {
   try {
-    console.log('Event:', JSON.stringify(event, null, 2));
-
     const userId = event.requestContext?.authorizer?.claims?.sub;
     if (!userId) {
       return errorResponse(401, 'Unauthorized: Missing user context');
@@ -28,32 +23,26 @@ exports.handler = async (event) => {
     const method = event.httpMethod;
     const resource = event.resource;
 
-    // GET /messages/conversations
     if (method === 'GET' && resource === '/messages/conversations') {
       return await listConversations(userId);
     }
 
-    // GET /messages/conversations/{conversationId}
     if (method === 'GET' && resource === '/messages/conversations/{conversationId}') {
       return await getMessages(event, userId);
     }
 
-    // POST /messages/conversations
     if (method === 'POST' && resource === '/messages/conversations') {
       return await createConversation(event, userId);
     }
 
-    // POST /messages/conversations/{conversationId}
     if (method === 'POST' && resource === '/messages/conversations/{conversationId}') {
       return await sendMessage(event, userId);
     }
 
-    // POST /messages/upload
     if (method === 'POST' && resource === '/messages/upload') {
       return await generateUploadUrl(event, userId);
     }
 
-    // PUT /messages/conversations/{conversationId}/read
     if (method === 'PUT' && resource === '/messages/conversations/{conversationId}/read') {
       return await markAsRead(event, userId);
     }
@@ -66,9 +55,6 @@ exports.handler = async (event) => {
   }
 };
 
-/**
- * GET /messages/conversations - List user's conversations
- */
 async function listConversations(userId) {
   try {
     const result = await docClient.send(new QueryCommand({
@@ -78,7 +64,7 @@ async function listConversations(userId) {
       ExpressionAttributeValues: {
         ':userId': userId
       },
-      ScanIndexForward: false, // Most recent first
+      ScanIndexForward: false,
       Limit: 50
     }));
 
@@ -92,9 +78,6 @@ async function listConversations(userId) {
   }
 }
 
-/**
- * GET /messages/conversations/{conversationId} - Get messages in conversation
- */
 async function getMessages(event, userId) {
   const conversationId = event.pathParameters?.conversationId;
   const limit = parseInt(event.queryStringParameters?.limit || '50');
@@ -105,7 +88,6 @@ async function getMessages(event, userId) {
   }
 
   try {
-    // Check if user is participant
     const memberCheck = await docClient.send(new GetCommand({
       TableName: CONVERSATION_MEMBERS_TABLE,
       Key: { userId, conversationId }
@@ -115,7 +97,6 @@ async function getMessages(event, userId) {
       return errorResponse(403, 'You are not a participant in this conversation');
     }
 
-    // Query messages
     const queryParams = {
       TableName: MESSAGES_TABLE,
       KeyConditionExpression: 'conversationId = :conversationId',
@@ -123,7 +104,7 @@ async function getMessages(event, userId) {
         ':conversationId': conversationId
       },
       Limit: limit,
-      ScanIndexForward: false // Most recent first
+      ScanIndexForward: false
     };
 
     if (lastEvaluatedKey) {
@@ -145,37 +126,29 @@ async function getMessages(event, userId) {
   }
 }
 
-/**
- * POST /messages/conversations - Create new conversation
- */
 async function createConversation(event, userId) {
   const body = JSON.parse(event.body || '{}');
   const participantIds = body.participantIds || [];
   const messageText = body.messageText;
   const conversationTitle = body.conversationTitle;
 
-  // Validate
   if (!Array.isArray(participantIds) || participantIds.length === 0) {
     return errorResponse(400, 'participantIds must be a non-empty array');
   }
 
-  // Include sender in participants
   if (!participantIds.includes(userId)) {
     participantIds.push(userId);
   }
 
   try {
-    // Generate conversationId
     const conversationId = participantIds.length === 2
-      ? participantIds.sort().join('#') // 1-on-1: sorted user IDs
-      : uuidv4(); // Group: UUID
+      ? participantIds.sort().join('#')
+      : uuidv4();
 
     const conversationType = participantIds.length === 2 ? 'direct' : 'group';
 
-    // Fetch participant names
     const participantNames = await fetchUserNames(participantIds);
 
-    // Create ConversationMembers records
     const now = new Date().toISOString();
     const memberRecords = participantIds.map(pid => ({
       PutRequest: {
@@ -186,13 +159,12 @@ async function createConversation(event, userId) {
           participantIds: new Set(participantIds),
           participantNames: new Set(participantNames),
           lastMessageAt: now,
-          unreadCount: pid === userId ? 0 : 1, // Sender has 0 unread
+          unreadCount: pid === userId ? 0 : 1,
           conversationTitle: conversationTitle || null
         }
       }
     }));
 
-    // Batch write members (max 25 items per batch)
     for (let i = 0; i < memberRecords.length; i += 25) {
       const batch = memberRecords.slice(i, i + 25);
       await docClient.send(new BatchWriteCommand({
@@ -202,7 +174,6 @@ async function createConversation(event, userId) {
       }));
     }
 
-    // Send initial message if provided
     let message = null;
     if (messageText) {
       message = await createMessage(conversationId, userId, messageText, participantIds, conversationType);
@@ -221,9 +192,6 @@ async function createConversation(event, userId) {
   }
 }
 
-/**
- * POST /messages/conversations/{conversationId} - Send message
- */
 async function sendMessage(event, userId) {
   const conversationId = event.pathParameters?.conversationId;
   const body = JSON.parse(event.body || '{}');
@@ -243,7 +211,6 @@ async function sendMessage(event, userId) {
   }
 
   try {
-    // Check if user is participant
     const memberCheck = await docClient.send(new GetCommand({
       TableName: CONVERSATION_MEMBERS_TABLE,
       Key: { userId, conversationId }
@@ -257,10 +224,8 @@ async function sendMessage(event, userId) {
     const participantIds = Array.from(conversation.participantIds);
     const conversationType = conversation.conversationType;
 
-    // Create message
     const message = await createMessage(conversationId, userId, messageText, participantIds, conversationType, attachments);
 
-    // Update ConversationMembers
     await updateConversationMembers(conversationId, userId, participantIds);
 
     return successResponse(message, 201);
@@ -271,9 +236,6 @@ async function sendMessage(event, userId) {
   }
 }
 
-/**
- * POST /messages/upload - Generate presigned URL for attachment upload
- */
 async function generateUploadUrl(event, userId) {
   const body = JSON.parse(event.body || '{}');
   const fileName = body.fileName;
@@ -292,7 +254,7 @@ async function generateUploadUrl(event, userId) {
       ContentType: contentType
     });
 
-    const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 900 }); // 15 minutes
+    const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 900 });
 
     return successResponse({
       uploadUrl: presignedUrl,
@@ -307,9 +269,6 @@ async function generateUploadUrl(event, userId) {
   }
 }
 
-/**
- * PUT /messages/conversations/{conversationId}/read - Mark conversation as read
- */
 async function markAsRead(event, userId) {
   const conversationId = event.pathParameters?.conversationId;
 
@@ -339,11 +298,7 @@ async function markAsRead(event, userId) {
   }
 }
 
-/**
- * Helper: Create message record
- */
 async function createMessage(conversationId, senderId, messageText, participantIds, conversationType, attachments = []) {
-  // Fetch sender name
   const profileResult = await docClient.send(new GetCommand({
     TableName: USER_PROFILES_TABLE,
     Key: { userId: senderId }
@@ -370,23 +325,17 @@ async function createMessage(conversationId, senderId, messageText, participantI
     Item: message
   }));
 
-  // Convert Set to Array for JSON serialization
   return {
     ...message,
     participants: participantIds
   };
 }
 
-/**
- * Helper: Update conversation members with new message timestamp and unread counts
- */
 async function updateConversationMembers(conversationId, senderId, participantIds) {
   const now = new Date().toISOString();
 
-  // Use Promise.all for parallel updates instead of sequential loop
   const updatePromises = participantIds.map(participantId => {
     if (participantId === senderId) {
-      // Sender: just update lastMessageAt
       return docClient.send(new UpdateCommand({
         TableName: CONVERSATION_MEMBERS_TABLE,
         Key: { userId: participantId, conversationId },
@@ -396,7 +345,6 @@ async function updateConversationMembers(conversationId, senderId, participantId
         }
       }));
     } else {
-      // Recipients: update lastMessageAt and increment unreadCount
       return docClient.send(new UpdateCommand({
         TableName: CONVERSATION_MEMBERS_TABLE,
         Key: { userId: participantId, conversationId },
@@ -412,15 +360,11 @@ async function updateConversationMembers(conversationId, senderId, participantId
   await Promise.all(updatePromises);
 }
 
-/**
- * Helper: Fetch user display names
- */
 async function fetchUserNames(userIds) {
   if (userIds.length === 0) {
     return [];
   }
 
-  // Use BatchGetCommand for parallel reads instead of sequential loop
   const result = await docClient.send(new BatchGetCommand({
     RequestItems: {
       [USER_PROFILES_TABLE]: {
@@ -429,19 +373,14 @@ async function fetchUserNames(userIds) {
     }
   }));
 
-  // Create a map of userId to displayName for quick lookup
   const userMap = {};
   (result.Responses?.[USER_PROFILES_TABLE] || []).forEach(item => {
     userMap[item.userId] = item.displayName || 'Anonymous';
   });
 
-  // Return names in the same order as userIds
   return userIds.map(userId => userMap[userId] || 'Anonymous');
 }
 
-/**
- * Success response helper
- */
 function successResponse(data, statusCode = 200) {
   return {
     statusCode,
@@ -454,9 +393,6 @@ function successResponse(data, statusCode = 200) {
   };
 }
 
-/**
- * Error response helper
- */
 function errorResponse(statusCode, message) {
   return {
     statusCode,

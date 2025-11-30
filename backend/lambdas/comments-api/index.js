@@ -9,25 +9,12 @@ const docClient = DynamoDBDocumentClient.from(client);
 const USER_PROFILES_TABLE = process.env.USER_PROFILES_TABLE;
 const COMMENTS_TABLE = process.env.COMMENTS_TABLE;
 
-/**
- * Lambda handler for Comments API
- * Routes:
- * - GET /comments/{itemId} - List comments for letter/media (paginated)
- * - POST /comments/{itemId} - Create new comment
- * - PUT /comments/{itemId}/{commentId} - Edit own comment
- * - DELETE /comments/{itemId}/{commentId} - Delete own comment (soft delete)
- * - DELETE /admin/comments/{commentId} - Admin delete any comment
- */
 exports.handler = async (event) => {
   try {
-    console.log('Event:', JSON.stringify(event, null, 2));
-
-    // Extract userId from JWT (Cognito authorizer)
     const userId = event.requestContext?.authorizer?.claims?.sub;
     const userEmail = event.requestContext?.authorizer?.claims?.email;
     const userGroupsRaw = event.requestContext?.authorizer?.claims?.['cognito:groups'];
 
-    // Parse cognito:groups - can be string (comma-separated) or array
     let userGroups = [];
     if (Array.isArray(userGroupsRaw)) {
       userGroups = userGroupsRaw;
@@ -41,31 +28,25 @@ exports.handler = async (event) => {
       return errorResponse(401, 'Unauthorized: Missing user context');
     }
 
-    // Route based on HTTP method and resource
     const method = event.httpMethod;
     const resource = event.resource;
 
-    // GET /comments/{itemId}
     if (method === 'GET' && resource === '/comments/{itemId}') {
       return await listComments(event);
     }
 
-    // POST /comments/{itemId}
     if (method === 'POST' && resource === '/comments/{itemId}') {
       return await createComment(event, userId, userEmail);
     }
 
-    // PUT /comments/{itemId}/{commentId}
     if (method === 'PUT' && resource === '/comments/{itemId}/{commentId}') {
       return await editComment(event, userId, isAdmin);
     }
 
-    // DELETE /comments/{itemId}/{commentId}
     if (method === 'DELETE' && resource === '/comments/{itemId}/{commentId}') {
       return await deleteComment(event, userId, isAdmin);
     }
 
-    // DELETE /admin/comments/{commentId}
     if (method === 'DELETE' && resource === '/admin/comments/{commentId}') {
       return await adminDeleteComment(event, isAdmin);
     }
@@ -78,9 +59,6 @@ exports.handler = async (event) => {
   }
 };
 
-/**
- * GET /comments/{itemId} - List comments for item
- */
 async function listComments(event) {
   const itemId = event.pathParameters?.itemId;
   const limit = parseInt(event.queryStringParameters?.limit || '50');
@@ -98,7 +76,7 @@ async function listComments(event) {
         ':itemId': itemId
       },
       Limit: limit,
-      ScanIndexForward: true // Oldest first (chronological)
+      ScanIndexForward: true
     };
 
     if (lastEvaluatedKey) {
@@ -107,7 +85,6 @@ async function listComments(event) {
 
     const result = await docClient.send(new QueryCommand(queryParams));
 
-    // Filter out soft-deleted comments
     const comments = (result.Items || []).filter(item => !item.isDeleted);
 
     const response = {
@@ -125,17 +102,13 @@ async function listComments(event) {
   }
 }
 
-/**
- * POST /comments/{itemId} - Create new comment
- */
 async function createComment(event, userId, userEmail) {
   const itemId = event.pathParameters?.itemId;
   const body = JSON.parse(event.body || '{}');
   const commentText = body.commentText;
-  const itemType = body.itemType || 'letter'; // 'letter' or 'media'
+  const itemType = body.itemType || 'letter';
   const itemTitle = body.itemTitle || '';
 
-  // Validate inputs
   if (!itemId) {
     return errorResponse(400, 'Missing itemId parameter');
   }
@@ -144,7 +117,6 @@ async function createComment(event, userId, userEmail) {
     return errorResponse(400, 'Missing or invalid commentText');
   }
 
-  // Sanitize HTML
   const sanitizedText = sanitizeHtml(commentText, {
     allowedTags: [],
     allowedAttributes: {}
@@ -159,7 +131,6 @@ async function createComment(event, userId, userEmail) {
   }
 
   try {
-    // Fetch user profile for denormalization
     const profileResult = await docClient.send(new GetCommand({
       TableName: USER_PROFILES_TABLE,
       Key: { userId }
@@ -169,7 +140,6 @@ async function createComment(event, userId, userEmail) {
     const userName = profile.displayName || userEmail || 'Anonymous';
     const userPhotoUrl = profile.profilePhotoUrl || '';
 
-    // Generate commentId
     const timestamp = new Date().toISOString();
     const commentId = `${timestamp}#${uuidv4()}`;
 
@@ -203,16 +173,12 @@ async function createComment(event, userId, userEmail) {
   }
 }
 
-/**
- * PUT /comments/{itemId}/{commentId} - Edit own comment
- */
 async function editComment(event, userId, isAdmin) {
   const itemId = event.pathParameters?.itemId;
   const commentId = event.pathParameters?.commentId;
   const body = JSON.parse(event.body || '{}');
   const newCommentText = body.commentText;
 
-  // Validate inputs
   if (!itemId || !commentId) {
     return errorResponse(400, 'Missing itemId or commentId parameter');
   }
@@ -221,7 +187,6 @@ async function editComment(event, userId, isAdmin) {
     return errorResponse(400, 'Missing or invalid commentText');
   }
 
-  // Sanitize HTML
   const sanitizedText = sanitizeHtml(newCommentText, {
     allowedTags: [],
     allowedAttributes: {}
@@ -236,7 +201,6 @@ async function editComment(event, userId, isAdmin) {
   }
 
   try {
-    // Fetch existing comment
     const result = await docClient.send(new GetCommand({
       TableName: COMMENTS_TABLE,
       Key: { itemId, commentId }
@@ -248,12 +212,10 @@ async function editComment(event, userId, isAdmin) {
 
     const existingComment = result.Item;
 
-    // Check ownership (unless admin)
     if (existingComment.userId !== userId && !isAdmin) {
       return errorResponse(403, 'You can only edit your own comments');
     }
 
-    // Build edit history (keep last 5)
     const editHistory = existingComment.editHistory || [];
     editHistory.unshift({
       text: existingComment.commentText,
@@ -261,7 +223,6 @@ async function editComment(event, userId, isAdmin) {
     });
     const trimmedHistory = editHistory.slice(0, 5);
 
-    // Update comment
     await docClient.send(new UpdateCommand({
       TableName: COMMENTS_TABLE,
       Key: { itemId, commentId },
@@ -274,7 +235,6 @@ async function editComment(event, userId, isAdmin) {
       }
     }));
 
-    // Fetch updated comment
     const updatedResult = await docClient.send(new GetCommand({
       TableName: COMMENTS_TABLE,
       Key: { itemId, commentId }
@@ -288,9 +248,6 @@ async function editComment(event, userId, isAdmin) {
   }
 }
 
-/**
- * DELETE /comments/{itemId}/{commentId} - Soft delete own comment
- */
 async function deleteComment(event, userId, isAdmin) {
   const itemId = event.pathParameters?.itemId;
   const commentId = event.pathParameters?.commentId;
@@ -300,7 +257,6 @@ async function deleteComment(event, userId, isAdmin) {
   }
 
   try {
-    // Fetch existing comment
     const result = await docClient.send(new GetCommand({
       TableName: COMMENTS_TABLE,
       Key: { itemId, commentId }
@@ -312,12 +268,10 @@ async function deleteComment(event, userId, isAdmin) {
 
     const existingComment = result.Item;
 
-    // Check ownership (unless admin)
     if (existingComment.userId !== userId && !isAdmin) {
       return errorResponse(403, 'You can only delete your own comments');
     }
 
-    // Soft delete
     await docClient.send(new UpdateCommand({
       TableName: COMMENTS_TABLE,
       Key: { itemId, commentId },
@@ -336,9 +290,6 @@ async function deleteComment(event, userId, isAdmin) {
   }
 }
 
-/**
- * DELETE /admin/comments/{commentId} - Admin delete any comment
- */
 async function adminDeleteComment(event, isAdmin) {
   if (!isAdmin) {
     return errorResponse(403, 'Admin access required');
@@ -353,7 +304,6 @@ async function adminDeleteComment(event, isAdmin) {
   }
 
   try {
-    // Soft delete
     await docClient.send(new UpdateCommand({
       TableName: COMMENTS_TABLE,
       Key: { itemId, commentId },
@@ -372,9 +322,6 @@ async function adminDeleteComment(event, isAdmin) {
   }
 }
 
-/**
- * Success response helper
- */
 function successResponse(data, statusCode = 200) {
   return {
     statusCode,
@@ -387,9 +334,6 @@ function successResponse(data, statusCode = 200) {
   };
 }
 
-/**
- * Error response helper
- */
 function errorResponse(statusCode, message) {
   return {
     statusCode,

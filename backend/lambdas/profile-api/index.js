@@ -13,19 +13,13 @@ const COMMENTS_TABLE = process.env.COMMENTS_TABLE;
 const PROFILE_PHOTOS_BUCKET = process.env.PROFILE_PHOTOS_BUCKET;
 const RATE_LIMIT_TABLE = process.env.RATE_LIMIT_TABLE;
 
-// Rate limiting configuration
 const RATE_LIMITS = {
-  updateProfile: { requests: 10, windowSeconds: 60 }, // 10 updates per minute
-  photoUpload: { requests: 5, windowSeconds: 300 }     // 5 uploads per 5 minutes
+  updateProfile: { requests: 10, windowSeconds: 60 },
+  photoUpload: { requests: 5, windowSeconds: 300 }
 };
 
-/**
- * Check rate limit for a user action
- * Uses DynamoDB to track request counts with TTL
- */
 async function checkRateLimit(userId, action) {
   if (!RATE_LIMIT_TABLE) {
-    // Rate limiting disabled if table not configured
     return { allowed: true };
   }
 
@@ -39,7 +33,6 @@ async function checkRateLimit(userId, action) {
   const key = `${userId}:${action}`;
 
   try {
-    // Get current count for this window
     const result = await docClient.send(new GetCommand({
       TableName: RATE_LIMIT_TABLE,
       Key: { rateLimitKey: key }
@@ -47,7 +40,6 @@ async function checkRateLimit(userId, action) {
 
     const item = result.Item;
 
-    // Check if we're within rate limit
     if (item && item.count >= limit.requests && item.windowStart > windowStart) {
       const resetTime = item.windowStart + limit.windowSeconds;
       return {
@@ -57,7 +49,6 @@ async function checkRateLimit(userId, action) {
       };
     }
 
-    // Update or create rate limit entry
     const newCount = (item && item.windowStart > windowStart) ? item.count + 1 : 1;
     const newWindowStart = (item && item.windowStart > windowStart) ? item.windowStart : now;
 
@@ -67,7 +58,7 @@ async function checkRateLimit(userId, action) {
         rateLimitKey: key,
         count: newCount,
         windowStart: newWindowStart,
-        ttl: now + limit.windowSeconds + 3600 // TTL 1 hour after window
+        ttl: now + limit.windowSeconds + 3600
       }
     }));
 
@@ -75,34 +66,25 @@ async function checkRateLimit(userId, action) {
 
   } catch (error) {
     console.error('Rate limit check failed:', error);
-    // Fail open - allow request if rate limiting fails
     return { allowed: true };
   }
 }
 
-/**
- * Validate userId format (UUID from Cognito)
- * Prevents path traversal and injection attacks
- */
 function validateUserId(userId) {
   if (!userId || typeof userId !== 'string') {
     return { valid: false, error: 'User ID is required' };
   }
 
-  // UUID format validation (Cognito uses UUIDs)
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-  // Check for path traversal attempts
   if (userId.includes('..') || userId.includes('/') || userId.includes('\\')) {
     return { valid: false, error: 'Invalid user ID format' };
   }
 
-  // Check length (UUIDs are 36 chars with hyphens)
   if (userId.length > 100) {
     return { valid: false, error: 'User ID too long' };
   }
 
-  // Validate UUID format
   if (!uuidRegex.test(userId)) {
     return { valid: false, error: 'Invalid user ID format' };
   }
@@ -110,9 +92,6 @@ function validateUserId(userId) {
   return { valid: true };
 }
 
-/**
- * Validate pagination limit parameter
- */
 function validateLimit(limit) {
   const numLimit = parseInt(limit, 10);
 
@@ -127,20 +106,15 @@ function validateLimit(limit) {
   return { valid: true, value: numLimit };
 }
 
-/**
- * Validate base64-encoded lastEvaluatedKey
- */
 function validateLastEvaluatedKey(key) {
   if (!key) {
     return { valid: true, value: null };
   }
 
   try {
-    // Attempt to decode and parse
     const decoded = Buffer.from(key, 'base64').toString();
     const parsed = JSON.parse(decoded);
 
-    // Basic validation - should be an object with expected DynamoDB key structure
     if (typeof parsed !== 'object' || parsed === null) {
       return { valid: false, error: 'Invalid pagination key format' };
     }
@@ -151,19 +125,8 @@ function validateLastEvaluatedKey(key) {
   }
 }
 
-/**
- * Lambda handler for Profile API
- * Routes:
- * - GET /profile/{userId} - Retrieve user profile
- * - PUT /profile - Update own profile
- * - GET /profile/{userId}/comments - Get user's comment history
- * - POST /profile/photo/upload-url - Get presigned URL for profile photo upload
- */
 exports.handler = async (event) => {
   try {
-    console.log('Event:', JSON.stringify(event, null, 2));
-
-    // Extract userId from JWT (Cognito authorizer)
     const requesterId = event.requestContext?.authorizer?.claims?.sub;
     const requesterEmail = event.requestContext?.authorizer?.claims?.email;
     const requesterGroups = event.requestContext?.authorizer?.claims?.['cognito:groups'] || '';
@@ -173,26 +136,21 @@ exports.handler = async (event) => {
       return errorResponse(401, 'Unauthorized: Missing user context');
     }
 
-    // Route based on HTTP method and resource
     const method = event.httpMethod;
     const resource = event.resource;
 
-    // GET /profile/{userId}
     if (method === 'GET' && resource === '/profile/{userId}') {
       return await getProfile(event, requesterId, isAdmin);
     }
 
-    // PUT /profile
     if (method === 'PUT' && resource === '/profile') {
       return await updateProfile(event, requesterId, requesterEmail);
     }
 
-    // GET /profile/{userId}/comments
     if (method === 'GET' && resource === '/profile/{userId}/comments') {
       return await getUserComments(event, requesterId, isAdmin);
     }
 
-    // POST /profile/photo/upload-url
     if (method === 'POST' && resource === '/profile/photo/upload-url') {
       return await getPhotoUploadUrl(event, requesterId);
     }
@@ -205,9 +163,6 @@ exports.handler = async (event) => {
   }
 };
 
-/**
- * GET /profile/{userId} - Retrieve user profile
- */
 async function getProfile(event, requesterId, isAdmin) {
   const userId = event.pathParameters?.userId;
 
@@ -215,7 +170,6 @@ async function getProfile(event, requesterId, isAdmin) {
     return errorResponse(400, 'Missing userId parameter');
   }
 
-  // Validate userId format
   const validation = validateUserId(userId);
   if (!validation.valid) {
     return errorResponse(400, validation.error);
@@ -233,7 +187,6 @@ async function getProfile(event, requesterId, isAdmin) {
 
     const profile = result.Item;
 
-    // Check privacy settings
     if (profile.isProfilePrivate && userId !== requesterId && !isAdmin) {
       return errorResponse(403, 'This profile is private');
     }
@@ -246,11 +199,7 @@ async function getProfile(event, requesterId, isAdmin) {
   }
 }
 
-/**
- * PUT /profile - Update own profile
- */
 async function updateProfile(event, requesterId, requesterEmail) {
-  // Check rate limit
   const rateLimitCheck = await checkRateLimit(requesterId, 'updateProfile');
   if (!rateLimitCheck.allowed) {
     return {
@@ -267,7 +216,6 @@ async function updateProfile(event, requesterId, requesterEmail) {
 
   const body = JSON.parse(event.body || '{}');
 
-  // Sanitize HTML in text fields to prevent XSS
   if (body.bio) {
     body.bio = sanitizeHtml(body.bio, {
       allowedTags: [],
@@ -289,7 +237,6 @@ async function updateProfile(event, requesterId, requesterEmail) {
     }).trim();
   }
 
-  // Validate inputs after sanitization
   const errors = [];
 
   if (body.bio && body.bio.length > 500) {
@@ -309,7 +256,6 @@ async function updateProfile(event, requesterId, requesterEmail) {
   }
 
   try {
-    // Build update expression dynamically
     const updateExpressions = [];
     const expressionAttributeNames = {};
     const expressionAttributeValues = {};
@@ -332,12 +278,10 @@ async function updateProfile(event, requesterId, requesterEmail) {
       }
     });
 
-    // Always update updatedAt
     updateExpressions.push('#updatedAt = :updatedAt');
     expressionAttributeNames['#updatedAt'] = 'updatedAt';
     expressionAttributeValues[':updatedAt'] = new Date().toISOString();
 
-    // If this is first update, set createdAt, joinedDate, email
     const now = new Date().toISOString();
     updateExpressions.push('#lastActive = :lastActive');
     expressionAttributeNames['#lastActive'] = 'lastActive';
@@ -352,7 +296,6 @@ async function updateProfile(event, requesterId, requesterEmail) {
       ReturnValues: 'ALL_NEW'
     }));
 
-    // Set email and joinedDate if creating for first time
     if (!result.Attributes.email) {
       await docClient.send(new UpdateCommand({
         TableName: USER_PROFILES_TABLE,
@@ -383,9 +326,6 @@ async function updateProfile(event, requesterId, requesterEmail) {
   }
 }
 
-/**
- * GET /profile/{userId}/comments - Get user's comment history
- */
 async function getUserComments(event, requesterId, isAdmin) {
   const userId = event.pathParameters?.userId;
   const limitParam = event.queryStringParameters?.limit || '50';
@@ -395,27 +335,23 @@ async function getUserComments(event, requesterId, isAdmin) {
     return errorResponse(400, 'Missing userId parameter');
   }
 
-  // Validate userId format
   const userIdValidation = validateUserId(userId);
   if (!userIdValidation.valid) {
     return errorResponse(400, userIdValidation.error);
   }
 
-  // Validate limit
   const limitValidation = validateLimit(limitParam);
   if (!limitValidation.valid) {
     return errorResponse(400, limitValidation.error);
   }
   const limit = limitValidation.value;
 
-  // Validate lastEvaluatedKey
   const keyValidation = validateLastEvaluatedKey(lastEvaluatedKeyParam);
   if (!keyValidation.valid) {
     return errorResponse(400, keyValidation.error);
   }
   const lastEvaluatedKey = keyValidation.value;
 
-  // First check if profile is private
   try {
     const profileResult = await docClient.send(new GetCommand({
       TableName: USER_PROFILES_TABLE,
@@ -428,12 +364,10 @@ async function getUserComments(event, requesterId, isAdmin) {
 
     const profile = profileResult.Item;
 
-    // Check privacy settings
     if (profile.isProfilePrivate && userId !== requesterId && !isAdmin) {
       return errorResponse(403, 'This profile is private');
     }
 
-    // Query comments using GSI
     const queryParams = {
       TableName: COMMENTS_TABLE,
       IndexName: 'UserCommentsIndex',
@@ -442,7 +376,7 @@ async function getUserComments(event, requesterId, isAdmin) {
         ':userId': userId
       },
       Limit: limit,
-      ScanIndexForward: false // Most recent first
+      ScanIndexForward: false
     };
 
     if (lastEvaluatedKey) {
@@ -451,7 +385,6 @@ async function getUserComments(event, requesterId, isAdmin) {
 
     const result = await docClient.send(new QueryCommand(queryParams));
 
-    // Filter out soft-deleted comments
     const comments = (result.Items || []).filter(item => !item.isDeleted);
 
     const response = {
@@ -469,11 +402,7 @@ async function getUserComments(event, requesterId, isAdmin) {
   }
 }
 
-/**
- * POST /profile/photo/upload-url - Generate presigned URL for profile photo upload
- */
 async function getPhotoUploadUrl(event, requesterId) {
-  // Check rate limit
   const rateLimitCheck = await checkRateLimit(requesterId, 'photoUpload');
   if (!rateLimitCheck.allowed) {
     return {
@@ -491,28 +420,23 @@ async function getPhotoUploadUrl(event, requesterId) {
   const body = JSON.parse(event.body || '{}');
   const { filename, contentType } = body;
 
-  // Validate required fields
   if (!filename || !contentType) {
     return errorResponse(400, 'Filename and contentType are required');
   }
 
-  // Server-side validation: Only allow image types for profile photos
   const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
   if (!allowedImageTypes.includes(contentType)) {
     return errorResponse(400, 'Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed for profile photos');
   }
 
-  // Validate filename (prevent path traversal)
   if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
     return errorResponse(400, 'Invalid filename');
   }
 
-  // Limit filename length
   if (filename.length > 255) {
     return errorResponse(400, 'Filename too long');
   }
 
-  // Extract file extension and validate
   const ext = filename.split('.').pop()?.toLowerCase();
   const validExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
   if (!ext || !validExtensions.includes(ext)) {
@@ -520,17 +444,15 @@ async function getPhotoUploadUrl(event, requesterId) {
   }
 
   try {
-    // Generate unique key for S3 using userId and timestamp
     const timestamp = Date.now();
     const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
     const key = `profile-photos/${requesterId}/${timestamp}-${sanitizedFilename}`;
 
-    // Create presigned URL with 5MB size limit enforced by S3
     const command = new PutObjectCommand({
       Bucket: PROFILE_PHOTOS_BUCKET,
       Key: key,
       ContentType: contentType,
-      ContentLengthRange: [0, 5 * 1024 * 1024], // 5MB max
+      ContentLengthRange: [0, 5 * 1024 * 1024],
       Metadata: {
         'uploaded-by': requesterId,
         'upload-timestamp': new Date().toISOString()
@@ -538,10 +460,9 @@ async function getPhotoUploadUrl(event, requesterId) {
     });
 
     const uploadUrl = await getSignedUrl(s3Client, command, {
-      expiresIn: 300 // 5 minutes
+      expiresIn: 300
     });
 
-    // Construct the public URL for the photo (using CloudFront or S3)
     const photoUrl = `https://${PROFILE_PHOTOS_BUCKET}.s3.amazonaws.com/${key}`;
 
     return successResponse({
@@ -556,9 +477,6 @@ async function getPhotoUploadUrl(event, requesterId) {
   }
 }
 
-/**
- * Success response helper
- */
 function successResponse(data, statusCode = 200) {
   return {
     statusCode,
@@ -571,9 +489,6 @@ function successResponse(data, statusCode = 200) {
   };
 }
 
-/**
- * Error response helper
- */
 function errorResponse(statusCode, message) {
   return {
     statusCode,
