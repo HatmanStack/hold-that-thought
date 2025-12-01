@@ -1,0 +1,329 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: Hold That Thought - Lambda API Functions
+
+Parameters:
+  AllowedOrigins:
+    Type: String
+    Description: CORS allowed origins
+    Default: '*'
+
+  UserProfilesTable:
+    Type: String
+    Description: DynamoDB table name for user profiles
+
+  CommentsTable:
+    Type: String
+    Description: DynamoDB table name for comments
+
+  MessagesTable:
+    Type: String
+    Description: DynamoDB table name for messages
+
+  ConversationMembersTable:
+    Type: String
+    Description: DynamoDB table name for conversation members
+
+  ReactionsTable:
+    Type: String
+    Description: DynamoDB table name for comment reactions
+
+  RateLimitTable:
+    Type: String
+    Description: DynamoDB table name for rate limiting
+
+  MediaBucket:
+    Type: String
+    Description: S3 bucket name for media uploads
+
+  ProfilePhotosBucket:
+    Type: String
+    Description: S3 bucket name for profile photos
+
+Globals:
+  Function:
+    Runtime: nodejs24.x
+    Timeout: 30
+    MemorySize: 256
+    Architectures:
+      - x86_64
+    Environment:
+      Variables:
+        CORS_ORIGIN: !Ref AllowedOrigins
+
+Resources:
+  CommentsApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/comments-api/
+      Handler: index.handler
+      Description: Comments API - list, create, edit, delete comments
+      Environment:
+        Variables:
+          COMMENTS_TABLE: !Ref CommentsTable
+          USER_PROFILES_TABLE: !Ref UserProfilesTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref CommentsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref UserProfilesTable
+      Events:
+        GetComments:
+          Type: Api
+          Properties:
+            Path: /comments/{itemId}
+            Method: get
+        CreateComment:
+          Type: Api
+          Properties:
+            Path: /comments/{itemId}
+            Method: post
+        EditComment:
+          Type: Api
+          Properties:
+            Path: /comments/{itemId}/{commentId}
+            Method: put
+        DeleteComment:
+          Type: Api
+          Properties:
+            Path: /comments/{itemId}/{commentId}
+            Method: delete
+        AdminDeleteComment:
+          Type: Api
+          Properties:
+            Path: /admin/comments/{commentId}
+            Method: delete
+
+  MessagesApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/messages-api/
+      Handler: index.handler
+      Description: Messages API - direct messaging functionality
+      Environment:
+        Variables:
+          MESSAGES_TABLE: !Ref MessagesTable
+          CONVERSATION_MEMBERS_TABLE: !Ref ConversationMembersTable
+          USER_PROFILES_TABLE: !Ref UserProfilesTable
+          BUCKET_NAME: !Ref MediaBucket
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MessagesTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConversationMembersTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref UserProfilesTable
+        - S3CrudPolicy:
+            BucketName: !Ref MediaBucket
+      Events:
+        GetConversations:
+          Type: Api
+          Properties:
+            Path: /messages/conversations
+            Method: get
+        GetMessages:
+          Type: Api
+          Properties:
+            Path: /messages/{conversationId}
+            Method: get
+        CreateConversation:
+          Type: Api
+          Properties:
+            Path: /messages/conversations
+            Method: post
+        SendMessage:
+          Type: Api
+          Properties:
+            Path: /messages/{conversationId}
+            Method: post
+        GetUploadUrl:
+          Type: Api
+          Properties:
+            Path: /messages/{conversationId}/upload-url
+            Method: post
+
+  ProfileApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/profile-api/
+      Handler: index.handler
+      Description: Profile API - user profile management
+      Environment:
+        Variables:
+          USER_PROFILES_TABLE: !Ref UserProfilesTable
+          COMMENTS_TABLE: !Ref CommentsTable
+          PROFILE_PHOTOS_BUCKET: !Ref ProfilePhotosBucket
+          RATE_LIMIT_TABLE: !Ref RateLimitTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UserProfilesTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref CommentsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RateLimitTable
+        - S3CrudPolicy:
+            BucketName: !Ref ProfilePhotosBucket
+      Events:
+        GetProfile:
+          Type: Api
+          Properties:
+            Path: /profile/{userId}
+            Method: get
+        UpdateProfile:
+          Type: Api
+          Properties:
+            Path: /profile
+            Method: put
+        GetUserComments:
+          Type: Api
+          Properties:
+            Path: /profile/{userId}/comments
+            Method: get
+        UploadPhotoUrl:
+          Type: Api
+          Properties:
+            Path: /profile/photo/upload-url
+            Method: post
+
+  ReactionsApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/reactions-api/
+      Handler: index.handler
+      Description: Reactions API - comment reactions (likes, etc)
+      Environment:
+        Variables:
+          COMMENT_REACTIONS_TABLE: !Ref ReactionsTable
+          COMMENTS_TABLE: !Ref CommentsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ReactionsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref CommentsTable
+      Events:
+        GetReactions:
+          Type: Api
+          Properties:
+            Path: /reactions/{commentId}
+            Method: get
+        AddReaction:
+          Type: Api
+          Properties:
+            Path: /reactions/{commentId}
+            Method: post
+        RemoveReaction:
+          Type: Api
+          Properties:
+            Path: /reactions/{commentId}
+            Method: delete
+
+  MediaUploadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/media-upload-lambda/
+      Handler: index.handler
+      Description: Media upload - generate presigned URLs for S3 uploads
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref MediaBucket
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref MediaBucket
+      Events:
+        GetUploadUrl:
+          Type: Api
+          Properties:
+            Path: /media/upload-url
+            Method: post
+
+  PdfDownloadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/pdf-download-lambda/
+      Handler: index.handler
+      Description: PDF download - generate presigned URLs for PDF downloads
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref MediaBucket
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref MediaBucket
+      Events:
+        GetDownloadUrl:
+          Type: Api
+          Properties:
+            Path: /pdf/download-url
+            Method: get
+
+  DownloadPresignedUrlFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/download-presigned-url-lambda/
+      Handler: index.handler
+      Description: Download presigned URL - generate presigned URLs for file downloads
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref MediaBucket
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref MediaBucket
+      Events:
+        GetPresignedUrl:
+          Type: Api
+          Properties:
+            Path: /download/presigned-url
+            Method: get
+
+  ActivityAggregatorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/activity-aggregator/
+      Handler: index.handler
+      Description: Activity aggregator - update user stats from DynamoDB streams
+      Environment:
+        Variables:
+          USER_PROFILES_TABLE: !Ref UserProfilesTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UserProfilesTable
+
+  NotificationProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/notification-processor/
+      Handler: index.handler
+      Description: Notification processor - send emails from DynamoDB streams
+      Environment:
+        Variables:
+          USER_PROFILES_TABLE: !Ref UserProfilesTable
+          SES_FROM_EMAIL: noreply@holdthatthought.family
+          BASE_URL: https://holdthatthought.family
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref UserProfilesTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+              Resource: '*'
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/'
+
+  CommentsApiFunctionArn:
+    Description: Comments API Lambda Function ARN
+    Value: !GetAtt CommentsApiFunction.Arn
+
+  MessagesApiFunctionArn:
+    Description: Messages API Lambda Function ARN
+    Value: !GetAtt MessagesApiFunction.Arn
+
+  ProfileApiFunctionArn:
+    Description: Profile API Lambda Function ARN
+    Value: !GetAtt ProfileApiFunction.Arn
+
+  ReactionsApiFunctionArn:
+    Description: Reactions API Lambda Function ARN
+    Value: !GetAtt ReactionsApiFunction.Arn

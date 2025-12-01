@@ -13,7 +13,7 @@ const adapter = {
     assets: 'build',
     fallback: undefined,
     pages: 'build',
-    strict: false
+    strict: false,
   }),
 }
 
@@ -21,6 +21,16 @@ const adapter = {
 export default {
   extensions: ['.svelte', ...(mdsvexConfig.extensions ?? [])],
   kit: {
+    files: {
+      assets: 'static',
+      lib: 'frontend/lib',
+      params: 'frontend/params',
+      routes: 'frontend/routes',
+      appTemplate: 'frontend/app.html',
+      hooks: {
+        server: 'frontend/hooks.server',
+      },
+    },
     adapter:
       process.env.ADAPTER
         // @ts-expect-error adapter types
@@ -39,21 +49,20 @@ export default {
       handleHttpError: ({ path, referrer, message }) => {
         // Ignore double-slash paths during prerendering
         if (path.includes('//') && referrer) {
-          console.warn(`Ignoring double-slash path: ${message}`);
-          return;
+          console.warn(`Ignoring double-slash path: ${message}`)
+          return
         }
-        
+
         // Ignore 401 errors for protected routes like /admin
         if (message.includes('401') && (path.includes('/admin') || path.includes('/login'))) {
-          console.warn(`Ignoring protected route during prerender: ${path}`);
-          return;
+          console.warn(`Ignoring protected route during prerender: ${path}`)
+          return
         }
-        
+
         // For other errors, throw to fail the build
-        throw new Error(message);
-      }
+        throw new Error(message)
+      },
     },
   },
   preprocess: [mdsvex(mdsvexConfig), vitePreprocess()],
 }
-

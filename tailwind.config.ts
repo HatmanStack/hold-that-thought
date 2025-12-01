@@ -3,10 +3,10 @@ import type { Config } from 'tailwindcss'
 import typography from '@tailwindcss/typography'
 import daisyui from 'daisyui'
 
-import { theme } from './src/lib/config/general'
+import { theme } from './frontend/lib/config/general'
 
 export default {
-  content: ['./src/**/*.{html,md,js,svelte,ts}'],
+  content: ['./frontend/**/*.{html,md,js,svelte,ts}'],
   daisyui: { themes: theme.map(({ name }) => name) },
   plugins: [typography, daisyui],
   theme: {

@@ -3,41 +3,41 @@ config:
   phases:
     - duration: 60
       arrivalRate: 5
-      name: "Warm up"
+      name: Warm up
     - duration: 120
       arrivalRate: 10
-      name: "Sustained load"
+      name: Sustained load
   http:
     timeout: 30
 
 scenarios:
-  - name: "View inbox and send message"
+  - name: View inbox and send message
     flow:
       # Get conversations list
       - get:
-          url: "/messages/conversations"
+          url: /messages/conversations
           headers:
-            Authorization: "Bearer {{ $processEnvironment.TEST_TOKEN }}"
+            Authorization: 'Bearer {{ $processEnvironment.TEST_TOKEN }}'
           capture:
-            - json: "$.conversations[0].conversationId"
-              as: "conversationId"
+            - json: '$.conversations[0].conversationId'
+              as: conversationId
       - think: 2
 
       # View conversation messages
       - get:
-          url: "/messages/{{ conversationId }}"
+          url: '/messages/{{ conversationId }}'
           headers:
-            Authorization: "Bearer {{ $processEnvironment.TEST_TOKEN }}"
-          ifTrue: "conversationId"
+            Authorization: 'Bearer {{ $processEnvironment.TEST_TOKEN }}'
+          ifTrue: conversationId
       - think: 3
 
       # Send a message
       - post:
-          url: "/messages/{{ conversationId }}"
+          url: '/messages/{{ conversationId }}'
           headers:
-            Authorization: "Bearer {{ $processEnvironment.TEST_TOKEN }}"
-            Content-Type: "application/json"
+            Authorization: 'Bearer {{ $processEnvironment.TEST_TOKEN }}'
+            Content-Type: application/json
           json:
-            messageText: "Load test message - {{ $randomString() }}"
-          ifTrue: "conversationId"
+            messageText: 'Load test message - {{ $randomString() }}'
+          ifTrue: conversationId
       - think: 1

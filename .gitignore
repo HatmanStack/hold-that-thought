@@ -14,20 +14,49 @@ venv
 python_scripts
 urara
 .env
-lambdas/*/coverage
+.env.local
+.env.*.local
 
-# logs
+# Backend deployment
+backend/.deploy-config.json
+backend/samconfig.toml
+backend/.aws-sam/
+
+# Coverage
+coverage/
+backend/lambdas/*/coverage
+
+# Vitest
+vitest.config.ts.timestamp*
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 pnpm-debug.log*
 
-# macOS-specific files
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing
+playwright-report/
+test-results/
+
+# OS
 .DS_Store
+Thumbs.db
 
-# temp file
-src/routes/**/+page.svelte.md
-src/routes/**/+page.md
-src/static
+# temp files
+frontend/routes/**/+page.svelte.md
+frontend/routes/**/+page.md
+frontend/static
+frontend/routes/*/+page.server.js
 
-#amplify-do-not-edit-begin
+# AWS Amplify (legacy)
 amplify/\#current-cloud-backend
 amplify/.config/local-*
 amplify/logs
@@ -35,9 +64,6 @@ amplify/mock-data
 amplify/mock-api-resources
 amplify/backend/amplify-meta.json
 amplify/backend/.temp
-build/
-dist/
-node_modules/
 aws-exports.js
 awsconfiguration.json
 amplifyconfiguration.json
@@ -47,7 +73,3 @@ amplify-gradle-config.json
 amplifytools.xcconfig
 .secret-*
 **.sample
-#amplify-do-not-edit-end
-lambdas/media-upload-lambda/node_modules
-lambdas/pdf-download-lambda/node_modules
-src/routes/*/+page.server.js

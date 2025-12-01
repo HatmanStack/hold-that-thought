@@ -9,7 +9,8 @@ NPM_FLAGS = "--version"
 node_bundler = "esbuild"
 
 [[headers]]
-  for = "/favicon.png"
-  [headers.values]
-    Cache-Control = "public, max-age=3600"
-    Content-Type = "image/png"
+for = "/favicon.png"
+
+[headers.values]
+Cache-Control = "public, max-age=3600"
+Content-Type = "image/png"
