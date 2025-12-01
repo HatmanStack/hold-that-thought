@@ -29,5 +29,6 @@ export default antfu({
     'style/indent-binary-ops': 'off',
     'regexp/no-super-linear-backtracking': 'off',
     'eqeqeq': 'warn',
+    'no-undef-init': 'off', // Required for Svelte optional props with undefined default
   },
 })
