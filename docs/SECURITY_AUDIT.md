@@ -88,7 +88,7 @@ pnpm audit
 ```typescript
 // src/lib/services/commentService.ts
 export async function createComment(itemId: string, text: string) {
-  const token = await getAuthToken();
+  const token = await getAuthToken()
   const response = await fetch(`/api/comments/${itemId}`, {
     method: 'POST',
     headers: {
@@ -96,7 +96,7 @@ export async function createComment(itemId: string, text: string) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({ commentText: text })
-  });
+  })
 }
 ```
 
@@ -110,11 +110,11 @@ export async function createComment(itemId: string, text: string) {
 ```svelte
 <!-- Comment form validation -->
 {#if commentText.trim().length === 0}
-  <span class="text-error text-sm">Comment cannot be empty</span>
+  <span class='text-error text-sm'>Comment cannot be empty</span>
 {/if}
 
 {#if commentText.length > 2000}
-  <span class="text-error text-sm">Comment too long (max 2000 chars)</span>
+  <span class='text-error text-sm'>Comment too long (max 2000 chars)</span>
 {/if}
 ```
 
@@ -122,25 +122,25 @@ export async function createComment(itemId: string, text: string) {
 ```javascript
 // lambdas/comments-api/handler.js
 exports.handler = async (event) => {
-  const body = JSON.parse(event.body);
+  const body = JSON.parse(event.body)
 
   // Validation needed:
   if (!body.commentText || typeof body.commentText !== 'string') {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Invalid input' }) };
+    return { statusCode: 400, body: JSON.stringify({ error: 'Invalid input' }) }
   }
 
   if (body.commentText.length > 2000) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Comment too long' }) };
+    return { statusCode: 400, body: JSON.stringify({ error: 'Comment too long' }) }
   }
 
   // Sanitize: trim whitespace
-  const commentText = body.commentText.trim();
+  const commentText = body.commentText.trim()
   if (commentText.length === 0) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Comment cannot be empty' }) };
+    return { statusCode: 400, body: JSON.stringify({ error: 'Comment cannot be empty' }) }
   }
 
   // Continue with DynamoDB write...
-};
+}
 ```
 
 **Recommendation:** ✅ Validate in Lambda functions (already implemented in Phase 1)
@@ -157,48 +157,49 @@ exports.handler = async (event) => {
 
 ```javascript
 // lambdas/shared/rateLimiter.js
-const rateLimits = new Map(); // userId -> { count, resetTime }
+const rateLimits = new Map() // userId -> { count, resetTime }
 
 function checkRateLimit(userId, limit = 10, windowMs = 60000) {
-  const now = Date.now();
-  const userLimit = rateLimits.get(userId) || { count: 0, resetTime: now + windowMs };
+  const now = Date.now()
+  const userLimit = rateLimits.get(userId) || { count: 0, resetTime: now + windowMs }
 
   // Reset window if expired
   if (now > userLimit.resetTime) {
-    userLimit.count = 0;
-    userLimit.resetTime = now + windowMs;
+    userLimit.count = 0
+    userLimit.resetTime = now + windowMs
   }
 
   // Increment and check
-  userLimit.count++;
-  rateLimits.set(userId, userLimit);
+  userLimit.count++
+  rateLimits.set(userId, userLimit)
 
   if (userLimit.count > limit) {
-    throw new Error('Rate limit exceeded');
+    throw new Error('Rate limit exceeded')
   }
 }
 
-module.exports = { checkRateLimit };
+module.exports = { checkRateLimit }
 ```
 
 Usage in handler:
 ```javascript
-const { checkRateLimit } = require('./shared/rateLimiter');
+const { checkRateLimit } = require('./shared/rateLimiter')
 
 exports.handler = async (event) => {
-  const userId = event.requestContext.authorizer.claims.sub;
+  const userId = event.requestContext.authorizer.claims.sub
 
   try {
-    checkRateLimit(userId, 10, 60000); // 10 requests per minute
-  } catch (error) {
+    checkRateLimit(userId, 10, 60000) // 10 requests per minute
+  }
+  catch (error) {
     return {
       statusCode: 429,
       body: JSON.stringify({ error: 'Too many requests' })
-    };
+    }
   }
 
   // Continue with business logic...
-};
+}
 ```
 
 #### Solution 2: API Gateway Throttling
@@ -211,8 +212,8 @@ Resources:
     Properties:
       UsagePlanName: StandardPlan
       Throttle:
-        BurstLimit: 50   # Max concurrent requests
-        RateLimit: 10     # Requests per second per user
+        BurstLimit: 50 # Max concurrent requests
+        RateLimit: 10 # Requests per second per user
 ```
 
 **Status:** ❌ Not implemented - HIGH PRIORITY
@@ -230,31 +231,31 @@ Resources:
 ```typescript
 // src/hooks.server.ts
 export async function handle({ event, resolve }) {
-  const response = await resolve(event);
+  const response = await resolve(event)
 
   // Content Security Policy
   response.headers.set(
     'Content-Security-Policy',
     [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline'", // 'unsafe-inline' for Svelte hydration
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "img-src 'self' https://*.amazonaws.com data:", // S3 images
-      "font-src 'self' https://fonts.gstatic.com",
-      "connect-src 'self' https://*.amazonaws.com", // API Gateway
-      "frame-ancestors 'none'", // Prevent clickjacking
-      "base-uri 'self'",
-      "form-action 'self'"
+      'default-src \'self\'',
+      'script-src \'self\' \'unsafe-inline\'', // 'unsafe-inline' for Svelte hydration
+      'style-src \'self\' \'unsafe-inline\' https://fonts.googleapis.com',
+      'img-src \'self\' https://*.amazonaws.com data:', // S3 images
+      'font-src \'self\' https://fonts.gstatic.com',
+      'connect-src \'self\' https://*.amazonaws.com', // API Gateway
+      'frame-ancestors \'none\'', // Prevent clickjacking
+      'base-uri \'self\'',
+      'form-action \'self\''
     ].join('; ')
-  );
+  )
 
   // Additional security headers
-  response.headers.set('X-Frame-Options', 'DENY');
-  response.headers.set('X-Content-Type-Options', 'nosniff');
-  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  response.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  response.headers.set('X-Frame-Options', 'DENY')
+  response.headers.set('X-Content-Type-Options', 'nosniff')
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  response.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()')
 
-  return response;
+  return response
 }
 ```
 
@@ -300,7 +301,7 @@ SSESpecification:
 3. **Short-lived Presigned URLs**
    ```javascript
    // Current: 15 minutes ✅
-   const signedUrl = await getSignedUrl(s3, command, { expiresIn: 900 });
+   const signedUrl = await getSignedUrl(s3, command, { expiresIn: 900 })
    ```
 
 **Status:** ⚠️ Verify S3 bucket configuration
@@ -393,19 +394,19 @@ if (comment.userId !== userId && !isAdmin(userId)) {
 
 **Implementation:**
 ```javascript
-const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
+const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager')
 
 async function getSecret(secretName) {
-  const client = new SecretsManagerClient({ region: 'us-east-1' });
+  const client = new SecretsManagerClient({ region: 'us-east-1' })
   const response = await client.send(
     new GetSecretValueCommand({ SecretId: secretName })
-  );
-  return JSON.parse(response.SecretString);
+  )
+  return JSON.parse(response.SecretString)
 }
 
 // Usage:
-const secrets = await getSecret('hold-that-thought/api-keys');
-const apiKey = secrets.SOME_API_KEY;
+const secrets = await getSecret('hold-that-thought/api-keys')
+const apiKey = secrets.SOME_API_KEY
 ```
 
 **Status:** ⚠️ Consider for sensitive data
@@ -425,17 +426,17 @@ const apiKey = secrets.SOME_API_KEY;
 **Example - Good Logging:**
 ```javascript
 console.log('Comment created', {
-  userId: userId,
-  itemId: itemId,
-  commentId: commentId,
+  userId,
+  itemId,
+  commentId,
   timestamp: new Date().toISOString()
-});
+})
 ```
 
 **Example - Bad Logging:**
 ```javascript
 // ❌ DO NOT do this:
-console.log('Request body:', body); // May contain tokens
+console.log('Request body:', body) // May contain tokens
 ```
 
 ### ❌ CloudTrail

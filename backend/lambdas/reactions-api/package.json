@@ -1,9 +1,9 @@
 {
   "name": "reactions-api",
+  "type": "commonjs",
   "version": "1.0.0",
   "description": "Lambda function for adding/removing reactions (likes) on comments",
   "main": "index.js",
-  "type": "commonjs",
   "scripts": {
     "test": "jest --coverage",
     "test:watch": "jest --watch"

@@ -37,6 +37,6 @@
 </script>
 
 <div id='giscus-container'>
-  <button class='btn btn-lg flex mx-auto my-4 btn-ghost btn-circle loading' id='giscus-loading' />
+  <button class='btn flex mx-auto btn-ghost btn-circle loading btn-lg my-4' id='giscus-loading' />
   <div class='giscus' id='giscus' />
 </div>

@@ -18,7 +18,6 @@
   <p align="center"><b>Sharing letters, one typo at a time <br> <a href="https://float-app.fun/"> Round Robin » </a> </b> </p>
 </p>
 
-
 ## Features
 
 - [X]  Base Round Robin  1999-2016
@@ -34,10 +33,10 @@
 To run this blog locally:
 
 1.  Clone the repository: `git clone [repository URL]`
-2.  Install dependencies: `npx pnpm install` 
+2.  Install dependencies: `npx pnpm install`
 3.  Run the development server: `npx pnpm dev`
 4.  Open your browser and navigate to `http://localhost:5173`
 
 ## Contributing
 
-Reach out to your Round Robin Contact for credentials to modify base application 
+Reach out to your Round Robin Contact for credentials to modify base application

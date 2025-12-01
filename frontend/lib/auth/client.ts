@@ -1,8 +1,8 @@
 import { browser } from '$app/environment'
-import { 
-  PUBLIC_COGNITO_USER_POOL_ID,
+import {
+  PUBLIC_AWS_REGION,
   PUBLIC_COGNITO_USER_POOL_CLIENT_ID,
-  PUBLIC_AWS_REGION 
+  PUBLIC_COGNITO_USER_POOL_ID,
 } from '$env/static/public'
 import { authStore } from './auth-store'
 
@@ -26,17 +26,20 @@ export interface UserInfo {
  * Get stored tokens from localStorage
  */
 export function getStoredTokens(): CognitoTokens | null {
-  if (!browser) return null
-  
+  if (!browser)
+    return null
+
   try {
     const idToken = localStorage.getItem('cognito_id_token')
     const accessToken = localStorage.getItem('cognito_access_token')
     const refreshToken = localStorage.getItem('cognito_refresh_token')
-    
-    if (!idToken || !accessToken || !refreshToken) return null
-    
+
+    if (!idToken || !accessToken || !refreshToken)
+      return null
+
     return { idToken, accessToken, refreshToken }
-  } catch {
+  }
+  catch {
     return null
   }
 }
@@ -45,8 +48,9 @@ export function getStoredTokens(): CognitoTokens | null {
  * Store tokens in localStorage
  */
 export function storeTokens(tokens: CognitoTokens): void {
-  if (!browser) return
-  
+  if (!browser)
+    return
+
   localStorage.setItem('cognito_id_token', tokens.idToken)
   localStorage.setItem('cognito_access_token', tokens.accessToken)
   localStorage.setItem('cognito_refresh_token', tokens.refreshToken)
@@ -56,8 +60,9 @@ export function storeTokens(tokens: CognitoTokens): void {
  * Clear stored tokens
  */
 export function clearTokens(): void {
-  if (!browser) return
-  
+  if (!browser)
+    return
+
   localStorage.removeItem('cognito_id_token')
   localStorage.removeItem('cognito_access_token')
   localStorage.removeItem('cognito_refresh_token')
@@ -74,11 +79,12 @@ export function decodeJWTPayload(token: string): any {
     const jsonPayload = decodeURIComponent(
       atob(base64)
         .split('')
-        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
+        .map(c => `%${(`00${c.charCodeAt(0).toString(16)}`).slice(-2)}`)
+        .join(''),
     )
     return JSON.parse(jsonPayload)
-  } catch {
+  }
+  catch {
     return null
   }
 }
@@ -88,11 +94,13 @@ export function decodeJWTPayload(token: string): any {
  */
 export function getUserInfo(): UserInfo | null {
   const tokens = getStoredTokens()
-  if (!tokens) return null
-  
+  if (!tokens)
+    return null
+
   const payload = decodeJWTPayload(tokens.idToken)
-  if (!payload) return null
-  
+  if (!payload)
+    return null
+
   return {
     id: payload.sub,
     email: payload.email,
@@ -100,7 +108,7 @@ export function getUserInfo(): UserInfo | null {
     groups: payload['cognito:groups'] || [],
     given_name: payload.given_name,
     family_name: payload.family_name,
-    picture: payload.picture
+    picture: payload.picture,
   }
 }
 
@@ -120,13 +128,13 @@ export async function authenticatedFetch(url: string, options: RequestInit = {})
   if (!tokens) {
     throw new Error('No authentication tokens available')
   }
-  
+
   const headers = new Headers(options.headers)
   headers.set('Authorization', `Bearer ${tokens.idToken}`)
-  
+
   return fetch(url, {
     ...options,
-    headers
+    headers,
   })
 }
 
@@ -146,13 +154,13 @@ export async function refreshSession(): Promise<void> {
     const response = await fetch(tokenEndpoint, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
         grant_type: 'refresh_token',
         client_id: PUBLIC_COGNITO_USER_POOL_CLIENT_ID,
-        refresh_token: tokens.refreshToken
-      })
+        refresh_token: tokens.refreshToken,
+      }),
     })
 
     if (!response.ok) {
@@ -160,22 +168,23 @@ export async function refreshSession(): Promise<void> {
     }
 
     const data = await response.json()
-    
+
     // Update tokens in localStorage and auth store
     const newTokens: CognitoTokens = {
       idToken: data.id_token,
       accessToken: data.access_token,
-      refreshToken: tokens.refreshToken // Keep existing refresh token
+      refreshToken: tokens.refreshToken, // Keep existing refresh token
     }
-    
+
     storeTokens(newTokens)
-    
+
     // Update auth store with new tokens and user info
     const userInfo = getUserInfo()
     if (userInfo) {
       authStore.setAuthenticated(userInfo, newTokens)
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Token refresh failed:', error)
     // Clear tokens and auth store on refresh failure
     clearTokens()

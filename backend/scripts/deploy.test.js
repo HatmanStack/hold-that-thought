@@ -1,31 +1,30 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  loadOrPromptConfig,
   generateSamConfig,
+  loadOrPromptConfig,
   question,
-  createInterface
-} from './deploy.js';
+} from './deploy.js'
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const DEPLOY_CONFIG_PATH = path.join(__dirname, '..', '.deploy-config.json');
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const DEPLOY_CONFIG_PATH = path.join(__dirname, '..', '.deploy-config.json')
 
-vi.mock('fs');
-vi.mock('child_process');
+vi.mock('fs')
+vi.mock('child_process')
 
 describe('deploy.js', () => {
   beforeEach(() => {
-    vi.resetAllMocks();
-    vi.mocked(fs.existsSync).mockReturnValue(false);
-    vi.mocked(fs.writeFileSync).mockReturnValue(undefined);
-  });
+    vi.resetAllMocks()
+    vi.mocked(fs.existsSync).mockReturnValue(false)
+    vi.mocked(fs.writeFileSync).mockReturnValue(undefined)
+  })
 
   afterEach(() => {
-    vi.restoreAllMocks();
-  });
+    vi.restoreAllMocks()
+  })
 
   describe('loadOrPromptConfig', () => {
     it('should load existing config file', async () => {
@@ -40,64 +39,64 @@ describe('deploy.js', () => {
         reactionsTable: 'TestReactions',
         rateLimitTable: 'TestRateLimit',
         mediaBucket: 'test-media',
-        profilePhotosBucket: 'test-photos'
-      };
+        profilePhotosBucket: 'test-photos',
+      }
 
-      vi.mocked(fs.existsSync).mockReturnValue(true);
-      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(existingConfig));
+      vi.mocked(fs.existsSync).mockReturnValue(true)
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(existingConfig))
 
       const mockRl = {
         question: vi.fn(),
-        close: vi.fn()
-      };
+        close: vi.fn(),
+      }
 
-      const config = await loadOrPromptConfig(mockRl);
+      const config = await loadOrPromptConfig(mockRl)
 
-      expect(config.region).toBe('us-west-2');
-      expect(config.stackName).toBe('test-stack');
-      expect(fs.writeFileSync).toHaveBeenCalled();
-    });
+      expect(config.region).toBe('us-west-2')
+      expect(config.stackName).toBe('test-stack')
+      expect(fs.writeFileSync).toHaveBeenCalled()
+    })
 
     it('should use defaults when config is empty', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(false);
+      vi.mocked(fs.existsSync).mockReturnValue(false)
 
-      let questionIndex = 0;
+      let questionIndex = 0
       const mockRl = {
         question: vi.fn((query, callback) => {
-          callback('');
-          questionIndex++;
+          callback('')
+          questionIndex++
         }),
-        close: vi.fn()
-      };
+        close: vi.fn(),
+      }
 
-      const config = await loadOrPromptConfig(mockRl);
+      const config = await loadOrPromptConfig(mockRl)
 
-      expect(config.region).toBe('us-east-1');
-      expect(config.stackName).toBe('hold-that-thought');
-      expect(config.allowedOrigins).toBe('*');
-    });
+      expect(config.region).toBe('us-east-1')
+      expect(config.stackName).toBe('hold-that-thought')
+      expect(config.allowedOrigins).toBe('*')
+    })
 
     it('should prompt for missing values', async () => {
       const partialConfig = {
-        region: 'eu-west-1'
-      };
+        region: 'eu-west-1',
+      }
 
-      vi.mocked(fs.existsSync).mockReturnValue(true);
-      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(partialConfig));
+      vi.mocked(fs.existsSync).mockReturnValue(true)
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(partialConfig))
 
       const mockRl = {
         question: vi.fn((query, callback) => {
-          callback('');
+          callback('')
         }),
-        close: vi.fn()
-      };
+        close: vi.fn(),
+      }
 
-      const config = await loadOrPromptConfig(mockRl);
+      const config = await loadOrPromptConfig(mockRl)
 
-      expect(config.region).toBe('eu-west-1');
-      expect(config.stackName).toBe('hold-that-thought');
-    });
-  });
+      expect(config.region).toBe('eu-west-1')
+      expect(config.stackName).toBe('hold-that-thought')
+    })
+  })
 
   describe('generateSamConfig', () => {
     it('should generate valid TOML', () => {
@@ -112,19 +111,19 @@ describe('deploy.js', () => {
         reactionsTable: 'Reactions',
         rateLimitTable: 'RateLimit',
         mediaBucket: 'media',
-        profilePhotosBucket: 'photos'
-      };
+        profilePhotosBucket: 'photos',
+      }
 
-      const result = generateSamConfig(config);
+      const result = generateSamConfig(config)
 
-      expect(result).toContain('version = 0.1');
-      expect(result).toContain('stack_name = "hold-that-thought"');
-      expect(result).toContain('region = "us-east-1"');
-      expect(result).toContain('capabilities = "CAPABILITY_IAM"');
-      expect(result).toContain('AllowedOrigins=*');
-      expect(result).toContain('UserProfilesTable=Profiles');
-      expect(result).toContain('resolve_s3 = true');
-    });
+      expect(result).toContain('version = 0.1')
+      expect(result).toContain('stack_name = "hold-that-thought"')
+      expect(result).toContain('region = "us-east-1"')
+      expect(result).toContain('capabilities = "CAPABILITY_IAM"')
+      expect(result).toContain('AllowedOrigins=*')
+      expect(result).toContain('UserProfilesTable=Profiles')
+      expect(result).toContain('resolve_s3 = true')
+    })
 
     it('should include all parameter overrides', () => {
       const config = {
@@ -138,31 +137,31 @@ describe('deploy.js', () => {
         reactionsTable: 'Reactions',
         rateLimitTable: 'RateLimit',
         mediaBucket: 'media-bucket',
-        profilePhotosBucket: 'photos-bucket'
-      };
+        profilePhotosBucket: 'photos-bucket',
+      }
 
-      const result = generateSamConfig(config);
+      const result = generateSamConfig(config)
 
-      expect(result).toContain('CommentsTable=Comments');
-      expect(result).toContain('MessagesTable=Messages');
-      expect(result).toContain('ReactionsTable=Reactions');
-      expect(result).toContain('MediaBucket=media-bucket');
-      expect(result).toContain('ProfilePhotosBucket=photos-bucket');
-    });
-  });
+      expect(result).toContain('CommentsTable=Comments')
+      expect(result).toContain('MessagesTable=Messages')
+      expect(result).toContain('ReactionsTable=Reactions')
+      expect(result).toContain('MediaBucket=media-bucket')
+      expect(result).toContain('ProfilePhotosBucket=photos-bucket')
+    })
+  })
 
   describe('question helper', () => {
     it('should return user input via promise', async () => {
       const mockRl = {
         question: vi.fn((query, callback) => {
-          callback('user-input');
-        })
-      };
+          callback('user-input')
+        }),
+      }
 
-      const result = await question(mockRl, 'Enter value: ');
+      const result = await question(mockRl, 'Enter value: ')
 
-      expect(result).toBe('user-input');
-      expect(mockRl.question).toHaveBeenCalledWith('Enter value: ', expect.any(Function));
-    });
-  });
-});
+      expect(result).toBe('user-input')
+      expect(mockRl.question).toHaveBeenCalledWith('Enter value: ', expect.any(Function))
+    })
+  })
+})

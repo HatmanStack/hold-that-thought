@@ -1,6 +1,6 @@
 import type { Handle } from '@sveltejs/kit'
-import { site } from '$lib/config/site'
 import { getOptionalUser } from '$lib/auth/middleware'
+import { site } from '$lib/config/site'
 
 export const handle: Handle = async ({ event, resolve }) => {
   // Add user context to all requests
@@ -14,16 +14,16 @@ export const handle: Handle = async ({ event, resolve }) => {
   response.headers.set(
     'Content-Security-Policy',
     [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // unsafe-inline/eval needed for Svelte hydration and dev
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "img-src 'self' https://*.amazonaws.com https://s3.amazonaws.com data: blob:",
-      "font-src 'self' https://fonts.gstatic.com",
-      "connect-src 'self' https://*.amazonaws.com https://*.execute-api.*.amazonaws.com",
-      "frame-ancestors 'none'",
-      "base-uri 'self'",
-      "form-action 'self'"
-    ].join('; ')
+      'default-src \'self\'',
+      'script-src \'self\' \'unsafe-inline\' \'unsafe-eval\'', // unsafe-inline/eval needed for Svelte hydration and dev
+      'style-src \'self\' \'unsafe-inline\' https://fonts.googleapis.com',
+      'img-src \'self\' https://*.amazonaws.com https://s3.amazonaws.com data: blob:',
+      'font-src \'self\' https://fonts.gstatic.com',
+      'connect-src \'self\' https://*.amazonaws.com https://*.execute-api.*.amazonaws.com',
+      'frame-ancestors \'none\'',
+      'base-uri \'self\'',
+      'form-action \'self\'',
+    ].join('; '),
   )
 
   // Additional security headers

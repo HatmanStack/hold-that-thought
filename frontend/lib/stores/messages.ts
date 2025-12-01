@@ -1,5 +1,5 @@
-import { writable } from 'svelte/store'
 import { getConversations } from '$lib/services/messageService'
+import { writable } from 'svelte/store'
 
 /**
  * Store for total unread message count
@@ -17,11 +17,13 @@ export async function updateUnreadCount(): Promise<void> {
       const conversations = Array.isArray(result.data) ? result.data : [result.data]
       const total = conversations.reduce((sum, c) => sum + c.unreadCount, 0)
       unreadCount.set(total)
-    } else {
+    }
+    else {
       // On error, keep current count
       console.error('Failed to update unread count:', result.error)
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error updating unread count:', error)
   }
 }

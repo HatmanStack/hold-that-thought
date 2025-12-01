@@ -9,18 +9,18 @@
 </script>
 
 <footer
-  class="footer footer-center bg-base-300 text-base-content shadow-inner p-8 {rounded
+  class="shadow-inner footer footer-center bg-base-300 text-base-content p-8{rounded
     ? 'rounded-box'
     : 'md:rounded-box'} {sticky ? 'sticky bottom-0 z-0 md:static' : ''} {className ?? ''}"
   id='footer'>
   <div class='prose'>
     <p>
-      
+
       Copyright © {footerConfig.since && footerConfig.since !== new Date().toJSON().substring(0, 4)
         ? `${footerConfig.since} - ${new Date().toJSON().substring(0, 4)}`
         : new Date().toJSON().substring(0, 4)}
       {site.author.name}
-      
+
       {#if footerConfig.html}
         {@html footerConfig.html}
       {/if}

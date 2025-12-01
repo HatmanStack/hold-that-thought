@@ -217,7 +217,7 @@ const result = await apiClient.post('/protected/posts', {
 {#if $isAuthenticated}
   <p>Welcome, {$currentUser.email}!</p>
 {:else}
-  <a href="/auth/login">Sign In</a>
+  <a href='/auth/login'>Sign In</a>
 {/if}
 ```
 
@@ -229,7 +229,7 @@ exports.handler = async (event) => {
   const claims = event.requestContext.authorizer.claims
   const userId = claims.sub
   const email = claims.email
-  
+
   return {
     statusCode: 200,
     headers: {

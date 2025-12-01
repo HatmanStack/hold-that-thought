@@ -65,10 +65,10 @@ pnpm kit:build
 **Solution:**
 ```typescript
 // Wrong:
-await page.click('button').first();
+await page.click('button').first()
 
 // Correct:
-await page.locator('button').first().click();
+await page.locator('button').first().click()
 ```
 
 **Error:** Playwright browsers not installed
@@ -120,12 +120,12 @@ Cors:
 **Solution:**
 ```javascript
 // Verify token is being sent
-console.log('Token:', localStorage.getItem('auth_tokens'));
+console.log('Token:', localStorage.getItem('auth_tokens'))
 
 // Check token expiry
-const tokens = JSON.parse(localStorage.getItem('auth_tokens'));
-console.log('Expires at:', new Date(tokens.expiresAt));
-console.log('Now:', new Date());
+const tokens = JSON.parse(localStorage.getItem('auth_tokens'))
+console.log('Expires at:', new Date(tokens.expiresAt))
+console.log('Now:', new Date())
 
 // Refresh token if expired
 // (implement token refresh logic)
@@ -186,7 +186,7 @@ zip -r function.zip . -x "*.git*" "test/*" "*.md"
 ```yaml
 # Increase timeout (max 15 minutes)
 Properties:
-  Timeout: 30  # 30 seconds
+  Timeout: 30 # 30 seconds
 
 # Or optimize code:
 # - Add DynamoDB ProjectionExpression
@@ -207,8 +207,8 @@ BillingMode: PAY_PER_REQUEST
 
 # Or increase provisioned capacity
 ProvisionedThroughput:
-  ReadCapacityUnits: 10  # Increase this
-  WriteCapacityUnits: 5   # And this
+  ReadCapacityUnits: 10 # Increase this
+  WriteCapacityUnits: 5 # And this
 ```
 
 **Error:** `ValidationException: Item size exceeds limit`
@@ -248,10 +248,10 @@ ProvisionedThroughput:
 const command = new GetObjectCommand({
   Bucket: bucketName,
   Key: key
-});
+})
 const url = await getSignedUrl(s3Client, command, {
-  expiresIn: 3600  // 1 hour
-});
+  expiresIn: 3600 // 1 hour
+})
 ```
 
 ### SES Email Issues
@@ -355,7 +355,7 @@ aws cloudwatch get-metric-statistics \
 ```yaml
 # Increase Lambda memory
 Properties:
-  MemorySize: 512  # Increase from 128MB default
+  MemorySize: 512 # Increase from 128MB default
 ```
 
 ## Monitoring & Alerting Issues
@@ -367,10 +367,10 @@ Properties:
 **Solution:**
 ```yaml
 # Check alarm configuration
-TreatMissingData: notBreaching  # Don't alarm on missing data
+TreatMissingData: notBreaching # Don't alarm on missing data
 
 # Or adjust threshold
-Threshold: 10  # Increase if too sensitive
+Threshold: 10 # Increase if too sensitive
 ```
 
 ### False Positives
@@ -380,11 +380,11 @@ Threshold: 10  # Increase if too sensitive
 **Solution:**
 ```yaml
 # Require multiple periods
-EvaluationPeriods: 2  # Alarm after 2 consecutive breaches
+EvaluationPeriods: 2 # Alarm after 2 consecutive breaches
 
 # Or use anomaly detection
 MetricMath:
-  Expression: "ANOMALY_DETECTION_BAND(m1, 2)"
+  Expression: 'ANOMALY_DETECTION_BAND(m1, 2)'
 ```
 
 ### Dashboard Not Showing Data
@@ -470,13 +470,13 @@ aws cognito-idp initiate-auth \
 **Solutions:**
 ```typescript
 // Increase timeouts
-await expect(element).toBeVisible({ timeout: 10000 });
+await expect(element).toBeVisible({ timeout: 10000 })
 
 // Wait for network idle
-await page.waitForLoadState('networkidle');
+await page.waitForLoadState('networkidle')
 
 // Add explicit waits
-await page.waitForSelector('[data-testid="comment-section"]');
+await page.waitForSelector('[data-testid="comment-section"]')
 ```
 
 ## Security Issues
@@ -520,8 +520,8 @@ Cors:
 // Update CSP headers in hooks.server.ts
 response.headers.set(
   'Content-Security-Policy',
-  "default-src 'self'; script-src 'self' 'unsafe-inline'"
-);
+  'default-src \'self\'; script-src \'self\' \'unsafe-inline\''
+)
 ```
 
 ## Getting Help

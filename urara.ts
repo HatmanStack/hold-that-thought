@@ -3,11 +3,11 @@
  * Version: Any
  */
 
-import chalk from 'chalk'
-import chokidar from 'chokidar'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
+import chalk from 'chalk'
+import chokidar from 'chokidar'
 
 const config = {
   catch: ['ENOENT', 'EEXIST'],
@@ -21,17 +21,16 @@ const config = {
 
 const check = (ext: string) => (config.extensions.posts.includes(ext) || config.extensions.server.includes(ext) ? 'frontend/routes' : 'static')
 
-const log = (color: string, msg: string, dest?: Error | string) =>
-  // eslint-disable-next-line no-console
-  console.log(
+function log(color: string, msg: string, dest?: Error | string) {
+  return console.log(
     chalk.dim(`${new Date().toLocaleTimeString()} `)
     + chalk.magentaBright.bold('[urara] ')
     + chalk[color](`${msg} `)
     + chalk.dim(dest ?? ''),
   )
-  
+}
 
-const error = (err: { code: string, message: unknown }) => {
+function error(err: { code: string, message: unknown }) {
   if (config.catch.includes(err.code)) {
     // eslint-disable-next-line no-console
     console.log(
@@ -46,36 +45,35 @@ const error = (err: { code: string, message: unknown }) => {
   }
 }
 
-const cpFile = (src: string, { dest = path.join(check(path.parse(src).ext.slice(1)), src.slice(6)), stat = 'copy' } = {}) =>
-  config.extensions.images.includes(path.parse(src).ext.slice(1))
+function cpFile(src: string, { dest = path.join(check(path.parse(src).ext.slice(1)), src.slice(6)), stat = 'copy' } = {}) {
+  return config.extensions.images.includes(path.parse(src).ext.slice(1))
     ? fs
-      .copyFile(src, path.join('frontend/static', src.slice(6)))
-      .then(() => fs.copyFile(src, path.join('static', src.slice(6))))
-      .then(() => log('green', `${stat} file`, dest))
-      .catch(error)
+        .copyFile(src, path.join('frontend/static', src.slice(6)))
+        .then(() => fs.copyFile(src, path.join('static', src.slice(6))))
+        .then(() => log('green', `${stat} file`, dest))
+        .catch(error)
     : fs
-      .copyFile(src, dest)
-      .then(() => log('green', `${stat} file`, dest))
-      .catch(error)
+        .copyFile(src, dest)
+        .then(() => log('green', `${stat} file`, dest))
+        .catch(error)
+}
 
-const rmFile = (src: string, { dest = path.join(check(path.parse(src).ext.slice(1)), src.slice(6)) } = {}) =>
-  config.extensions.images.includes(path.parse(src).ext.slice(1))
+function rmFile(src: string, { dest = path.join(check(path.parse(src).ext.slice(1)), src.slice(6)) } = {}) {
+  return config.extensions.images.includes(path.parse(src).ext.slice(1))
     ? fs
-      .rm(path.join('frontend/static', src.slice(6)))
-      .then(() => fs.rm(path.join('static', src.slice(6))))
-      .then(() => log('yellow', 'remove file', dest))
-      .catch(error)
+        .rm(path.join('frontend/static', src.slice(6)))
+        .then(() => fs.rm(path.join('static', src.slice(6))))
+        .then(() => log('yellow', 'remove file', dest))
+        .catch(error)
     : fs
-      .rm(dest)
-      .then(() => log('yellow', 'remove file', dest))
-      .catch(error)
+        .rm(dest)
+        .then(() => log('yellow', 'remove file', dest))
+        .catch(error)
+}
 
-const mkDir = (
-  src: string,
-  {
-    dest = [path.join('frontend/routes', src.slice(6)), path.join('static', src.slice(6)), path.join('frontend/static', src.slice(6))],
-  } = {},
-) => {
+function mkDir(src: string, {
+  dest = [path.join('frontend/routes', src.slice(6)), path.join('static', src.slice(6)), path.join('frontend/static', src.slice(6))],
+} = {}) {
   dest.forEach(path =>
     fs
       .mkdir(path)
@@ -84,8 +82,8 @@ const mkDir = (
   )
 }
 
-const cpDir = (src: string) =>
-  fs.readdir(src, { withFileTypes: true }).then(files =>
+function cpDir(src: string) {
+  return fs.readdir(src, { withFileTypes: true }).then(files =>
     files.forEach((file) => {
       const dest = path.join(src, file.name)
       if (file.isDirectory()) {
@@ -100,13 +98,11 @@ const cpDir = (src: string) =>
       }
     }),
   )
+}
 
-const rmDir = (
-  src: string,
-  {
-    dest = [path.join('frontend/routes', src.slice(6)), path.join('static', src.slice(6)), path.join('frontend/static', src.slice(6))],
-  } = {},
-) => {
+function rmDir(src: string, {
+  dest = [path.join('frontend/routes', src.slice(6)), path.join('static', src.slice(6)), path.join('frontend/static', src.slice(6))],
+} = {}) {
   dest.forEach(path =>
     fs
       .rm(path, { force: true, recursive: true })
@@ -115,11 +111,11 @@ const rmDir = (
   )
 }
 
-const cleanDir = (src: string) =>
-  fs.readdir(src, { withFileTypes: true }).then((files) => {
+function cleanDir(src: string) {
+  return fs.readdir(src, { withFileTypes: true }).then((files) => {
     files.forEach((file) => {
       const dest = path.join(src, file.name)
-      // eslint-disable-next-line ts/no-unused-expressions
+
       file.isDirectory()
         ? rmDir(dest)
         : file.name.startsWith('.')
@@ -127,14 +123,15 @@ const cleanDir = (src: string) =>
           : rmFile(dest)
     })
   })
+}
 
-const build = () => {
+function build() {
   mkDir('static', { dest: ['static'] })
   mkDir('frontend/static', { dest: ['frontend/static'] })
   cpDir('urara')
 }
 
-const clean = () => {
+function clean() {
   cleanDir('urara')
   rmDir('static', { dest: ['static'] })
   rmDir('frontend/static', { dest: ['frontend/static'] })
@@ -146,8 +143,7 @@ switch (process.argv[2]) {
       const watcher = chokidar.watch('urara', {
         ignored: (file: string) => path.basename(file).startsWith('.'),
       })
-      
-      
+
       watcher
         .on('add', file => cpFile(file))
         .on('change', file => cpFile(file, { stat: 'update' }))

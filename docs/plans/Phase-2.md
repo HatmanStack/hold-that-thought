@@ -66,19 +66,19 @@ The Python Lambda processes DynamoDB Stream events to update user activity stats
 
 **Structure:**
 ```javascript
-const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { DynamoDBDocumentClient, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb')
+const { DynamoDBDocumentClient, UpdateCommand } = require('@aws-sdk/lib-dynamodb')
 
-const client = new DynamoDBClient({});
-const docClient = DynamoDBDocumentClient.from(client);
-const USER_PROFILES_TABLE = process.env.USER_PROFILES_TABLE;
+const client = new DynamoDBClient({})
+const docClient = DynamoDBDocumentClient.from(client)
+const USER_PROFILES_TABLE = process.env.USER_PROFILES_TABLE
 
 exports.handler = async (event) => {
   // Process each record
   // Extract table name from eventSourceARN
   // Route to appropriate handler based on table name
   // Return success response
-};
+}
 
 async function incrementCommentCount(userId) {
   // ADD commentCount :inc
@@ -170,24 +170,24 @@ The Python Lambda processes DynamoDB Stream events to send email notifications. 
 
 **Structure:**
 ```javascript
-const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { DynamoDBDocumentClient } = require('@aws-sdk/lib-dynamodb');
-const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb')
+const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses')
+const { DynamoDBDocumentClient } = require('@aws-sdk/lib-dynamodb')
 
-const dynamoClient = new DynamoDBClient({});
-const docClient = DynamoDBDocumentClient.from(dynamoClient);
-const sesClient = new SESClient({});
+const dynamoClient = new DynamoDBClient({})
+const docClient = DynamoDBDocumentClient.from(dynamoClient)
+const sesClient = new SESClient({})
 
-const USER_PROFILES_TABLE = process.env.USER_PROFILES_TABLE;
-const SES_FROM_EMAIL = process.env.SES_FROM_EMAIL || 'noreply@holdthatthought.family';
-const BASE_URL = process.env.BASE_URL || 'https://holdthatthought.family';
+const USER_PROFILES_TABLE = process.env.USER_PROFILES_TABLE
+const SES_FROM_EMAIL = process.env.SES_FROM_EMAIL || 'noreply@holdthatthought.family'
+const BASE_URL = process.env.BASE_URL || 'https://holdthatthought.family'
 
 exports.handler = async (event) => {
   // Process each record
   // Extract table name from eventSourceARN
   // Route to appropriate notification handler
   // Return success response
-};
+}
 
 function processCommentNotification(newImage) {
   // Extract comment data, log for now
@@ -339,7 +339,7 @@ For existing tests using `aws-sdk-client-mock`, no changes needed - this library
 **Import paths** should already be updated in Phase-1 Task 7:
 ```javascript
 // tests/unit/comments-handler.test.js
-const { handler } = require('../../backend/comments-api/index');
+const { handler } = require('../../backend/comments-api/index')
 ```
 
 **Verification Checklist:**

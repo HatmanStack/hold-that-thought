@@ -5,7 +5,7 @@
 </script>
 
 <div
-  class='alert flex-col shadow-inner my-4'
+  class='alert flex-col my-4 shadow-inner'
   class:alert-error={status === 'error'}
   class:alert-info={status === 'info'}
   class:alert-success={status === 'success'}
@@ -28,7 +28,7 @@
     </div>
   </div>
   {#if $$slots.default}
-    <div class='block w-full'>
+    <div class='w-full block'>
       <slot />
     </div>
   {/if}

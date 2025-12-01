@@ -55,8 +55,7 @@ export const head: HeadConfig = {}
 
 export const header: HeaderConfig = {
   nav: [
-    
-    
+
   ],
 }
 
@@ -66,7 +65,7 @@ export const footer: FooterConfig = {
       link: '/atom.xml',
       text: 'Feed',
     },
-    
+
   ],
 }
 

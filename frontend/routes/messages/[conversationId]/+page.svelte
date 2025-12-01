@@ -1,12 +1,12 @@
-<script lang="ts">
-  import { onMount, onDestroy } from 'svelte'
+<script lang='ts'>
+  import type { Message } from '$lib/types/message'
   import { goto } from '$app/navigation'
   import { page } from '$app/stores'
   import { currentUser } from '$lib/auth/auth-store'
-  import MessageThread from '$lib/components/messages/MessageThread.svelte'
   import MessageInput from '$lib/components/messages/MessageInput.svelte'
+  import MessageThread from '$lib/components/messages/MessageThread.svelte'
   import { getMessages } from '$lib/services/messageService'
-  import type { Message } from '$lib/types/message'
+  import { onDestroy, onMount } from 'svelte'
 
   $: conversationId = $page.params.conversationId
   $: currentUserId = $currentUser?.sub || ''
@@ -30,7 +30,8 @@
    * Poll for new messages
    */
   async function pollForNewMessages() {
-    if (document.hidden) return // Don't poll when tab is hidden
+    if (document.hidden)
+      return // Don't poll when tab is hidden
 
     try {
       const result = await getMessages(conversationId, 10)
@@ -39,20 +40,22 @@
         const messages = Array.isArray(result.data) ? result.data : [result.data]
 
         // Filter for only new messages (those created after our last known message)
-        const newMessages = messages.filter(msg => {
-          if (!lastMessageId) return false
+        const newMessages = messages.filter((msg) => {
+          if (!lastMessageId)
+            return false
           return msg.messageId > lastMessageId
         })
 
         // Add new messages to the thread
         if (newMessages.length > 0 && messageThreadComponent) {
-          newMessages.forEach(msg => {
+          newMessages.forEach((msg) => {
             messageThreadComponent.addMessage(msg)
             lastMessageId = msg.messageId
           })
         }
       }
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Error polling for new messages:', error)
     }
   }
@@ -80,38 +83,38 @@
   <title>Conversation - Hold That Thought</title>
 </svelte:head>
 
-<div class="flex flex-col h-screen">
+<div class='flex flex-col h-screen'>
   <!-- Header -->
-  <div class="navbar bg-base-100 border-b border-base-300">
-    <div class="navbar-start">
-      <button class="btn btn-ghost btn-circle" on:click={() => goto('/messages')}>
+  <div class='navbar bg-base-100 border-base-300 border-b'>
+    <div class='navbar-start'>
+      <button class='btn btn-ghost btn-circle' on:click={() => goto('/messages')}>
         <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="h-6 w-6"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
+          xmlns='http://www.w3.org/2000/svg'
+          class='h-6 w-6'
+          fill='none'
+          viewBox='0 0 24 24'
+          stroke='currentColor'
         >
           <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M15 19l-7-7 7-7"
+            stroke-linecap='round'
+            stroke-linejoin='round'
+            stroke-width='2'
+            d='M15 19l-7-7 7-7'
           />
         </svg>
       </button>
     </div>
-    <div class="navbar-center">
-      <h1 class="text-xl font-semibold">Conversation</h1>
+    <div class='navbar-center'>
+      <h1 class='text-xl font-semibold'>Conversation</h1>
     </div>
-    <div class="navbar-end">
+    <div class='navbar-end'>
       <!-- Placeholder for future actions (group info, etc.) -->
     </div>
   </div>
 
   {#if $currentUser}
     <!-- Message thread container -->
-    <div class="flex-1 flex flex-col overflow-hidden">
+    <div class='flex-1 flex flex-col overflow-hidden'>
       <MessageThread
         bind:this={messageThreadComponent}
         {conversationId}
@@ -123,8 +126,8 @@
       />
     </div>
   {:else}
-    <div class="flex-1 flex items-center justify-center">
-      <p class="text-base-content/60">Redirecting to login...</p>
+    <div class='flex-1 flex items-center justify-center'>
+      <p class='text-base-content/60'>Redirecting to login...</p>
     </div>
   {/if}
 </div>

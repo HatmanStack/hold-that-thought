@@ -1,7 +1,7 @@
 /// <reference types="@sveltejs/kit" />
 
-import type { FFFBase, FFFMedia, FFFMention } from 'fff-flavored-frontmatter'
 import type { AuthenticatedUser } from '$lib/auth/middleware'
+import type { FFFBase, FFFMedia, FFFMention } from 'fff-flavored-frontmatter'
 
 declare global {
   namespace App {
@@ -33,7 +33,7 @@ declare global {
          * post author (overrides the site author)
          */
         created: string
-          
+
         /**
          * enable some advanced features.
          * @property hidden - deprecated, transfer to `unlisted`
@@ -75,7 +75,7 @@ declare global {
          * @remarks auto-generated
          */
         type: 'article' | 'audio' | 'bookmark' | 'like' | 'note' | 'photo' | 'reply' | 'repost' | 'video'
-        
+
         /**
          * the updated date of the post.
          * @remarks auto-generated or set manually

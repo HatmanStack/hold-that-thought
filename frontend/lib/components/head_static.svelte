@@ -15,10 +15,10 @@
     <link href='https://webmention.io/{post.comment.webmention.username}/xmlrpc' rel='pingback' />
   {/if}
   <!-- Force override any Netlify favicon -->
-  <link rel="icon" href="/favicon.png" type="image/png">
-  <link rel="shortcut icon" href="/favicon.png" type="image/png">
+  <link rel='icon' href='/favicon.png' type='image/png'>
+  <link rel='shortcut icon' href='/favicon.png' type='image/png'>
   <!-- Add this for Apple devices -->
-  <link rel="apple-touch-icon" href="/favicon.png">
+  <link rel='apple-touch-icon' href='/favicon.png'>
 </svelte:head>
 
 <Icon />

@@ -1,8 +1,8 @@
-<script lang="ts">
-  import { onMount } from 'svelte'
+<script lang='ts'>
   import { goto } from '$app/navigation'
   import { currentUser } from '$lib/auth/auth-store'
   import ConversationList from '$lib/components/messages/ConversationList.svelte'
+  import { onMount } from 'svelte'
 
   /**
    * Handle conversation selection
@@ -30,15 +30,15 @@
   <title>Messages - Hold That Thought</title>
 </svelte:head>
 
-<div class="container mx-auto px-4 py-8 max-w-4xl">
+<div class='container mx-auto px-4 py-8 max-w-4xl'>
   {#if $currentUser}
     <ConversationList
       on:conversationSelected={handleConversationSelected}
       on:newMessage={handleNewMessage}
     />
   {:else}
-    <div class="text-center py-8">
-      <p class="text-base-content/60">Redirecting to login...</p>
+    <div class='text-center py-8'>
+      <p class='text-base-content/60'>Redirecting to login...</p>
     </div>
   {/if}
 </div>

@@ -1,122 +1,122 @@
 /**
  * Integration tests for Messages API
  */
-const { apiRequest, waitForConsistency, generateTestId } = require('./setup');
+const { apiRequest, waitForConsistency, generateTestId } = require('./setup')
 
-describe('Messages API Integration Tests', () => {
-  let conversationId;
+describe('messages API Integration Tests', () => {
+  let conversationId
 
-  test('POST /messages/conversations creates 1-on-1 conversation', async () => {
-    const testUserId = process.env.TEST_USER_2_ID || 'test-user-2';
+  it('pOST /messages/conversations creates 1-on-1 conversation', async () => {
+    const testUserId = process.env.TEST_USER_2_ID || 'test-user-2'
 
     const { status, data } = await apiRequest('POST', '/messages/conversations', {
       participantIds: [testUserId],
-      messageText: `Test message ${generateTestId()}`
-    });
+      messageText: `Test message ${generateTestId()}`,
+    })
 
-    expect(status).toBe(201);
-    expect(data).toHaveProperty('conversationId');
-    expect(data).toHaveProperty('conversationType');
-    expect(data.conversationType).toBe('direct');
+    expect(status).toBe(201)
+    expect(data).toHaveProperty('conversationId')
+    expect(data).toHaveProperty('conversationType')
+    expect(data.conversationType).toBe('direct')
 
-    conversationId = data.conversationId;
-  });
+    conversationId = data.conversationId
+  })
 
-  test('POST /messages/conversations/{conversationId} sends message', async () => {
+  it('pOST /messages/conversations/{conversationId} sends message', async () => {
     if (!conversationId) {
-      console.log('Skipping test - no conversation created');
-      return;
+      console.log('Skipping test - no conversation created')
+      return
     }
 
-    await waitForConsistency(1000);
+    await waitForConsistency(1000)
 
-    const messageText = `Integration test message ${generateTestId()}`;
+    const messageText = `Integration test message ${generateTestId()}`
 
     const { status, data } = await apiRequest(
       'POST',
       `/messages/conversations/${conversationId}`,
-      { messageText }
-    );
+      { messageText },
+    )
 
-    expect(status).toBe(201);
-    expect(data).toHaveProperty('messageText');
-    expect(data.messageText).toBe(messageText);
-    expect(data.conversationId).toBe(conversationId);
-  });
+    expect(status).toBe(201)
+    expect(data).toHaveProperty('messageText')
+    expect(data.messageText).toBe(messageText)
+    expect(data.conversationId).toBe(conversationId)
+  })
 
-  test('POST /messages/conversations/{conversationId} rejects text longer than 5000 chars', async () => {
+  it('pOST /messages/conversations/{conversationId} rejects text longer than 5000 chars', async () => {
     if (!conversationId) {
-      console.log('Skipping test - no conversation created');
-      return;
+      console.log('Skipping test - no conversation created')
+      return
     }
 
-    const longText = 'a'.repeat(5001);
+    const longText = 'a'.repeat(5001)
 
     const { status, data } = await apiRequest(
       'POST',
       `/messages/conversations/${conversationId}`,
-      { messageText: longText }
-    );
+      { messageText: longText },
+    )
 
-    expect(status).toBe(400);
-    expect(data).toHaveProperty('error');
-    expect(data.error).toContain('5000 characters');
-  });
+    expect(status).toBe(400)
+    expect(data).toHaveProperty('error')
+    expect(data.error).toContain('5000 characters')
+  })
 
-  test('GET /messages/conversations lists conversations', async () => {
-    await waitForConsistency(1000);
+  it('gET /messages/conversations lists conversations', async () => {
+    await waitForConsistency(1000)
 
-    const { status, data } = await apiRequest('GET', '/messages/conversations');
+    const { status, data } = await apiRequest('GET', '/messages/conversations')
 
-    expect(status).toBe(200);
-    expect(data).toHaveProperty('conversations');
-    expect(Array.isArray(data.conversations)).toBe(true);
-  });
+    expect(status).toBe(200)
+    expect(data).toHaveProperty('conversations')
+    expect(Array.isArray(data.conversations)).toBe(true)
+  })
 
-  test('GET /messages/conversations/{conversationId} lists messages', async () => {
+  it('gET /messages/conversations/{conversationId} lists messages', async () => {
     if (!conversationId) {
-      console.log('Skipping test - no conversation created');
-      return;
+      console.log('Skipping test - no conversation created')
+      return
     }
 
-    await waitForConsistency(1000);
+    await waitForConsistency(1000)
 
     const { status, data } = await apiRequest(
       'GET',
-      `/messages/conversations/${conversationId}`
-    );
+      `/messages/conversations/${conversationId}`,
+    )
 
-    expect(status).toBe(200);
-    expect(data).toHaveProperty('messages');
-    expect(Array.isArray(data.messages)).toBe(true);
-  });
+    expect(status).toBe(200)
+    expect(data).toHaveProperty('messages')
+    expect(Array.isArray(data.messages)).toBe(true)
+  })
 
-  test('PUT /messages/conversations/{conversationId}/read marks as read', async () => {
+  it('pUT /messages/conversations/{conversationId}/read marks as read', async () => {
     if (!conversationId) {
-      console.log('Skipping test - no conversation created');
-      return;
+      console.log('Skipping test - no conversation created')
+      return
     }
 
-    await waitForConsistency(500);
+    await waitForConsistency(500)
 
     const { status, data } = await apiRequest(
       'PUT',
-      `/messages/conversations/${conversationId}/read`
-    );
+      `/messages/conversations/${conversationId}/read`,
+    )
 
-    expect(status).toBe(200);
-    expect(data).toHaveProperty('message');
-  });
+    expect(status).toBe(200)
+    expect(data).toHaveProperty('message')
+  })
 
-  test('POST /messages/upload generates presigned URL', async () => {
+  it('pOST /messages/upload generates presigned URL', async () => {
     const { status, data } = await apiRequest('POST', '/messages/upload', {
       fileName: 'test.jpg',
-      contentType: 'image/jpeg'
-    });
+      contentType: 'image/jpeg',
+    })
 
-    expect(status).toBe(200);
-    expect(data).toHaveProperty('uploadUrl');
-    expect(data).toHaveProperty('s3Key');
-    expect(data.s3Key).toContain('messages/attachments/');
-  });
-});
+    expect(status).toBe(200)
+    expect(data).toHaveProperty('uploadUrl')
+    expect(data).toHaveProperty('s3Key')
+    expect(data.s3Key).toContain('messages/attachments/')
+  })
+})

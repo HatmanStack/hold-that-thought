@@ -1,7 +1,7 @@
-<script lang="ts">
-  import { createEventDispatcher } from 'svelte'
-  import { createComment } from '$lib/services/commentService'
+<script lang='ts'>
   import type { Comment } from '$lib/types/comment'
+  import { createComment } from '$lib/services/commentService'
+  import { createEventDispatcher } from 'svelte'
 
   export let itemId: string
   export let itemType: 'letter' | 'media'
@@ -21,7 +21,8 @@
   $: canSubmit = !isEmpty && !isOverLimit && !loading
 
   async function handleSubmit() {
-    if (!canSubmit) return
+    if (!canSubmit)
+      return
 
     loading = true
     error = ''
@@ -33,7 +34,8 @@
       dispatch('commentCreated', result.data as Comment)
       // Clear textarea
       commentText = ''
-    } else {
+    }
+    else {
       error = result.error || 'Failed to create comment'
     }
 
@@ -48,52 +50,52 @@
   }
 </script>
 
-<div class="comment-form">
+<div class='comment-form'>
   {#if error}
-    <div class="alert alert-error mb-4">
+    <div class='alert alert-error mb-4'>
       <svg
-        xmlns="http://www.w3.org/2000/svg"
-        class="stroke-current shrink-0 h-6 w-6"
-        fill="none"
-        viewBox="0 0 24 24"
+        xmlns='http://www.w3.org/2000/svg'
+        class='stroke-current shrink-0 h-6 w-6'
+        fill='none'
+        viewBox='0 0 24 24'
       >
         <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+          stroke-linecap='round'
+          stroke-linejoin='round'
+          stroke-width='2'
+          d='M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z'
         />
       </svg>
       <span>{error}</span>
     </div>
   {/if}
 
-  <div class="form-control">
-    <label for="comment-input" class="label">
-      <span class="label-text font-semibold">Add a comment</span>
+  <div class='form-control'>
+    <label for='comment-input' class='label'>
+      <span class='font-semibold label-text'>Add a comment</span>
       <span
-        class="label-text-alt"
+        class='label-text-alt'
         class:text-error={isOverLimit}
-        aria-live="polite"
-        aria-atomic="true"
+        aria-live='polite'
+        aria-atomic='true'
       >
         {charCount}/{MAX_CHARS}
       </span>
     </label>
     <textarea
-      id="comment-input"
-      class="textarea textarea-bordered"
+      id='comment-input'
+      class='textarea textarea-bordered'
       class:textarea-error={isOverLimit}
-      placeholder="Share your thoughts..."
-      rows="4"
+      placeholder='Share your thoughts...'
+      rows='4'
       bind:value={commentText}
       on:keydown={handleKeydown}
       disabled={loading}
-      aria-label="Write a comment"
-      aria-describedby="char-count"
+      aria-label='Write a comment'
+      aria-describedby='char-count'
     />
-    <label for="comment-input" class="label">
-      <span id="char-count" class="label-text-alt text-base-content/60">
+    <label for='comment-input' class='label'>
+      <span id='char-count' class='label-text-alt text-base-content/60'>
         {#if !isEmpty}
           Press Ctrl+Enter to submit
         {:else}
@@ -103,16 +105,16 @@
     </label>
   </div>
 
-  <div class="mt-4">
+  <div class='mt-4'>
     <button
-      class="btn btn-primary"
+      class='btn btn-primary'
       class:loading={loading}
       disabled={!canSubmit}
       on:click={handleSubmit}
-      aria-label="Submit comment"
+      aria-label='Submit comment'
     >
       {#if loading}
-        <span class="loading loading-spinner loading-sm"></span>
+        <span class='loading loading-spinner loading-sm'></span>
         Posting...
       {:else}
         Post Comment

@@ -29,30 +29,30 @@ export const SUPPORTED_FILE_TYPES = {
   pictures: {
     extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'],
     mimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'],
-    maxSize: 50 * 1024 * 1024 // 50MB
+    maxSize: 50 * 1024 * 1024, // 50MB
   },
   videos: {
     extensions: ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'],
     mimeTypes: ['video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/flv', 'video/webm'],
-    maxSize: 500 * 1024 * 1024 // 500MB
+    maxSize: 500 * 1024 * 1024, // 500MB
   },
   documents: {
     extensions: ['pdf', 'doc', 'docx', 'txt', 'rtf'],
     mimeTypes: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'text/rtf'],
-    maxSize: 50 * 1024 * 1024 // 50MB
-  }
+    maxSize: 50 * 1024 * 1024, // 50MB
+  },
 }
 
 /**
  * Validate a file before upload
  */
-export function validateFile(file: File): { valid: boolean; message?: string; mediaType?: string } {
+export function validateFile(file: File): { valid: boolean, message?: string, mediaType?: string } {
   // Check file size (general limit)
   const maxSize = 500 * 1024 * 1024 // 500MB general limit
   if (file.size > maxSize) {
     return {
       valid: false,
-      message: `File size (${formatFileSize(file.size)}) exceeds maximum allowed size (${formatFileSize(maxSize)})`
+      message: `File size (${formatFileSize(file.size)}) exceeds maximum allowed size (${formatFileSize(maxSize)})`,
     }
   }
 
@@ -60,7 +60,7 @@ export function validateFile(file: File): { valid: boolean; message?: string; me
   if (file.size === 0) {
     return {
       valid: false,
-      message: 'File is empty'
+      message: 'File is empty',
     }
   }
 
@@ -69,7 +69,7 @@ export function validateFile(file: File): { valid: boolean; message?: string; me
   if (!mediaType) {
     return {
       valid: false,
-      message: `Unsupported file type: ${file.name}`
+      message: `Unsupported file type: ${file.name}`,
     }
   }
 
@@ -78,13 +78,13 @@ export function validateFile(file: File): { valid: boolean; message?: string; me
   if (file.size > typeConfig.maxSize) {
     return {
       valid: false,
-      message: `${mediaType} files cannot exceed ${formatFileSize(typeConfig.maxSize)}`
+      message: `${mediaType} files cannot exceed ${formatFileSize(typeConfig.maxSize)}`,
     }
   }
 
   return {
     valid: true,
-    mediaType
+    mediaType,
   }
 }
 
@@ -108,11 +108,12 @@ export function determineMediaType(file: File): 'pictures' | 'videos' | 'documen
  * Format file size in human-readable format
  */
 export function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes'
+  if (bytes === 0)
+    return '0 Bytes'
   const k = 1024
   const sizes = ['Bytes', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  return `${Number.parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`
 }
 
 /**
@@ -120,7 +121,7 @@ export function formatFileSize(bytes: number): string {
  */
 export async function uploadMediaFile(
   file: File,
-  onProgress?: (progress: UploadProgress) => void
+  onProgress?: (progress: UploadProgress) => void,
 ): Promise<UploadResult> {
   try {
     // Validate file
@@ -128,7 +129,7 @@ export async function uploadMediaFile(
     if (!validation.valid) {
       return {
         success: false,
-        message: validation.message || 'File validation failed'
+        message: validation.message || 'File validation failed',
       }
     }
 
@@ -138,7 +139,7 @@ export async function uploadMediaFile(
       return {
         success: false,
         message: 'Authentication required. Please log in.',
-        error: 'NO_AUTH_TOKEN'
+        error: 'NO_AUTH_TOKEN',
       }
     }
 
@@ -149,7 +150,7 @@ export async function uploadMediaFile(
     const uploadPayload = {
       filename: file.name,
       file_data: fileData,
-      content_type: file.type || 'application/octet-stream'
+      content_type: file.type || 'application/octet-stream',
     }
 
     // Create XMLHttpRequest for progress tracking
@@ -162,7 +163,7 @@ export async function uploadMediaFile(
           const progress: UploadProgress = {
             loaded: event.loaded,
             total: event.total,
-            percentage: Math.round((event.loaded / event.total) * 100)
+            percentage: Math.round((event.loaded / event.total) * 100),
           }
           onProgress(progress)
         }
@@ -172,25 +173,27 @@ export async function uploadMediaFile(
       xhr.addEventListener('load', () => {
         try {
           const response = JSON.parse(xhr.responseText)
-          
+
           if (xhr.status === 200 && response.success) {
             resolve({
               success: true,
               message: response.message,
-              data: response.data
+              data: response.data,
             })
-          } else {
+          }
+          else {
             resolve({
               success: false,
               message: response.message || `Upload failed with status ${xhr.status}`,
-              error: response.error
+              error: response.error,
             })
           }
-        } catch (error) {
+        }
+        catch (error) {
           resolve({
             success: false,
             message: 'Failed to parse server response',
-            error: 'PARSE_ERROR'
+            error: 'PARSE_ERROR',
           })
         }
       })
@@ -200,7 +203,7 @@ export async function uploadMediaFile(
         resolve({
           success: false,
           message: 'Network error during upload',
-          error: 'NETWORK_ERROR'
+          error: 'NETWORK_ERROR',
         })
       })
 
@@ -208,7 +211,7 @@ export async function uploadMediaFile(
         resolve({
           success: false,
           message: 'Upload timed out',
-          error: 'TIMEOUT'
+          error: 'TIMEOUT',
         })
       })
 
@@ -217,16 +220,16 @@ export async function uploadMediaFile(
       xhr.setRequestHeader('Content-Type', 'application/json')
       xhr.setRequestHeader('Authorization', `Bearer ${tokens.idToken}`)
       xhr.timeout = 300000 // 5 minutes timeout
-      
+
       xhr.send(JSON.stringify(uploadPayload))
     })
-
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Upload error:', error)
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Upload failed',
-      error: 'UNKNOWN_ERROR'
+      error: 'UNKNOWN_ERROR',
     }
   }
 }
@@ -237,13 +240,13 @@ export async function uploadMediaFile(
 export async function uploadMultipleFiles(
   files: File[],
   onFileProgress?: (fileIndex: number, progress: UploadProgress) => void,
-  onFileComplete?: (fileIndex: number, result: UploadResult) => void
+  onFileComplete?: (fileIndex: number, result: UploadResult) => void,
 ): Promise<UploadResult[]> {
   const results: UploadResult[] = []
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
-    
+
     const result = await uploadMediaFile(file, (progress) => {
       if (onFileProgress) {
         onFileProgress(i, progress)
@@ -297,6 +300,6 @@ export function getUploadStats(results: UploadResult[]) {
     successful,
     failed,
     totalSize: formatFileSize(totalSize),
-    successRate: results.length > 0 ? Math.round((successful / results.length) * 100) : 0
+    successRate: results.length > 0 ? Math.round((successful / results.length) * 100) : 0,
   }
 }

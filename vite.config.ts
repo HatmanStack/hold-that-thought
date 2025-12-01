@@ -37,6 +37,6 @@ export default defineConfig({
       // Uncomment if HMR is failing in Docker, WSL, or complex monorepos
       // usePolling: true,
       // interval: 100
-    }
-  }
+    },
+  },
 })

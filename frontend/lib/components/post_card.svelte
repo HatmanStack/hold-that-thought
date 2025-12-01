@@ -1,22 +1,22 @@
 <script lang='ts'>
   import { browser } from '$app/environment'
+  import CommentSection from '$lib/components/comments/CommentSection.svelte'
   import Comment from '$lib/components/post_comment.svelte'
+  import MarkdownEditorModal from '$lib/components/post_editor.svelte'
   import Pagination from '$lib/components/post_pagination.svelte'
   import Reply from '$lib/components/post_reply.svelte'
   import Status from '$lib/components/post_status.svelte'
   import Image from '$lib/components/prose/img.svelte'
-  import MarkdownEditorModal from '$lib/components/post_editor.svelte'
-  import CommentSection from '$lib/components/comments/CommentSection.svelte'
   import { post as postConfig } from '$lib/config/post'
+  import { getMarkdownContent, saveMarkdownContent } from '$lib/services/markdown'
   import { posts as storedPosts } from '$lib/stores/posts'
   import { title as storedTitle } from '$lib/stores/title'
   import { downloadSourcePdf } from '$lib/utils/s3Client'
-  import { getMarkdownContent, saveMarkdownContent } from '$lib/services/markdown'
 
-  let isDownloading = false;
-  let isModifying = false;
-  let isEditorOpen = false;
-  let markdownContent = '';
+  let isDownloading = false
+  let isModifying = false
+  let isEditorOpen = false
+  let markdownContent = ''
   export let post: Urara.Post
   export let preview: boolean = false
   export let loading: 'eager' | 'lazy' = 'lazy'
@@ -38,57 +38,62 @@
   }
 
   async function openMarkdownEditor() {
-    isModifying = true;
+    isModifying = true
     try {
       if (post.path) {
-        console.log('Opening editor for path:', post.path);
+        console.log('Opening editor for path:', post.path)
         // Load the original markdown content
-        markdownContent = await getMarkdownContent(post.path);
-        console.log('Loaded content length:', markdownContent?.length);
+        markdownContent = await getMarkdownContent(post.path)
+        console.log('Loaded content length:', markdownContent?.length)
         if (!markdownContent) {
-          throw new Error('Failed to load content');
+          throw new Error('Failed to load content')
         }
-        isEditorOpen = true;
+        isEditorOpen = true
       }
-    } catch (error) {
-      console.error('Error loading markdown content:', error);
-      alert('Failed to load content: ' + error.message);
-    } finally {
-      isModifying = false;
+    }
+    catch (error) {
+      console.error('Error loading markdown content:', error)
+      alert(`Failed to load content: ${error.message}`)
+    }
+    finally {
+      isModifying = false
     }
   }
 
   async function handleSave(event) {
-    isModifying = true;
+    isModifying = true
     try {
-      const updatedContent = event.detail;
+      const updatedContent = event.detail
       if (!updatedContent) {
-        throw new Error('No content to save');
+        throw new Error('No content to save')
       }
-      
-      console.log('Saving content for path:', post.path);
-      console.log('Content length:', updatedContent.length);
-      console.log('Content preview:', updatedContent.substring(0, 100) + '...');
-      
-      const success = await saveMarkdownContent(post.path, updatedContent);
-      
+
+      console.log('Saving content for path:', post.path)
+      console.log('Content length:', updatedContent.length)
+      console.log('Content preview:', `${updatedContent.substring(0, 100)}...`)
+
+      const success = await saveMarkdownContent(post.path, updatedContent)
+
       if (success) {
-        console.log('Save successful, reloading page');
-        window.location.reload();
-      } else {
-        throw new Error('Save returned false');
+        console.log('Save successful, reloading page')
+        window.location.reload()
       }
-    } catch (error) {
-      console.error('Error saving markdown content:', error);
-      alert('Failed to save content: ' + error.message);
-    } finally {
-      isModifying = false;
+      else {
+        throw new Error('Save returned false')
+      }
+    }
+    catch (error) {
+      console.error('Error saving markdown content:', error)
+      alert(`Failed to save content: ${error.message}`)
+    }
+    finally {
+      isModifying = false
     }
   }
 </script>
 
 <svelte:element
-  class='h-entry card bg-base-100 rounded-none md:rounded-box md:shadow-xl overflow-hidden z-10'
+  class='card bg-base-100 overflow-hidden z-10 h-entry rounded-none md:rounded-box md:shadow-xl'
   class:before:!rounded-none={preview && post.image}
   class:group={preview}
   class:image-full={preview && post.type === 'article' && post.image}
@@ -146,7 +151,7 @@
       {#if post.title}
         {#if preview}
           <h2
-            class='card-title text-3xl mr-auto bg-[length:100%_0%] bg-[position:0_88%] underline decoration-4 decoration-transparent group-hover:decoration-primary hover:bg-[length:100%_100%] hover:text-primary-content bg-gradient-to-t from-primary to-primary bg-no-repeat transition-all ease-in-out duration-300'
+            class='card-title mr-auto transition-all ease-in-out text-3xl bg-[length:100%_0%] bg-[position:0_88%] underline decoration-4 decoration-transparent group-hover:decoration-primary hover:bg-[length:100%_100%] hover:text-primary-content bg-gradient-to-t from-primary to-primary bg-no-repeat duration-300'
             itemprop='name headline'>
             <a class='u-url p-name' href={post.path} itemprop='url'>{post.title ?? post.path.slice(1)}</a>
           </h2>
@@ -155,11 +160,11 @@
         {/if}
       {/if}
       {#if post.published && preview}
-        <span class="p-author" itemprop="author">{post.published}</span>
+        <span class='p-author' itemprop='author'>{post.published}</span>
 
       {/if}
     </div>
-    <main class='urara-prose prose e-content' class:mt-4={post.type !== 'article'} itemprop='articleBody'>
+    <main class='prose urara-prose e-content' class:mt-4={post.type !== 'article'} itemprop='articleBody'>
       {#if !preview}
         <slot />
       {:else if post.html}
@@ -178,36 +183,37 @@
     {/if}
     {#if !preview && post.title}
       <div class='divider mt-4 mb-0' />
-      <div class="mt-2 mb-4 flex flex-wrap items-center"> 
-        
+      <div class='mt-2 mb-4 flex flex-wrap items-center'>
+
         <button
           class='btn btn-sm btn-outline gap-2'
-          disabled={isDownloading || isModifying} 
+          disabled={isDownloading || isModifying}
           on:click={async () => {
-            isDownloading = true;
+            isDownloading = true
             try {
-              await downloadSourcePdf();
-            } catch (error) {
-              console.error('Download failed:', error);
-              alert(`Download failed: ${error.message}`);
-            } finally {
-              isDownloading = false;
+              await downloadSourcePdf()
+            }
+            catch (error) {
+              console.error('Download failed:', error)
+              alert(`Download failed: ${error.message}`)
+            }
+            finally {
+              isDownloading = false
             }
           }}>
           {#if isDownloading}
-            <span class="loading loading-spinner loading-xs"></span>
+            <span class='loading loading-spinner loading-xs'></span>
           {:else}
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            <svg xmlns='http://www.w3.org/2000/svg' class='h-4 w-4' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+              <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' />
             </svg>
           {/if}
           Download Original Letter
         </button>
 
-        
-       <!-- <button
-          class='btn btn-sm btn-outline gap-2 ml-2' 
-          disabled={isDownloading || isModifying} 
+        <!-- <button
+          class='btn btn-sm btn-outline gap-2 ml-2'
+          disabled={isDownloading || isModifying}
           on:click={openMarkdownEditor}>
           {#if isModifying}
             <span class="loading loading-spinner loading-xs"></span>
@@ -220,7 +226,7 @@
         </button> -->
       </div>
     {/if}
-    <MarkdownEditorModal 
+    <MarkdownEditorModal
       bind:isOpen={isEditorOpen}
       content={markdownContent}
       title={`Edit: ${post.title || post.path}`}
@@ -238,7 +244,7 @@
     {#if browser && !post.flags?.includes('comment-disabled')}
       <CommentSection
         itemId={post.path}
-        itemType="letter"
+        itemType='letter'
         itemTitle={post.title ?? post.path.slice(1)}
       />
     {/if}

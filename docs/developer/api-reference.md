@@ -28,10 +28,10 @@ Authorization: Bearer <JWT_TOKEN>
 **Token Claims:**
 ```json
 {
-  "sub": "user-123-abc",           // User ID
+  "sub": "user-123-abc", // User ID
   "email": "user@example.com",
   "cognito:groups": ["ApprovedUsers"],
-  "exp": 1673388000               // Expiration timestamp
+  "exp": 1673388000 // Expiration timestamp
 }
 ```
 
@@ -99,8 +99,8 @@ Create a new comment.
 ```json
 {
   "commentText": "This is my comment",
-  "itemType": "letter",              // "letter" or "media"
-  "itemTitle": "Christmas 2015"      // Optional
+  "itemType": "letter", // "letter" or "media"
+  "itemTitle": "Christmas 2015" // Optional
 }
 ```
 
@@ -195,7 +195,7 @@ Add a reaction to a comment.
 **Request Body:**
 ```json
 {
-  "reactionType": "like"  // Currently only "like" supported
+  "reactionType": "like" // Currently only "like" supported
 }
 ```
 
@@ -458,8 +458,8 @@ Create a new conversation.
 {
   "participantIds": ["user-456-def", "user-789-ghi"],
   "conversationType": "group",
-  "conversationTitle": "Family Planning",  // Required for groups
-  "initialMessage": "Let's discuss plans"  // Optional
+  "conversationTitle": "Family Planning", // Required for groups
+  "initialMessage": "Let's discuss plans" // Optional
 }
 ```
 
@@ -585,16 +585,16 @@ curl -X POST \
 ```javascript
 // API client example
 async function getComments(itemId) {
-  const token = localStorage.getItem('authToken');
+  const token = localStorage.getItem('authToken')
   const response = await fetch(
     `https://api.holdthatthought.family/comments/${itemId}`,
     {
       headers: {
-        'Authorization': `Bearer ${token}`
+        Authorization: `Bearer ${token}`
       }
     }
-  );
-  return response.json();
+  )
+  return response.json()
 }
 ```
 

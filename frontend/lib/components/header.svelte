@@ -1,14 +1,14 @@
 <script lang='ts'>
   import { browser, dev } from '$app/environment'
+  import { currentUser, isAuthenticated } from '$lib/auth/auth-store'
+  import UserMenu from '$lib/components/auth/UserMenu.svelte'
   import Nav from '$lib/components/header_nav.svelte'
   import Search from '$lib/components/header_search.svelte'
-  import UserMenu from '$lib/components/auth/UserMenu.svelte'
   import { header as headerConfig, theme } from '$lib/config/general'
   import { site } from '$lib/config/site'
   import { title as storedTitle } from '$lib/stores/title'
   import { hslToHex } from '$lib/utils/color'
   import { fly } from 'svelte/transition'
-  import { currentUser, isAuthenticated } from '$lib/auth/auth-store'
 
   export let path: string
   let title: string
@@ -22,8 +22,8 @@
   storedTitle.subscribe(storedTitle => (title = storedTitle as string))
 
   // Check if user is approved (in ApprovedUsers group)
-  $: isUserApproved = $isAuthenticated && $currentUser && 
-    ($currentUser['cognito:groups']?.includes('ApprovedUsers') || false)
+  $: isUserApproved = $isAuthenticated && $currentUser
+    && ($currentUser['cognito:groups']?.includes('ApprovedUsers') || false)
 
   $: if (browser && currentTheme) {
     document.documentElement.setAttribute('data-theme', currentTheme)
@@ -60,7 +60,7 @@
 <svelte:window bind:scrollY />
 
 <header
-  class="fixed z-50 w-full transition-all duration-500 ease-in-out border-b-2 border-transparent max-h-[4.125rem]{scrollY
+  class="w-full fixed z-50 transition-all duration-500 ease-in-out border-b-2 border-transparent max-h-[4.125rem]{scrollY
     > 32 && 'backdrop-blur !border-base-content/10 bg-base-100/30 md:bg-base-200/30'}"
   class:-translate-y-32={!pin && scrollY > 0}
   id='header'>
@@ -70,9 +70,9 @@
         {#if headerConfig.nav}
           <Nav nav={headerConfig.nav} {path} {pin} {scrollY} {title} />
         {/if}
-        <a class='btn btn-ghost normal-case text-lg' href='/'>{site.title}</a>
+        <a class='btn btn-ghost text-lg normal-case' href='/'>{site.title}</a>
         <!-- Hide these links on small screens -->
-        <div class='hidden lg:flex ml-4 space-x-2'>
+        <div class='ml-4 hidden lg:flex space-x-2'>
           <a class='btn btn-ghost normal-case' href='/about' class:btn-active={path === '/about'}>About</a>
           {#if isUserApproved}
             <a class='btn btn-ghost normal-case' href='/gallery' class:btn-active={path === '/gallery'}>Gallery</a>
@@ -81,7 +81,7 @@
       </div>
       <div class='navbar-end'>
         {#if headerConfig.search}
-          <button aria-label='search' class='btn btn-square btn-ghost' on:click={() => (search = !search)} tabindex='0'>
+          <button aria-label='search' class='btn btn-ghost btn-square' on:click={() => (search = !search)} tabindex='0'>
             <span class='i-heroicons-outline-search' />
           </button>
         {/if}
@@ -95,12 +95,12 @@
           <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
           <!-- reference: https://github.com/saadeghi/daisyui/issues/1285 -->
           <ul
-            class='flex flex-nowrap shadow-2xl menu dropdown-content bg-base-100 text-base-content rounded-box w-52 p-2 gap-2 overflow-y-auto max-h-[21.5rem]'
+            class='flex menu dropdown-content bg-base-100 text-base-content rounded-box w-52 p-2 gap-2 flex-nowrap shadow-2xl overflow-y-auto max-h-[21.5rem]'
             class:hidden={!pin}
             tabindex='0'>
             {#each theme as { name, text }}
               <button
-                class='btn btn-ghost w-full hover:bg-primary group rounded-lg flex bg-base-100 p-2 transition-all'
+                class='btn btn-ghost w-full flex bg-base-100 p-2 transition-all hover:bg-primary group rounded-lg'
                 class:border-2={currentTheme === name}
                 class:border-primary={currentTheme === name}
                 data-theme={name}
@@ -108,10 +108,10 @@
                   currentTheme = name
                   localStorage.setItem('theme', name)
                 }}>
-                <p class='flex-1 text-left text-base-content group-hover:text-primary-content transition-color'>
+                <p class='flex-1 text-base-content text-left group-hover:text-primary-content transition-color'>
                   {text ?? name}
                 </p>
-                <div class='grid grid-cols-4 gap-0.5 m-auto'>
+                <div class='m-auto grid grid-cols-4 gap-0.5'>
                   {#each ['bg-primary', 'bg-secondary', 'bg-accent', 'bg-neutral'] as bg}
                     <div class={`${bg} w-1 h-4 rounded-btn`} />
                   {/each}
@@ -134,7 +134,7 @@
 
 <button
   aria-label='scroll to top'
-  class="fixed grid group btn btn-circle btn-lg border-none backdrop-blur bottom-6 right-6 z-50 duration-500 ease-in-out{percent
+  class="fixed grid group btn btn-circle btn-lg z-50 duration-500 ease-in-out border-none backdrop-blur bottom-6 right-6{percent
   > 95
     ? 'btn-accent shadow-lg'
     : 'btn-ghost bg-base-100/30 md:bg-base-200/30'}"
@@ -144,11 +144,11 @@
   on:click={() => window.scrollTo(0, 0)}>
   <!-- https://daisyui.com/blog/how-to-update-daisyui-4/#3-all--focus-colors-are-removed -->
   <div
-    class='radial-progress text-accent transition-all duration-500 ease-in-out group-hover:text-[color-mix(in_oklab,oklch(var(--a)),black_7%)] col-start-1 row-start-1'
+    class='transition-all duration-500 ease-in-out radial-progress text-accent group-hover:text-[color-mix(in_oklab,oklch(var(--a)),black_7%)] col-start-1 row-start-1'
     style={`--size:4rem; --thickness: 0.25rem; --value:${percent};`} />
   <div
-    class='border-4 border-base-content/10 group-hover:border-transparent col-start-1 row-start-1 rounded-full w-full h-full p-4 grid duration-500 ease-in-out'
+    class='col-start-1 row-start-1 rounded-full w-full h-full grid duration-500 ease-in-out border-4 border-base-content/10 group-hover:border-transparent p-4'
     class:border-transparent={percent > 95}>
-    <span class='i-heroicons-solid-chevron-up !w-6 !h-6' />
+    <span class='!w-6 !h-6 i-heroicons-solid-chevron-up' />
   </div>
 </button>

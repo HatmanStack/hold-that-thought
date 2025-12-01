@@ -1,19 +1,19 @@
-const { mockClient } = require('aws-sdk-client-mock');
-const { DynamoDBDocumentClient, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+const { DynamoDBDocumentClient, UpdateCommand } = require('@aws-sdk/lib-dynamodb')
+const { mockClient } = require('aws-sdk-client-mock')
 
-const ddbMock = mockClient(DynamoDBDocumentClient);
+const ddbMock = mockClient(DynamoDBDocumentClient)
 
-process.env.USER_PROFILES_TABLE = 'test-user-profiles';
+process.env.USER_PROFILES_TABLE = 'test-user-profiles'
 
-const { handler } = require('./index');
+const { handler } = require('./index')
 
 beforeEach(() => {
-  ddbMock.reset();
-});
+  ddbMock.reset()
+})
 
 describe('activity-aggregator handler', () => {
   it('processes INSERT event for comments table and increments comment count', async () => {
-    ddbMock.on(UpdateCommand).resolves({});
+    ddbMock.on(UpdateCommand).resolves({})
 
     const event = {
       Records: [
@@ -24,24 +24,24 @@ describe('activity-aggregator handler', () => {
             NewImage: {
               userId: { S: 'user-123' },
               commentId: { S: 'comment-456' },
-              commentText: { S: 'Test comment' }
-            }
-          }
-        }
-      ]
-    };
+              commentText: { S: 'Test comment' },
+            },
+          },
+        },
+      ],
+    }
 
-    const result = await handler(event);
+    const result = await handler(event)
 
-    expect(result.statusCode).toBe(200);
-    const calls = ddbMock.commandCalls(UpdateCommand);
-    expect(calls.length).toBe(2);
-    expect(calls[0].args[0].input.UpdateExpression).toContain('commentCount');
-    expect(calls[1].args[0].input.UpdateExpression).toContain('lastActive');
-  });
+    expect(result.statusCode).toBe(200)
+    const calls = ddbMock.commandCalls(UpdateCommand)
+    expect(calls.length).toBe(2)
+    expect(calls[0].args[0].input.UpdateExpression).toContain('commentCount')
+    expect(calls[1].args[0].input.UpdateExpression).toContain('lastActive')
+  })
 
   it('processes INSERT event for messages table and updates lastActive', async () => {
-    ddbMock.on(UpdateCommand).resolves({});
+    ddbMock.on(UpdateCommand).resolves({})
 
     const event = {
       Records: [
@@ -51,23 +51,23 @@ describe('activity-aggregator handler', () => {
           dynamodb: {
             NewImage: {
               senderId: { S: 'user-123' },
-              messageText: { S: 'Test message' }
-            }
-          }
-        }
-      ]
-    };
+              messageText: { S: 'Test message' },
+            },
+          },
+        },
+      ],
+    }
 
-    const result = await handler(event);
+    const result = await handler(event)
 
-    expect(result.statusCode).toBe(200);
-    const calls = ddbMock.commandCalls(UpdateCommand);
-    expect(calls.length).toBe(1);
-    expect(calls[0].args[0].input.UpdateExpression).toContain('lastActive');
-  });
+    expect(result.statusCode).toBe(200)
+    const calls = ddbMock.commandCalls(UpdateCommand)
+    expect(calls.length).toBe(1)
+    expect(calls[0].args[0].input.UpdateExpression).toContain('lastActive')
+  })
 
   it('processes INSERT event for reactions table and updates lastActive', async () => {
-    ddbMock.on(UpdateCommand).resolves({});
+    ddbMock.on(UpdateCommand).resolves({})
 
     const event = {
       Records: [
@@ -78,26 +78,26 @@ describe('activity-aggregator handler', () => {
             NewImage: {
               userId: { S: 'user-123' },
               commentId: { S: 'comment-456' },
-              reactionType: { S: 'like' }
-            }
-          }
-        }
-      ]
-    };
+              reactionType: { S: 'like' },
+            },
+          },
+        },
+      ],
+    }
 
-    const result = await handler(event);
+    const result = await handler(event)
 
-    expect(result.statusCode).toBe(200);
-    const calls = ddbMock.commandCalls(UpdateCommand);
-    expect(calls.length).toBe(1);
-    expect(calls[0].args[0].input.UpdateExpression).toContain('lastActive');
-  });
+    expect(result.statusCode).toBe(200)
+    const calls = ddbMock.commandCalls(UpdateCommand)
+    expect(calls.length).toBe(1)
+    expect(calls[0].args[0].input.UpdateExpression).toContain('lastActive')
+  })
 
   it('continues processing remaining records if one fails', async () => {
     ddbMock
       .on(UpdateCommand)
       .rejectsOnce(new Error('DynamoDB error'))
-      .resolves({});
+      .resolves({})
 
     const event = {
       Records: [
@@ -108,9 +108,9 @@ describe('activity-aggregator handler', () => {
             NewImage: {
               userId: { S: 'user-fail' },
               commentId: { S: 'comment-1' },
-              commentText: { S: 'Comment 1' }
-            }
-          }
+              commentText: { S: 'Comment 1' },
+            },
+          },
         },
         {
           eventName: 'INSERT',
@@ -118,20 +118,20 @@ describe('activity-aggregator handler', () => {
           dynamodb: {
             NewImage: {
               senderId: { S: 'user-success' },
-              messageText: { S: 'Message 2' }
-            }
-          }
-        }
-      ]
-    };
+              messageText: { S: 'Message 2' },
+            },
+          },
+        },
+      ],
+    }
 
-    const result = await handler(event);
+    const result = await handler(event)
 
-    expect(result.statusCode).toBe(200);
-  });
+    expect(result.statusCode).toBe(200)
+  })
 
   it('extracts table name from ARN correctly', async () => {
-    ddbMock.on(UpdateCommand).resolves({});
+    ddbMock.on(UpdateCommand).resolves({})
 
     const event = {
       Records: [
@@ -142,17 +142,17 @@ describe('activity-aggregator handler', () => {
             NewImage: {
               userId: { S: 'user-123' },
               commentId: { S: 'comment-789' },
-              commentText: { S: 'Another comment' }
-            }
-          }
-        }
-      ]
-    };
+              commentText: { S: 'Another comment' },
+            },
+          },
+        },
+      ],
+    }
 
-    const result = await handler(event);
+    const result = await handler(event)
 
-    expect(result.statusCode).toBe(200);
-  });
+    expect(result.statusCode).toBe(200)
+  })
 
   it('ignores non-INSERT events', async () => {
     const event = {
@@ -162,22 +162,22 @@ describe('activity-aggregator handler', () => {
           eventSourceARN: 'arn:aws:dynamodb:us-east-1:123456789:table/HoldThatThought-Comments/stream/2024-01-01',
           dynamodb: {
             NewImage: {
-              userId: { S: 'user-123' }
-            }
-          }
-        }
-      ]
-    };
+              userId: { S: 'user-123' },
+            },
+          },
+        },
+      ],
+    }
 
-    const result = await handler(event);
+    const result = await handler(event)
 
-    expect(result.statusCode).toBe(200);
-    const calls = ddbMock.commandCalls(UpdateCommand);
-    expect(calls.length).toBe(0);
-  });
+    expect(result.statusCode).toBe(200)
+    const calls = ddbMock.commandCalls(UpdateCommand)
+    expect(calls.length).toBe(0)
+  })
 
   it('skips comment-reactions table for comment count increment', async () => {
-    ddbMock.on(UpdateCommand).resolves({});
+    ddbMock.on(UpdateCommand).resolves({})
 
     const event = {
       Records: [
@@ -188,19 +188,19 @@ describe('activity-aggregator handler', () => {
             NewImage: {
               userId: { S: 'user-123' },
               commentId: { S: 'comment-456' },
-              reactionType: { S: 'like' }
-            }
-          }
-        }
-      ]
-    };
+              reactionType: { S: 'like' },
+            },
+          },
+        },
+      ],
+    }
 
-    const result = await handler(event);
+    const result = await handler(event)
 
-    expect(result.statusCode).toBe(200);
-    const calls = ddbMock.commandCalls(UpdateCommand);
-    expect(calls.length).toBe(1);
-    expect(calls[0].args[0].input.UpdateExpression).toContain('lastActive');
-    expect(calls[0].args[0].input.UpdateExpression).not.toContain('commentCount');
-  });
-});
+    expect(result.statusCode).toBe(200)
+    const calls = ddbMock.commandCalls(UpdateCommand)
+    expect(calls.length).toBe(1)
+    expect(calls[0].args[0].input.UpdateExpression).toContain('lastActive')
+    expect(calls[0].args[0].input.UpdateExpression).not.toContain('commentCount')
+  })
+})

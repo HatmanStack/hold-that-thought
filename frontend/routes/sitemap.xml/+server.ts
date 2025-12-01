@@ -1,10 +1,10 @@
+import type { RequestHandler } from './$types'
 import { site } from '$lib/config/site'
+
 import { genPosts } from '$lib/utils/posts'
 
-import type { RequestHandler } from './$types'
-
-const render = (): string =>
-  `<?xml version='1.0' encoding='utf-8'?>
+function render(): string {
+  return `<?xml version='1.0' encoding='utf-8'?>
   <urlset
     xmlns="https://www.sitemaps.org/schemas/sitemap/0.9"
     xmlns:xhtml="https://www.w3.org/1999/xhtml"
@@ -16,16 +16,17 @@ const render = (): string =>
       <loc>${site.protocol + site.domain}</loc>
     </url>
     ${genPosts()
-        .map(
-          post => `
+      .map(
+        post => `
         <url>
             <loc>${site.protocol + site.domain + post.path}</loc>
             <lastmod>${new Date(post.updated ?? post.published ?? post.created).toISOString()}</lastmod>
             <priority>0.5</priority>
         </url>`,
-        )
-        .join('')}
+      )
+      .join('')}
   </urlset>`.trim()
+}
 
 export const prerender = true
 export const trailingSlash = 'never'

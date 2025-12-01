@@ -1,9 +1,9 @@
-<script lang="ts">
-  import { onMount } from 'svelte'
+<script lang='ts'>
+  import type { UserProfile } from '$lib/types/profile'
   import { goto } from '$app/navigation'
   import { currentUser, isAuthenticated } from '$lib/auth/auth-store'
   import { getProfile, updateProfile, uploadProfilePhoto } from '$lib/services/profileService'
-  import type { UserProfile } from '$lib/types/profile'
+  import { onMount } from 'svelte'
 
   let profile: UserProfile | null = null
   let loading = true
@@ -54,7 +54,8 @@
       familyBranch = profile.familyBranch || ''
       isProfilePrivate = profile.isProfilePrivate || false
       previewUrl = profile.profilePhotoUrl || ''
-    } else {
+    }
+    else {
       error = result.error || 'Failed to load profile'
     }
 
@@ -144,7 +145,8 @@
 
         if (uploadResult.success && uploadResult.url) {
           photoUrl = uploadResult.url
-        } else {
+        }
+        else {
           error = uploadResult.error || 'Failed to upload photo'
           saving = false
           uploading = false
@@ -161,7 +163,7 @@
         generation: generation.trim() || undefined,
         familyBranch: familyBranch.trim() || undefined,
         isProfilePrivate,
-        ...(photoUrl && { profilePhotoUrl: photoUrl })
+        ...(photoUrl && { profilePhotoUrl: photoUrl }),
       })
 
       if (result.success) {
@@ -171,10 +173,12 @@
         setTimeout(() => {
           goto(`/profile/${$currentUser?.sub}`)
         }, 1500)
-      } else {
+      }
+      else {
         error = result.error || 'Failed to update profile'
       }
-    } catch (err) {
+    }
+    catch (err) {
       error = err instanceof Error ? err.message : 'Failed to update profile'
     }
 
@@ -187,7 +191,8 @@
   function handleCancel() {
     if ($currentUser?.sub) {
       goto(`/profile/${$currentUser.sub}`)
-    } else {
+    }
+    else {
       goto('/')
     }
   }
@@ -207,38 +212,38 @@
   <title>Profile Settings | Hold That Thought</title>
 </svelte:head>
 
-<div class="max-w-3xl mx-auto px-4 py-8">
-  <div class="mb-6">
-    <h1 class="text-3xl font-bold">Profile Settings</h1>
-    <p class="text-base-content/60 mt-2">Update your profile information</p>
+<div class='mx-auto px-4 py-8 max-w-3xl'>
+  <div class='mb-6'>
+    <h1 class='text-3xl font-bold'>Profile Settings</h1>
+    <p class='text-base-content/60 mt-2'>Update your profile information</p>
   </div>
 
   {#if loading}
     <!-- Loading skeleton -->
-    <div class="card bg-base-100 shadow-xl">
-      <div class="card-body">
-        <div class="animate-pulse space-y-4">
-          <div class="h-4 bg-base-300 rounded w-1/4"></div>
-          <div class="h-10 bg-base-300 rounded"></div>
-          <div class="h-4 bg-base-300 rounded w-1/4"></div>
-          <div class="h-24 bg-base-300 rounded"></div>
+    <div class='card bg-base-100 shadow-xl'>
+      <div class='card-body'>
+        <div class='animate-pulse space-y-4'>
+          <div class='h-4 bg-base-300 rounded w-1/4'></div>
+          <div class='h-10 bg-base-300 rounded'></div>
+          <div class='h-4 bg-base-300 rounded w-1/4'></div>
+          <div class='h-24 bg-base-300 rounded'></div>
         </div>
       </div>
     </div>
   {:else if error && !profile}
     <!-- Error loading profile -->
-    <div class="alert alert-error">
+    <div class='alert alert-error'>
       <svg
-        xmlns="http://www.w3.org/2000/svg"
-        class="stroke-current shrink-0 h-6 w-6"
-        fill="none"
-        viewBox="0 0 24 24"
+        xmlns='http://www.w3.org/2000/svg'
+        class='stroke-current shrink-0 h-6 w-6'
+        fill='none'
+        viewBox='0 0 24 24'
       >
         <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+          stroke-linecap='round'
+          stroke-linejoin='round'
+          stroke-width='2'
+          d='M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z'
         />
       </svg>
       <span>{error}</span>
@@ -246,22 +251,22 @@
   {:else}
     <!-- Settings form -->
     <form on:submit|preventDefault={handleSave}>
-      <div class="card bg-base-100 shadow-xl">
-        <div class="card-body space-y-6">
+      <div class='card bg-base-100 shadow-xl'>
+        <div class='card-body space-y-6'>
           <!-- Success message -->
           {#if successMessage}
-            <div class="alert alert-success">
+            <div class='alert alert-success'>
               <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="stroke-current shrink-0 h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
+                xmlns='http://www.w3.org/2000/svg'
+                class='stroke-current shrink-0 h-6 w-6'
+                fill='none'
+                viewBox='0 0 24 24'
               >
                 <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  stroke-linecap='round'
+                  stroke-linejoin='round'
+                  stroke-width='2'
+                  d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'
                 />
               </svg>
               <span>{successMessage}</span>
@@ -270,18 +275,18 @@
 
           <!-- Error message -->
           {#if error}
-            <div class="alert alert-error">
+            <div class='alert alert-error'>
               <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="stroke-current shrink-0 h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
+                xmlns='http://www.w3.org/2000/svg'
+                class='stroke-current shrink-0 h-6 w-6'
+                fill='none'
+                viewBox='0 0 24 24'
               >
                 <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  stroke-linecap='round'
+                  stroke-linejoin='round'
+                  stroke-width='2'
+                  d='M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z'
                 />
               </svg>
               <span>{error}</span>
@@ -289,40 +294,40 @@
           {/if}
 
           <!-- Profile Photo -->
-          <div class="form-control">
-            <label class="label" for="photo-input">
-              <span class="label-text font-semibold">Profile Photo</span>
+          <div class='form-control'>
+            <label class='label' for='photo-input'>
+              <span class='label-text font-semibold'>Profile Photo</span>
             </label>
-            <div class="flex items-center gap-4">
+            <div class='flex items-center gap-4'>
               <!-- Preview -->
-              <div class="avatar">
+              <div class='avatar'>
                 {#if previewUrl}
-                  <div class="w-24 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2">
-                    <img src={previewUrl} alt="Preview" />
+                  <div class='w-24 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2'>
+                    <img src={previewUrl} alt='Preview' />
                   </div>
                 {:else}
-                  <div class="placeholder">
-                    <div class="bg-neutral text-neutral-content rounded-full w-24">
-                      <span class="text-3xl">{displayName.charAt(0).toUpperCase() || 'U'}</span>
+                  <div class='placeholder'>
+                    <div class='bg-neutral text-neutral-content rounded-full w-24'>
+                      <span class='text-3xl'>{displayName.charAt(0).toUpperCase() || 'U'}</span>
                     </div>
                   </div>
                 {/if}
               </div>
 
               <!-- Upload controls -->
-              <div class="flex-1">
+              <div class='flex-1'>
                 <input
-                  id="photo-input"
-                  type="file"
-                  accept="image/jpeg,image/png,image/gif"
-                  class="file-input file-input-bordered file-input-sm w-full max-w-xs"
+                  id='photo-input'
+                  type='file'
+                  accept='image/jpeg,image/png,image/gif'
+                  class='w-full max-w-xs file-input file-input-bordered file-input-sm'
                   on:change={handleFileSelect}
                   disabled={saving || uploading}
                 />
                 {#if photoFile}
                   <button
-                    type="button"
-                    class="btn btn-ghost btn-sm mt-2"
+                    type='button'
+                    class='btn btn-ghost btn-sm mt-2'
                     on:click={removePhoto}
                     disabled={saving || uploading}
                   >
@@ -330,115 +335,115 @@
                   </button>
                 {/if}
                 {#if uploadError}
-                  <p class="text-error text-xs mt-1">{uploadError}</p>
+                  <p class='text-error text-xs mt-1'>{uploadError}</p>
                 {:else}
-                  <p class="text-xs text-base-content/60 mt-1">JPG, PNG, or GIF (max 5MB)</p>
+                  <p class='text-xs text-base-content/60 mt-1'>JPG, PNG, or GIF (max 5MB)</p>
                 {/if}
               </div>
             </div>
           </div>
 
-          <div class="divider"></div>
+          <div class='divider'></div>
 
           <!-- Display Name -->
-          <div class="form-control">
-            <label class="label" for="displayName">
-              <span class="label-text font-semibold">Display Name *</span>
+          <div class='form-control'>
+            <label class='label' for='displayName'>
+              <span class='label-text font-semibold'>Display Name *</span>
             </label>
             <input
-              id="displayName"
-              type="text"
-              class="input input-bordered"
+              id='displayName'
+              type='text'
+              class='input input-bordered'
               bind:value={displayName}
               disabled={saving}
               required
-              maxlength="100"
+              maxlength='100'
             />
           </div>
 
           <!-- Bio -->
-          <div class="form-control">
-            <label class="label" for="bio">
-              <span class="label-text font-semibold">Bio</span>
-              <span class="label-text-alt" class:text-error={bioExceeded}>
+          <div class='form-control'>
+            <label class='label' for='bio'>
+              <span class='label-text font-semibold'>Bio</span>
+              <span class='label-text-alt' class:text-error={bioExceeded}>
                 {bioRemaining} characters remaining
               </span>
             </label>
             <textarea
-              id="bio"
-              class="textarea textarea-bordered h-24"
+              id='bio'
+              class='textarea textarea-bordered h-24'
               class:textarea-error={bioExceeded}
               bind:value={bio}
               disabled={saving}
-              maxlength="500"
-              placeholder="Tell your family about yourself..."
+              maxlength='500'
+              placeholder='Tell your family about yourself...'
             />
           </div>
 
-          <div class="divider">Family Information</div>
+          <div class='divider'>Family Information</div>
 
           <!-- Family Relationship -->
-          <div class="form-control">
-            <label class="label" for="familyRelationship">
-              <span class="label-text font-semibold">Family Relationship</span>
+          <div class='form-control'>
+            <label class='label' for='familyRelationship'>
+              <span class='label-text font-semibold'>Family Relationship</span>
             </label>
             <input
-              id="familyRelationship"
-              type="text"
-              class="input input-bordered"
+              id='familyRelationship'
+              type='text'
+              class='input input-bordered'
               bind:value={familyRelationship}
               disabled={saving}
-              maxlength="100"
-              placeholder="e.g., Father, Mother, Son, Daughter, Grandparent"
+              maxlength='100'
+              placeholder='e.g., Father, Mother, Son, Daughter, Grandparent'
             />
           </div>
 
           <!-- Generation -->
-          <div class="form-control">
-            <label class="label" for="generation">
-              <span class="label-text font-semibold">Generation</span>
+          <div class='form-control'>
+            <label class='label' for='generation'>
+              <span class='label-text font-semibold'>Generation</span>
             </label>
             <input
-              id="generation"
-              type="text"
-              class="input input-bordered"
+              id='generation'
+              type='text'
+              class='input input-bordered'
               bind:value={generation}
               disabled={saving}
-              maxlength="50"
-              placeholder="e.g., Gen 1, Gen 2, Founder"
+              maxlength='50'
+              placeholder='e.g., Gen 1, Gen 2, Founder'
             />
           </div>
 
           <!-- Family Branch -->
-          <div class="form-control">
-            <label class="label" for="familyBranch">
-              <span class="label-text font-semibold">Family Branch</span>
+          <div class='form-control'>
+            <label class='label' for='familyBranch'>
+              <span class='label-text font-semibold'>Family Branch</span>
             </label>
             <input
-              id="familyBranch"
-              type="text"
-              class="input input-bordered"
+              id='familyBranch'
+              type='text'
+              class='input input-bordered'
               bind:value={familyBranch}
               disabled={saving}
-              maxlength="100"
-              placeholder="e.g., Smith Family, Jones Branch"
+              maxlength='100'
+              placeholder='e.g., Smith Family, Jones Branch'
             />
           </div>
 
-          <div class="divider">Privacy</div>
+          <div class='divider'>Privacy</div>
 
           <!-- Privacy Toggle -->
-          <div class="form-control">
-            <label class="label cursor-pointer justify-start gap-4">
+          <div class='form-control'>
+            <label class='label cursor-pointer gap-4 justify-start'>
               <input
-                type="checkbox"
-                class="toggle toggle-primary"
+                type='checkbox'
+                class='toggle toggle-primary'
                 bind:checked={isProfilePrivate}
                 disabled={saving}
               />
               <div>
-                <span class="label-text font-semibold">Make profile private</span>
-                <p class="text-xs text-base-content/60 mt-1">
+                <span class='label-text font-semibold'>Make profile private</span>
+                <p class='text-xs text-base-content/60 mt-1'>
                   Only you can view your profile when private
                 </p>
               </div>
@@ -448,18 +453,18 @@
       </div>
 
       <!-- Action buttons -->
-      <div class="flex gap-3 mt-6 justify-end">
+      <div class='flex gap-3 mt-6 justify-end'>
         <button
-          type="button"
-          class="btn btn-ghost"
+          type='button'
+          class='btn btn-ghost'
           on:click={handleCancel}
           disabled={saving || uploading}
         >
           Cancel
         </button>
         <button
-          type="submit"
-          class="btn btn-primary"
+          type='submit'
+          class='btn btn-primary'
           class:loading={saving || uploading}
           disabled={saving || uploading || bioExceeded || !displayName.trim()}
         >

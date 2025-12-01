@@ -14,7 +14,7 @@
 
 <div class='flex flex-col flex-nowrap justify-center xl:flex-row xl:flex-wrap'>
   <div
-    class='flex-1 w-full order-first ease-out transform mx-auto xl:mr-0 xl:ml-0'
+    class='flex-1 w-full mx-auto order-first ease-out transform xl:mr-0 xl:ml-0'
     in:fly={{ delay: 500, duration: 300, x: 25 }}
     out:fly={{ duration: 300, x: 25 }}>
     {#if browser}
@@ -22,7 +22,7 @@
     {/if}
   </div>
   <div
-    class='flex-1 w-full xl:order-last ease-out transform mx-auto xl:ml-0 xl:mr-0'
+    class='flex-1 w-full ease-out transform mx-auto xl:ml-0 xl:mr-0 xl:order-last'
     in:fly={{ delay: 500, duration: 300, x: -25 }}
     out:fly={{ duration: 300, x: -25 }}>
     {#if browser && post.toc}
@@ -31,7 +31,7 @@
       </div>
     {/if}
   </div>
-  <div class='flex-none w-full max-w-screen-md mx-auto xl:mx-0'>
+  <div class='flex-none w-full mx-auto max-w-screen-md xl:mx-0'>
     <Card {post}>
       <slot />
     </Card>

@@ -77,21 +77,21 @@ Images are served directly from S3 without optimization.
 1. **Compress Images on Upload**
    ```javascript
    // In Lambda function
-   const sharp = require('sharp');
+   const sharp = require('sharp')
 
    // Compress profile photos
    await sharp(buffer)
      .resize(400, 400, { fit: 'cover' })
      .webp({ quality: 80 })
-     .toBuffer();
+     .toBuffer()
    ```
 
 2. **Lazy Load Images**
    ```svelte
    <img
      src={imageUrl}
-     loading="lazy"
-     alt="Profile photo"
+     loading='lazy'
+     alt='Profile photo'
    />
    ```
 
@@ -103,15 +103,15 @@ Images are served directly from S3 without optimization.
 4. **Implement Responsive Images**
    ```svelte
    <img
-     srcset="
+     srcset='
        /image-400.webp 400w,
        /image-800.webp 800w,
        /image-1200.webp 1200w
-     "
-     sizes="(max-width: 600px) 400px, (max-width: 900px) 800px, 1200px"
-     src="/image-800.webp"
-     loading="lazy"
-     alt="Gallery image"
+     '
+     sizes='(max-width: 600px) 400px, (max-width: 900px) 800px, 1200px'
+     src='/image-800.webp'
+     loading='lazy'
+     alt='Gallery image'
    />
    ```
 
@@ -142,30 +142,30 @@ Images are served directly from S3 without optimization.
    // Use BatchGetItem for multiple items
    const result = await docClient.send(new BatchGetCommand({
      RequestItems: {
-       'UserProfiles': {
+       UserProfiles: {
          Keys: userIds.map(id => ({ userId: id })),
          ProjectionExpression: 'userId, displayName, profilePhotoUrl'
        }
      }
-   }));
+   }))
    ```
 
 3. **Efficient Pagination**
    ```javascript
    // Use ExclusiveStartKey for pagination
-   let lastKey = null;
-   const allComments = [];
+   let lastKey = null
+   const allComments = []
 
    do {
      const result = await docClient.send(new QueryCommand({
        TableName: 'Comments',
        Limit: 50,
        ExclusiveStartKey: lastKey
-     }));
+     }))
 
-     allComments.push(...result.Items);
-     lastKey = result.LastEvaluatedKey;
-   } while (lastKey);
+     allComments.push(...result.Items)
+     lastKey = result.LastEvaluatedKey
+   } while (lastKey)
    ```
 
 ## Caching Strategies
@@ -198,7 +198,7 @@ await s3.putObject({
   Metadata: {
     'original-name': filename
   }
-});
+})
 ```
 
 ### API Response Caching
@@ -206,15 +206,15 @@ await s3.putObject({
 ```typescript
 // SvelteKit load function with caching
 export async function load({ fetch, setHeaders }) {
-  const response = await fetch('/api/profile/123');
-  const profile = await response.json();
+  const response = await fetch('/api/profile/123')
+  const profile = await response.json()
 
   // Cache for 5 minutes
   setHeaders({
     'cache-control': 'public, max-age=300'
-  });
+  })
 
-  return { profile };
+  return { profile }
 }
 ```
 
@@ -233,7 +233,7 @@ export default {
       entries: ['/', '/about', '/contact']
     }
   }
-};
+}
 ```
 
 ### Reduce JavaScript Bundle

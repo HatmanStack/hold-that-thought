@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
@@ -7,18 +7,18 @@ export default defineConfig({
     include: [
       'tests/unit/**/*.test.{js,ts}',
       'tests/integration/**/*.test.{js,ts}',
-      'backend/**/*.test.{js,ts}'
+      'backend/**/*.test.{js,ts}',
     ],
     exclude: [
       '**/node_modules/**',
       'frontend',
-      '.svelte-kit'
+      '.svelte-kit',
     ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
-      include: ['backend/**/index.js']
+      include: ['backend/**/index.js'],
     },
-    testTimeout: 10000
-  }
-});
+    testTimeout: 10000,
+  },
+})

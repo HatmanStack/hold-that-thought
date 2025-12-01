@@ -472,7 +472,7 @@ Reference the existing `backend/infra/lambda-functions.yaml` for environment var
 **SAM Template Structure:**
 
 ```yaml
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: 2010-09-09
 Transform: AWS::Serverless-2016-10-31
 Description: Hold That Thought - Lambda API Functions
 
@@ -713,7 +713,7 @@ pnpm add -D vitest@^2.1.0 @vitest/coverage-v8@^2.1.0
 Create `vitest.config.ts`:
 
 ```typescript
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
@@ -736,7 +736,7 @@ export default defineConfig({
     },
     testTimeout: 10000
   }
-});
+})
 ```
 
 **Verification Checklist:**

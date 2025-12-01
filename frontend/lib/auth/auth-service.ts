@@ -1,6 +1,6 @@
-import { cognitoAuth } from './cognito-client'
-import { authStore } from './auth-store'
 import type { AuthTokens, User } from './auth-store'
+import { authStore } from './auth-store'
+import { cognitoAuth } from './cognito-client'
 
 // JWT token decoder (simple implementation)
 function decodeJWT(token: string) {
@@ -10,11 +10,12 @@ function decodeJWT(token: string) {
     const jsonPayload = decodeURIComponent(
       atob(base64)
         .split('')
-        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
+        .map(c => `%${(`00${c.charCodeAt(0).toString(16)}`).slice(-2)}`)
+        .join(''),
     )
     return JSON.parse(jsonPayload)
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error decoding JWT:', error)
     return null
   }
@@ -23,14 +24,12 @@ function decodeJWT(token: string) {
 export class AuthService {
   private refreshTimer: NodeJS.Timeout | null = null
 
-
-
   async signIn(email: string, password: string) {
     authStore.setLoading(true)
-    
+
     try {
       const result = await cognitoAuth.signIn(email, password)
-      
+
       if (!result.success) {
         throw result.error
       }
@@ -64,20 +63,23 @@ export class AuthService {
       this.scheduleTokenRefresh(tokens.expiresAt)
 
       return { success: true, user, tokens }
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Sign in error:', error)
       authStore.clearAuth()
       throw error
-    } finally {
+    }
+    finally {
       authStore.setLoading(false)
     }
   }
 
   async refreshTokens() {
-    const currentState = await new Promise(resolve => {
+    const currentState = await new Promise((resolve) => {
       let unsubscribe: (() => void) | undefined
-      unsubscribe = authStore.subscribe(state => {
-        if (unsubscribe) unsubscribe()
+      unsubscribe = authStore.subscribe((state) => {
+        if (unsubscribe)
+          unsubscribe()
         resolve(state)
       })
     })
@@ -88,7 +90,7 @@ export class AuthService {
 
     try {
       const result = await cognitoAuth.refreshToken(currentState.tokens.refreshToken)
-      
+
       if (!result.success) {
         throw result.error
       }
@@ -109,7 +111,8 @@ export class AuthService {
       this.scheduleTokenRefresh(newTokens.expiresAt)
 
       return newTokens
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Token refresh error:', error)
       this.signOut()
       throw error
@@ -117,10 +120,11 @@ export class AuthService {
   }
 
   async signOut() {
-    const currentState = await new Promise(resolve => {
+    const currentState = await new Promise((resolve) => {
       let unsubscribe: (() => void) | undefined
-      unsubscribe = authStore.subscribe(state => {
-        if (unsubscribe) unsubscribe()
+      unsubscribe = authStore.subscribe((state) => {
+        if (unsubscribe)
+          unsubscribe()
         resolve(state)
       })
     })
@@ -128,7 +132,8 @@ export class AuthService {
     if (currentState.tokens?.accessToken) {
       try {
         await cognitoAuth.signOut(currentState.tokens.accessToken)
-      } catch (error) {
+      }
+      catch (error) {
         console.error('Sign out error:', error)
       }
     }
@@ -141,8 +146,6 @@ export class AuthService {
     authStore.clearAuth()
   }
 
-
-
   private scheduleTokenRefresh(expiresAt: number) {
     if (this.refreshTimer) {
       clearTimeout(this.refreshTimer)
@@ -150,7 +153,7 @@ export class AuthService {
 
     // Refresh 5 minutes before expiration
     const refreshTime = expiresAt - Date.now() - 5 * 60 * 1000
-    
+
     if (refreshTime > 0) {
       this.refreshTimer = setTimeout(() => {
         this.refreshTokens().catch(console.error)
@@ -160,10 +163,11 @@ export class AuthService {
 
   // Get current access token, refreshing if necessary
   async getValidAccessToken(): Promise<string | null> {
-    const currentState = await new Promise(resolve => {
+    const currentState = await new Promise((resolve) => {
       let unsubscribe: (() => void) | undefined
-      unsubscribe = authStore.subscribe(state => {
-        if (unsubscribe) unsubscribe()
+      unsubscribe = authStore.subscribe((state) => {
+        if (unsubscribe)
+          unsubscribe()
         resolve(state)
       })
     })
@@ -177,7 +181,8 @@ export class AuthService {
       try {
         const newTokens = await this.refreshTokens()
         return newTokens.accessToken
-      } catch (error) {
+      }
+      catch (error) {
         return null
       }
     }

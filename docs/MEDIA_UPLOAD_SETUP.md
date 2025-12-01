@@ -155,19 +155,19 @@ hold-that-thought-bucket/
 ```svelte
 <script>
   import MediaUpload from '$lib/components/MediaUpload.svelte'
-  
+
   function handleUploadComplete(event) {
     const { results } = event.detail
     console.log('Upload completed:', results)
-    
+
     // Refresh gallery or show success message
     refreshGallery()
   }
-  
+
   function handleUploadError(event) {
     const { error } = event.detail
     console.error('Upload error:', error)
-    
+
     // Show error message to user
     showErrorMessage(error)
   }
@@ -194,7 +194,8 @@ const result = await uploadMediaFile(file, (progress) => {
 
 if (result.success) {
   console.log('File uploaded:', result.data)
-} else {
+}
+else {
   console.error('Upload failed:', result.message)
 }
 ```

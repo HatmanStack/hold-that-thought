@@ -1,7 +1,7 @@
-import { any, maskable } from '$lib/config/icon'
-import { site } from '$lib/config/site'
-
 import type { RequestHandler } from './$types'
+import { any, maskable } from '$lib/config/icon'
+
+import { site } from '$lib/config/site'
 
 export const prerender = true
 export const trailingSlash = 'never'

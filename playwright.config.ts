@@ -1,4 +1,4 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test'
 
 /**
  * Playwright configuration for Hold That Thought E2E tests
@@ -41,10 +41,12 @@ export default defineConfig({
   ],
 
   // Run dev server before tests (unless BASE_URL is set)
-  webServer: process.env.BASE_URL ? undefined : {
-    command: 'pnpm dev',
-    url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120000, // 2 minutes
-  },
-});
+  webServer: process.env.BASE_URL
+    ? undefined
+    : {
+        command: 'pnpm dev',
+        url: 'http://localhost:5173',
+        reuseExistingServer: !process.env.CI,
+        timeout: 120000, // 2 minutes
+      },
+})

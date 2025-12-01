@@ -189,7 +189,7 @@ ALLCAPS.JPG (use lowercase)
 ### Gallery Endpoints
 ```
 GET /api/gallery/pictures  - List all pictures
-GET /api/gallery/videos    - List all videos  
+GET /api/gallery/videos    - List all videos
 GET /api/gallery/documents - List all documents
 GET /api/gallery/health    - Health check
 ```

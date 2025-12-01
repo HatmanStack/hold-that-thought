@@ -1,8 +1,8 @@
-<script lang="ts">
-  import { onMount } from 'svelte'
+<script lang='ts'>
+  import type { CommentHistoryItem } from '$lib/types/profile'
   import { goto } from '$app/navigation'
   import { getCommentHistory } from '$lib/services/profileService'
-  import type { CommentHistoryItem } from '$lib/types/profile'
+  import { onMount } from 'svelte'
 
   export let userId: string
 
@@ -25,15 +25,19 @@
     const diffHour = Math.floor(diffMin / 60)
     const diffDay = Math.floor(diffHour / 24)
 
-    if (diffSec < 60) return 'just now'
-    if (diffMin < 60) return `${diffMin} minute${diffMin > 1 ? 's' : ''} ago`
-    if (diffHour < 24) return `${diffHour} hour${diffHour > 1 ? 's' : ''} ago`
-    if (diffDay < 30) return `${diffDay} day${diffDay > 1 ? 's' : ''} ago`
+    if (diffSec < 60)
+      return 'just now'
+    if (diffMin < 60)
+      return `${diffMin} minute${diffMin > 1 ? 's' : ''} ago`
+    if (diffHour < 24)
+      return `${diffHour} hour${diffHour > 1 ? 's' : ''} ago`
+    if (diffDay < 30)
+      return `${diffDay} day${diffDay > 1 ? 's' : ''} ago`
 
     return then.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
     })
   }
 
@@ -41,8 +45,9 @@
    * Truncate comment text to snippet length
    */
   function truncateComment(text: string, maxLength: number = 150): string {
-    if (text.length <= maxLength) return text
-    return text.substring(0, maxLength).trim() + '...'
+    if (text.length <= maxLength)
+      return text
+    return `${text.substring(0, maxLength).trim()}...`
   }
 
   /**
@@ -65,7 +70,8 @@
       comments = result.data
       lastEvaluatedKey = result.lastEvaluatedKey
       hasMore = !!result.lastEvaluatedKey
-    } else {
+    }
+    else {
       error = result.error || 'Failed to load comment history'
     }
 
@@ -76,7 +82,8 @@
    * Load more comments (pagination)
    */
   async function loadMoreComments() {
-    if (!lastEvaluatedKey || loadingMore) return
+    if (!lastEvaluatedKey || loadingMore)
+      return
 
     loadingMore = true
     error = ''
@@ -87,7 +94,8 @@
       comments = [...comments, ...result.data]
       lastEvaluatedKey = result.lastEvaluatedKey
       hasMore = !!result.lastEvaluatedKey
-    } else {
+    }
+    else {
       error = result.error || 'Failed to load more comments'
     }
 
@@ -99,102 +107,102 @@
   })
 </script>
 
-<div class="card bg-base-100 shadow-xl">
-  <div class="card-body">
-    <h3 class="card-title mb-4">Comment History</h3>
+<div class='card bg-base-100 shadow-xl'>
+  <div class='card-body'>
+    <h3 class='card-title mb-4'>Comment History</h3>
 
     {#if loading}
       <!-- Loading skeleton -->
-      <div class="space-y-4">
-        {#each Array(3) as _}
-          <div class="animate-pulse">
-            <div class="h-4 bg-base-300 rounded w-3/4 mb-2"></div>
-            <div class="h-3 bg-base-300 rounded w-full mb-1"></div>
-            <div class="h-3 bg-base-300 rounded w-5/6"></div>
+      <div class='space-y-4'>
+        {#each Array.from({ length: 3 }) as _}
+          <div class='animate-pulse'>
+            <div class='h-4 bg-base-300 rounded mb-2 w-3/4'></div>
+            <div class='h-3 bg-base-300 rounded w-full mb-1'></div>
+            <div class='h-3 bg-base-300 rounded w-5/6'></div>
           </div>
         {/each}
       </div>
     {:else if error}
       <!-- Error state -->
-      <div class="alert alert-error">
+      <div class='alert alert-error'>
         <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="stroke-current shrink-0 h-6 w-6"
-          fill="none"
-          viewBox="0 0 24 24"
+          xmlns='http://www.w3.org/2000/svg'
+          class='stroke-current shrink-0 h-6 w-6'
+          fill='none'
+          viewBox='0 0 24 24'
         >
           <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+            stroke-linecap='round'
+            stroke-linejoin='round'
+            stroke-width='2'
+            d='M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z'
           />
         </svg>
         <span>{error}</span>
       </div>
     {:else if comments.length === 0}
       <!-- Empty state -->
-      <div class="text-center py-8">
+      <div class='text-center py-8'>
         <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="h-16 w-16 mx-auto mb-4 text-base-content/20"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
+          xmlns='http://www.w3.org/2000/svg'
+          class='h-16 w-16 mx-auto mb-4 text-base-content/20'
+          fill='none'
+          viewBox='0 0 24 24'
+          stroke='currentColor'
         >
           <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+            stroke-linecap='round'
+            stroke-linejoin='round'
+            stroke-width='2'
+            d='M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z'
           />
         </svg>
-        <p class="text-base-content/60">No comments yet</p>
+        <p class='text-base-content/60'>No comments yet</p>
       </div>
     {:else}
       <!-- Comments list -->
-      <div class="space-y-4">
+      <div class='space-y-4'>
         {#each comments as comment}
-          <div class="border-l-4 border-primary pl-4 py-2 hover:bg-base-200 transition-colors">
+          <div class='border-l-4 py-2 hover:bg-base-200 transition-colors border-primary pl-4'>
             <button
-              class="text-left w-full"
+              class='text-left w-full'
               on:click={() => navigateToComment(comment.itemId, comment.commentId)}
             >
               <!-- Item title -->
-              <h4 class="font-semibold text-primary hover:underline mb-1">
+              <h4 class='font-semibold text-primary hover:underline mb-1'>
                 {comment.itemTitle}
               </h4>
 
               <!-- Comment snippet -->
-              <p class="text-sm text-base-content/80 mb-2">
+              <p class='text-sm mb-2 text-base-content/80'>
                 {truncateComment(comment.commentText)}
               </p>
 
               <!-- Metadata -->
-              <div class="flex items-center gap-3 text-xs text-base-content/60">
+              <div class='flex items-center gap-3 text-xs text-base-content/60'>
                 <span>{formatRelativeTime(comment.createdAt)}</span>
 
                 {#if comment.reactionCount > 0}
-                  <span class="flex items-center gap-1">
+                  <span class='flex items-center gap-1'>
                     <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      class="h-3 w-3"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+                      xmlns='http://www.w3.org/2000/svg'
+                      class='h-3 w-3'
+                      fill='currentColor'
+                      viewBox='0 0 24 24'
+                      stroke='currentColor'
                     >
                       <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                        stroke-linecap='round'
+                        stroke-linejoin='round'
+                        stroke-width='2'
+                        d='M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z'
                       />
                     </svg>
                     {comment.reactionCount}
                   </span>
                 {/if}
 
-                <span class="badge badge-xs badge-ghost">{comment.itemType}</span>
+                <span class='badge badge-xs badge-ghost'>{comment.itemType}</span>
               </div>
             </button>
           </div>
@@ -203,9 +211,9 @@
 
       <!-- Load more button -->
       {#if hasMore}
-        <div class="text-center mt-4">
+        <div class='text-center mt-4'>
           <button
-            class="btn btn-outline btn-sm"
+            class='btn btn-outline btn-sm'
             class:loading={loadingMore}
             on:click={loadMoreComments}
             disabled={loadingMore}

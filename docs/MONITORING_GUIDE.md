@@ -146,18 +146,18 @@ After deployment:
 **✅ Good:**
 ```javascript
 console.log('Comment created', {
-  userId: userId,
-  itemId: itemId,
-  commentId: commentId,
+  userId,
+  itemId,
+  commentId,
   timestamp: new Date().toISOString()
-});
+})
 ```
 
 **❌ Bad:**
 ```javascript
 // Don't log sensitive data
-console.log('Request:', JSON.stringify(event)); // May contain tokens
-console.log('Password:', password); // Never log credentials
+console.log('Request:', JSON.stringify(event)) // May contain tokens
+console.log('Password:', password) // Never log credentials
 ```
 
 ### CloudWatch Logs Insights
@@ -210,11 +210,11 @@ Properties:
 ### Sample Code
 
 ```javascript
-const AWSXRay = require('aws-xray-sdk-core');
-const AWS = AWSXRay.captureAWS(require('aws-sdk'));
+const AWSXRay = require('aws-xray-sdk-core')
+const AWS = AWSXRay.captureAWS(require('aws-sdk'))
 
 // X-Ray will automatically trace DynamoDB calls
-const docClient = new AWS.DynamoDB.DocumentClient();
+const docClient = new AWS.DynamoDB.DocumentClient()
 ```
 
 ## Metrics to Track
@@ -245,10 +245,10 @@ Track in custom CloudWatch metrics or database:
 
 ```javascript
 // Lambda function
-const { CloudWatchClient, PutMetricDataCommand } = require('@aws-sdk/client-cloudwatch');
+const { CloudWatchClient, PutMetricDataCommand } = require('@aws-sdk/client-cloudwatch')
 
 async function trackCommentCreated(itemId) {
-  const client = new CloudWatchClient({ region: 'us-east-1' });
+  const client = new CloudWatchClient({ region: 'us-east-1' })
 
   await client.send(new PutMetricDataCommand({
     Namespace: 'HoldThatThought',
@@ -261,7 +261,7 @@ async function trackCommentCreated(itemId) {
         { Name: 'ItemId', Value: itemId }
       ]
     }]
-  }));
+  }))
 }
 ```
 

@@ -1,15 +1,13 @@
-import { authTokens } from '$lib/auth/auth-store'
-import { get } from 'svelte/store'
-import { PUBLIC_API_GATEWAY_URL } from '$env/static/public'
 import type {
-  Message,
-  Conversation,
-  MessageApiResponse,
   ConversationApiResponse,
   CreateConversationRequest,
+  MessageApiResponse,
   SendMessageRequest,
-  UploadAttachmentResponse
+  UploadAttachmentResponse,
 } from '$lib/types/message'
+import { PUBLIC_API_GATEWAY_URL } from '$env/static/public'
+import { authTokens } from '$lib/auth/auth-store'
+import { get } from 'svelte/store'
 
 const API_BASE = PUBLIC_API_GATEWAY_URL
 
@@ -23,8 +21,8 @@ function getAuthHeader(): Record<string, string> {
     throw new Error('Your session has expired. Please log in again.')
   }
   return {
-    Authorization: `Bearer ${tokens.idToken}`,
-    'Content-Type': 'application/json'
+    'Authorization': `Bearer ${tokens.idToken}`,
+    'Content-Type': 'application/json',
   }
 }
 
@@ -33,7 +31,7 @@ function getAuthHeader(): Record<string, string> {
  */
 export async function getConversations(
   limit: number = 50,
-  lastKey?: string
+  lastKey?: string,
 ): Promise<ConversationApiResponse> {
   try {
     const params = new URLSearchParams({ limit: limit.toString() })
@@ -42,14 +40,14 @@ export async function getConversations(
     }
 
     const response = await fetch(`${API_BASE}/messages/conversations?${params}`, {
-      headers: getAuthHeader()
+      headers: getAuthHeader(),
     })
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Failed to fetch conversations' }))
       return {
         success: false,
-        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
       }
     }
 
@@ -57,13 +55,14 @@ export async function getConversations(
     return {
       success: true,
       data: data.items || data,
-      lastEvaluatedKey: data.lastEvaluatedKey
+      lastEvaluatedKey: data.lastEvaluatedKey,
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error fetching conversations:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to fetch conversations'
+      error: error instanceof Error ? error.message : 'Failed to fetch conversations',
     }
   }
 }
@@ -74,7 +73,7 @@ export async function getConversations(
 export async function getMessages(
   conversationId: string,
   limit: number = 50,
-  lastKey?: string
+  lastKey?: string,
 ): Promise<MessageApiResponse> {
   try {
     const params = new URLSearchParams({ limit: limit.toString() })
@@ -85,15 +84,15 @@ export async function getMessages(
     const response = await fetch(
       `${API_BASE}/messages/conversations/${encodeURIComponent(conversationId)}?${params}`,
       {
-        headers: getAuthHeader()
-      }
+        headers: getAuthHeader(),
+      },
     )
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Failed to fetch messages' }))
       return {
         success: false,
-        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
       }
     }
 
@@ -101,13 +100,14 @@ export async function getMessages(
     return {
       success: true,
       data: data.items || data,
-      lastEvaluatedKey: data.lastEvaluatedKey
+      lastEvaluatedKey: data.lastEvaluatedKey,
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error fetching messages:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to fetch messages'
+      error: error instanceof Error ? error.message : 'Failed to fetch messages',
     }
   }
 }
@@ -118,39 +118,40 @@ export async function getMessages(
 export async function createConversation(
   participantIds: string[],
   messageText: string,
-  conversationTitle?: string
+  conversationTitle?: string,
 ): Promise<ConversationApiResponse> {
   try {
     const body: CreateConversationRequest = {
       participantIds,
       messageText,
-      conversationTitle
+      conversationTitle,
     }
 
     const response = await fetch(`${API_BASE}/messages/conversations`, {
       method: 'POST',
       headers: getAuthHeader(),
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     })
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Failed to create conversation' }))
       return {
         success: false,
-        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
       }
     }
 
     const data = await response.json()
     return {
       success: true,
-      data
+      data,
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error creating conversation:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to create conversation'
+      error: error instanceof Error ? error.message : 'Failed to create conversation',
     }
   }
 }
@@ -161,12 +162,12 @@ export async function createConversation(
 export async function sendMessage(
   conversationId: string,
   messageText: string,
-  attachments?: Array<{ s3Key: string; filename: string; contentType: string; size: number }>
+  attachments?: Array<{ s3Key: string, filename: string, contentType: string, size: number }>,
 ): Promise<MessageApiResponse> {
   try {
     const body: SendMessageRequest = {
       messageText,
-      attachments
+      attachments,
     }
 
     const response = await fetch(
@@ -174,28 +175,29 @@ export async function sendMessage(
       {
         method: 'POST',
         headers: getAuthHeader(),
-        body: JSON.stringify(body)
-      }
+        body: JSON.stringify(body),
+      },
     )
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Failed to send message' }))
       return {
         success: false,
-        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
       }
     }
 
     const data = await response.json()
     return {
       success: true,
-      data
+      data,
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error sending message:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to send message'
+      error: error instanceof Error ? error.message : 'Failed to send message',
     }
   }
 }
@@ -209,28 +211,29 @@ export async function markAsRead(conversationId: string): Promise<ConversationAp
       `${API_BASE}/messages/conversations/${encodeURIComponent(conversationId)}/read`,
       {
         method: 'PUT',
-        headers: getAuthHeader()
-      }
+        headers: getAuthHeader(),
+      },
     )
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Failed to mark as read' }))
       return {
         success: false,
-        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
       }
     }
 
     const data = await response.json()
     return {
       success: true,
-      data
+      data,
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error marking conversation as read:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to mark as read'
+      error: error instanceof Error ? error.message : 'Failed to mark as read',
     }
   }
 }
@@ -247,15 +250,15 @@ export async function uploadAttachment(file: File): Promise<UploadAttachmentResp
       body: JSON.stringify({
         filename: file.name,
         contentType: file.type,
-        size: file.size
-      })
+        size: file.size,
+      }),
     })
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Failed to get upload URL' }))
       return {
         success: false,
-        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
       }
     }
 
@@ -265,15 +268,15 @@ export async function uploadAttachment(file: File): Promise<UploadAttachmentResp
     const uploadResponse = await fetch(uploadUrl, {
       method: 'PUT',
       headers: {
-        'Content-Type': file.type
+        'Content-Type': file.type,
       },
-      body: file
+      body: file,
     })
 
     if (!uploadResponse.ok) {
       return {
         success: false,
-        error: 'Failed to upload file to S3'
+        error: 'Failed to upload file to S3',
       }
     }
 
@@ -281,14 +284,15 @@ export async function uploadAttachment(file: File): Promise<UploadAttachmentResp
       success: true,
       data: {
         uploadUrl,
-        s3Key
-      }
+        s3Key,
+      },
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error uploading attachment:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to upload attachment'
+      error: error instanceof Error ? error.message : 'Failed to upload attachment',
     }
   }
 }

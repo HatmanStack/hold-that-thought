@@ -24,7 +24,7 @@ export class ApiClient {
     } = options
 
     const url = `${this.baseUrl}${endpoint}`
-    
+
     // Prepare headers
     const requestHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -37,7 +37,7 @@ export class ApiClient {
       if (!accessToken) {
         throw new Error('No valid access token available')
       }
-      requestHeaders['Authorization'] = `Bearer ${accessToken}`
+      requestHeaders.Authorization = `Bearer ${accessToken}`
     }
 
     // Prepare request options
@@ -56,17 +56,18 @@ export class ApiClient {
       if (!response.ok) {
         const errorText = await response.text()
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`
-        
+
         try {
           const errorJson = JSON.parse(errorText)
           errorMessage = errorJson.message || errorMessage
-        } catch {
+        }
+        catch {
           // If not JSON, use the text as is
           if (errorText) {
             errorMessage = errorText
           }
         }
-        
+
         throw new Error(errorMessage)
       }
 
@@ -77,7 +78,8 @@ export class ApiClient {
       }
 
       return await response.json()
-    } catch (error) {
+    }
+    catch (error) {
       console.error(`API request failed for ${method} ${url}:`, error)
       throw error
     }

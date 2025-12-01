@@ -27,7 +27,7 @@ ApprovedUsersGroup:
   Type: AWS::Cognito::UserPoolGroup
   Properties:
     GroupName: ApprovedUsers
-    Description: 'Group for users with approved access to the application'
+    Description: Group for users with approved access to the application
     UserPoolId: !Ref UserPool
     Precedence: 1
 ```
@@ -103,17 +103,17 @@ export const load: PageServerLoad = async (event) => {
 ### 2. Protecting an API Endpoint
 
 ```typescript
-// src/routes/api/admin/users/+server.ts
-import { json } from '@sveltejs/kit'
 import type { RequestHandler } from './$types'
 import { requireApprovedUser } from '$lib/auth/middleware'
+// src/routes/api/admin/users/+server.ts
+import { json } from '@sveltejs/kit'
 
 export const GET: RequestHandler = async (event) => {
   const user = await requireApprovedUser(event)
-  
+
   // Your protected logic here
   const data = await getAdminData()
-  
+
   return json({ data, user: user.email })
 }
 ```
@@ -121,14 +121,14 @@ export const GET: RequestHandler = async (event) => {
 ### 3. Optional Authentication
 
 ```typescript
-// src/routes/api/public/+server.ts
-import { json } from '@sveltejs/kit'
 import type { RequestHandler } from './$types'
 import { getOptionalUser } from '$lib/auth/middleware'
+// src/routes/api/public/+server.ts
+import { json } from '@sveltejs/kit'
 
 export const GET: RequestHandler = async (event) => {
   const user = await getOptionalUser(event)
-  
+
   return json({
     message: 'Public endpoint',
     isAuthenticated: !!user,
@@ -216,7 +216,7 @@ aws cognito-idp admin-add-user-to-group \
 
 ### Programmatically
 ```typescript
-import { CognitoIdentityProviderClient, AdminAddUserToGroupCommand } from '@aws-sdk/client-cognito-identity-provider'
+import { AdminAddUserToGroupCommand, CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider'
 
 const client = new CognitoIdentityProviderClient({ region: 'us-east-1' })
 

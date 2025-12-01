@@ -17,13 +17,13 @@
 
 const {
   CognitoIdentityProviderClient,
-  ListUsersCommand
+  ListUsersCommand,
 } = require('@aws-sdk/client-cognito-identity-provider')
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb')
 const {
   DynamoDBDocumentClient,
   PutCommand,
-  GetCommand
+  GetCommand,
 } = require('@aws-sdk/lib-dynamodb')
 
 // Configuration
@@ -55,13 +55,13 @@ function getAttribute(user, attributeName) {
  */
 async function fetchAllCognitoUsers() {
   const users = []
-  let paginationToken = undefined
+  let paginationToken
 
   do {
     const command = new ListUsersCommand({
       UserPoolId: USER_POOL_ID,
       Limit: 60, // Max limit per request
-      PaginationToken: paginationToken
+      PaginationToken: paginationToken,
     })
 
     const response = await cognitoClient.send(command)
@@ -81,12 +81,13 @@ async function profileExists(userId) {
   try {
     const command = new GetCommand({
       TableName: USER_PROFILES_TABLE,
-      Key: { userId }
+      Key: { userId },
     })
 
     const response = await docClient.send(command)
     return !!response.Item
-  } catch (error) {
+  }
+  catch (error) {
     console.error(`Error checking profile existence for ${userId}:`, error.message)
     return false
   }
@@ -135,20 +136,21 @@ async function createUserProfile(cognitoUser) {
     mediaUploadCount: 0,
     lastActive: new Date().toISOString(),
     createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
   }
 
   try {
     const command = new PutCommand({
       TableName: USER_PROFILES_TABLE,
       Item: profile,
-      ConditionExpression: 'attribute_not_exists(userId)' // Prevent overwriting existing profiles
+      ConditionExpression: 'attribute_not_exists(userId)', // Prevent overwriting existing profiles
     })
 
     await docClient.send(command)
     console.log(`✓ Created profile for ${email} (${userId})`)
     return true
-  } catch (error) {
+  }
+  catch (error) {
     if (error.name === 'ConditionalCheckFailedException') {
       console.log(`Profile already exists for ${email} (${userId})`)
       return false
@@ -193,9 +195,11 @@ async function main() {
       const result = await createUserProfile(user)
       if (result === true) {
         created++
-      } else if (result === false) {
+      }
+      else if (result === false) {
         existing++
-      } else {
+      }
+      else {
         errors++
       }
     }
@@ -210,8 +214,8 @@ async function main() {
     console.log(`Already existed: ${existing}`)
     console.log(`Errors: ${errors}`)
     console.log('='.repeat(60))
-
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Fatal error:', error)
     process.exit(1)
   }

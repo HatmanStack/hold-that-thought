@@ -16,9 +16,9 @@
       <meta content={post.summary} property='og:description' />
     {/if}
     {#if post?.author}
-      <meta property="article:author" content={post.author} />
+      <meta property='article:author' content={post.author} />
     {:else}
-      <meta property="article:author" content={site.author.name} />
+      <meta property='article:author' content={site.author.name} />
     {/if}
     {#if post.image}
       <meta content={(post.image.startsWith('http') ? '' : site.protocol + site.domain) + post.image} property='og:image' />

@@ -376,49 +376,49 @@ Create tests for the deployment script that verify:
 
 Test structure:
 ```javascript
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import fs from 'fs';
-import { execSync } from 'child_process';
+import { execSync } from 'node:child_process'
+import fs from 'node:fs'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  loadOrPromptConfig,
   generateSamConfig,
+  loadOrPromptConfig,
   validateConfig
-} from './deploy.js';
+} from './deploy.js'
 
-vi.mock('fs');
-vi.mock('child_process');
+vi.mock('fs')
+vi.mock('child_process')
 
 describe('deploy.js', () => {
   beforeEach(() => {
-    vi.resetAllMocks();
-  });
+    vi.resetAllMocks()
+  })
 
   describe('loadOrPromptConfig', () => {
     it('should load existing config file', async () => {
       // Test implementation
-    });
+    })
 
     it('should prompt for missing values', async () => {
       // Test implementation
-    });
-  });
+    })
+  })
 
   describe('generateSamConfig', () => {
     it('should generate valid TOML', () => {
       // Test implementation
-    });
-  });
+    })
+  })
 
   describe('validateConfig', () => {
     it('should accept valid config', () => {
       // Test implementation
-    });
+    })
 
     it('should reject invalid region', () => {
       // Test implementation
-    });
-  });
-});
+    })
+  })
+})
 ```
 
 **Verification Checklist:**

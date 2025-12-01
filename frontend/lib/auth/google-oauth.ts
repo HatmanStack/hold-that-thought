@@ -1,12 +1,12 @@
-import { cognitoConfig } from './cognito-config'
-import { authStore } from './auth-store'
 import type { AuthTokens, User } from './auth-store'
+import { authStore } from './auth-store'
+import { cognitoConfig } from './cognito-config'
 
 export class GoogleOAuthService {
   private getHostedUIUrl(): string {
-    const baseUrl = cognitoConfig.hostedUIUrl || 
-      `https://${cognitoConfig.hostedUIDomain}.auth.${cognitoConfig.region}.amazoncognito.com`
-    
+    const baseUrl = cognitoConfig.hostedUIUrl
+      || `https://${cognitoConfig.hostedUIDomain}.auth.${cognitoConfig.region}.amazoncognito.com`
+
     return baseUrl
   }
 
@@ -14,38 +14,36 @@ export class GoogleOAuthService {
   getGoogleLoginUrl(redirectUri?: string): string {
     const baseUrl = this.getHostedUIUrl()
     const redirect = redirectUri || `${window.location.origin}/auth/callback`
-    
+
     const params = new URLSearchParams({
       identity_provider: 'Google',
       redirect_uri: redirect,
       response_type: 'code',
       client_id: cognitoConfig.userPoolWebClientId,
-      scope: 'email openid profile aws.cognito.signin.user.admin'
+      scope: 'email openid profile aws.cognito.signin.user.admin',
     })
 
     return `${baseUrl}/oauth2/authorize?${params.toString()}`
   }
 
-
-
   // Generate logout URL
   getLogoutUrl(redirectUri?: string): string {
     const baseUrl = this.getHostedUIUrl()
     const redirect = redirectUri || `${window.location.origin}/auth/logout`
-    
+
     const params = new URLSearchParams({
       client_id: cognitoConfig.userPoolWebClientId,
-      logout_uri: redirect
+      logout_uri: redirect,
     })
 
     return `${baseUrl}/logout?${params.toString()}`
   }
 
   // Exchange authorization code for tokens
-  async exchangeCodeForTokens(code: string, redirectUri?: string): Promise<{ success: boolean; tokens?: AuthTokens; error?: Error }> {
+  async exchangeCodeForTokens(code: string, redirectUri?: string): Promise<{ success: boolean, tokens?: AuthTokens, error?: Error }> {
     const baseUrl = this.getHostedUIUrl()
     const redirect = redirectUri || `${window.location.origin}/auth/callback`
-    
+
     try {
       const response = await fetch(`${baseUrl}/oauth2/token`, {
         method: 'POST',
@@ -55,7 +53,7 @@ export class GoogleOAuthService {
         body: new URLSearchParams({
           grant_type: 'authorization_code',
           client_id: cognitoConfig.userPoolWebClientId,
-          code: code,
+          code,
           redirect_uri: redirect,
         }),
       })
@@ -66,7 +64,7 @@ export class GoogleOAuthService {
       }
 
       const tokenData = await response.json()
-      
+
       const tokens: AuthTokens = {
         accessToken: tokenData.access_token,
         idToken: tokenData.id_token,
@@ -75,7 +73,8 @@ export class GoogleOAuthService {
       }
 
       return { success: true, tokens }
-    } catch (error) {
+    }
+    catch (error) {
       return { success: false, error: error as Error }
     }
   }
@@ -88,22 +87,23 @@ export class GoogleOAuthService {
       const jsonPayload = decodeURIComponent(
         atob(base64)
           .split('')
-          .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-          .join('')
+          .map(c => `%${(`00${c.charCodeAt(0).toString(16)}`).slice(-2)}`)
+          .join(''),
       )
       return JSON.parse(jsonPayload)
-    } catch (error) {
+    }
+    catch (error) {
       return null
     }
   }
 
   // Handle OAuth callback and set authentication state
-  async handleOAuthCallback(code: string, redirectUri?: string): Promise<{ success: boolean; user?: User; error?: Error }> {
+  async handleOAuthCallback(code: string, redirectUri?: string): Promise<{ success: boolean, user?: User, error?: Error }> {
     authStore.setLoading(true)
-    
+
     try {
       const tokenResult = await this.exchangeCodeForTokens(code, redirectUri)
-      
+
       if (!tokenResult.success || !tokenResult.tokens) {
         throw tokenResult.error || new Error('Failed to exchange code for tokens')
       }
@@ -125,12 +125,14 @@ export class GoogleOAuthService {
       }
 
       authStore.setAuthenticated(user, tokenResult.tokens)
-      
+
       return { success: true, user }
-    } catch (error) {
+    }
+    catch (error) {
       authStore.clearAuth()
       return { success: false, error: error as Error }
-    } finally {
+    }
+    finally {
       authStore.setLoading(false)
     }
   }
@@ -140,8 +142,6 @@ export class GoogleOAuthService {
     const loginUrl = this.getGoogleLoginUrl(redirectUri)
     window.location.href = loginUrl
   }
-
-
 
   // Logout via hosted UI
   logoutViaHostedUI(redirectUri?: string): void {

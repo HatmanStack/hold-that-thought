@@ -1,59 +1,59 @@
-const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand, BatchWriteCommand, BatchGetCommand } = require('@aws-sdk/lib-dynamodb');
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
-const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
-const { v4: uuidv4 } = require('uuid');
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb')
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3')
+const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand, BatchWriteCommand, BatchGetCommand } = require('@aws-sdk/lib-dynamodb')
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner')
+const { v4: uuidv4 } = require('uuid')
 
-const ddbClient = new DynamoDBClient({});
-const docClient = DynamoDBDocumentClient.from(ddbClient);
-const s3Client = new S3Client({});
+const ddbClient = new DynamoDBClient({})
+const docClient = DynamoDBDocumentClient.from(ddbClient)
+const s3Client = new S3Client({})
 
-const USER_PROFILES_TABLE = process.env.USER_PROFILES_TABLE;
-const MESSAGES_TABLE = process.env.MESSAGES_TABLE;
-const CONVERSATION_MEMBERS_TABLE = process.env.CONVERSATION_MEMBERS_TABLE;
-const BUCKET_NAME = process.env.BUCKET_NAME;
+const USER_PROFILES_TABLE = process.env.USER_PROFILES_TABLE
+const MESSAGES_TABLE = process.env.MESSAGES_TABLE
+const CONVERSATION_MEMBERS_TABLE = process.env.CONVERSATION_MEMBERS_TABLE
+const BUCKET_NAME = process.env.BUCKET_NAME
 
 exports.handler = async (event) => {
   try {
-    const userId = event.requestContext?.authorizer?.claims?.sub;
+    const userId = event.requestContext?.authorizer?.claims?.sub
     if (!userId) {
-      return errorResponse(401, 'Unauthorized: Missing user context');
+      return errorResponse(401, 'Unauthorized: Missing user context')
     }
 
-    const method = event.httpMethod;
-    const resource = event.resource;
+    const method = event.httpMethod
+    const resource = event.resource
 
     if (method === 'GET' && resource === '/messages/conversations') {
-      return await listConversations(userId);
+      return await listConversations(userId)
     }
 
     if (method === 'GET' && resource === '/messages/conversations/{conversationId}') {
-      return await getMessages(event, userId);
+      return await getMessages(event, userId)
     }
 
     if (method === 'POST' && resource === '/messages/conversations') {
-      return await createConversation(event, userId);
+      return await createConversation(event, userId)
     }
 
     if (method === 'POST' && resource === '/messages/conversations/{conversationId}') {
-      return await sendMessage(event, userId);
+      return await sendMessage(event, userId)
     }
 
     if (method === 'POST' && resource === '/messages/upload') {
-      return await generateUploadUrl(event, userId);
+      return await generateUploadUrl(event, userId)
     }
 
     if (method === 'PUT' && resource === '/messages/conversations/{conversationId}/read') {
-      return await markAsRead(event, userId);
+      return await markAsRead(event, userId)
     }
 
-    return errorResponse(404, 'Route not found');
-
-  } catch (error) {
-    console.error('Error:', error);
-    return errorResponse(500, 'Internal server error');
+    return errorResponse(404, 'Route not found')
   }
-};
+  catch (error) {
+    console.error('Error:', error)
+    return errorResponse(500, 'Internal server error')
+  }
+}
 
 async function listConversations(userId) {
   try {
@@ -62,94 +62,94 @@ async function listConversations(userId) {
       IndexName: 'RecentConversationsIndex',
       KeyConditionExpression: 'userId = :userId',
       ExpressionAttributeValues: {
-        ':userId': userId
+        ':userId': userId,
       },
       ScanIndexForward: false,
-      Limit: 50
-    }));
+      Limit: 50,
+    }))
 
     return successResponse({
-      conversations: result.Items || []
-    });
-
-  } catch (error) {
-    console.error('Error listing conversations:', { userId, error });
-    throw error;
+      conversations: result.Items || [],
+    })
+  }
+  catch (error) {
+    console.error('Error listing conversations:', { userId, error })
+    throw error
   }
 }
 
 async function getMessages(event, userId) {
-  const conversationId = event.pathParameters?.conversationId;
-  const limit = parseInt(event.queryStringParameters?.limit || '50');
-  const lastEvaluatedKey = event.queryStringParameters?.lastEvaluatedKey;
+  const conversationId = event.pathParameters?.conversationId
+  const limit = Number.parseInt(event.queryStringParameters?.limit || '50')
+  const lastEvaluatedKey = event.queryStringParameters?.lastEvaluatedKey
 
   if (!conversationId) {
-    return errorResponse(400, 'Missing conversationId parameter');
+    return errorResponse(400, 'Missing conversationId parameter')
   }
 
   try {
     const memberCheck = await docClient.send(new GetCommand({
       TableName: CONVERSATION_MEMBERS_TABLE,
-      Key: { userId, conversationId }
-    }));
+      Key: { userId, conversationId },
+    }))
 
     if (!memberCheck.Item) {
-      return errorResponse(403, 'You are not a participant in this conversation');
+      return errorResponse(403, 'You are not a participant in this conversation')
     }
 
     const queryParams = {
       TableName: MESSAGES_TABLE,
       KeyConditionExpression: 'conversationId = :conversationId',
       ExpressionAttributeValues: {
-        ':conversationId': conversationId
+        ':conversationId': conversationId,
       },
       Limit: limit,
-      ScanIndexForward: false
-    };
-
-    if (lastEvaluatedKey) {
-      queryParams.ExclusiveStartKey = JSON.parse(Buffer.from(lastEvaluatedKey, 'base64').toString());
+      ScanIndexForward: false,
     }
 
-    const result = await docClient.send(new QueryCommand(queryParams));
+    if (lastEvaluatedKey) {
+      queryParams.ExclusiveStartKey = JSON.parse(Buffer.from(lastEvaluatedKey, 'base64').toString())
+    }
+
+    const result = await docClient.send(new QueryCommand(queryParams))
 
     return successResponse({
       messages: result.Items || [],
       lastEvaluatedKey: result.LastEvaluatedKey
         ? Buffer.from(JSON.stringify(result.LastEvaluatedKey)).toString('base64')
-        : null
-    });
-
-  } catch (error) {
-    console.error('Error getting messages:', { conversationId, userId, error });
-    throw error;
+        : null,
+    })
+  }
+  catch (error) {
+    console.error('Error getting messages:', { conversationId, userId, error })
+    throw error
   }
 }
 
 async function createConversation(event, userId) {
-  const body = JSON.parse(event.body || '{}');
-  const participantIds = body.participantIds || [];
-  const messageText = body.messageText;
-  const conversationTitle = body.conversationTitle;
+  const body = JSON.parse(event.body || '{}')
+  const participantIds = body.participantIds || []
+  const messageText = body.messageText
+  const conversationTitle = body.conversationTitle
 
   if (!Array.isArray(participantIds) || participantIds.length === 0) {
-    return errorResponse(400, 'participantIds must be a non-empty array');
+    return errorResponse(400, 'participantIds must be a non-empty array')
   }
 
   if (!participantIds.includes(userId)) {
-    participantIds.push(userId);
+    participantIds.push(userId)
   }
 
   try {
     const conversationId = participantIds.length === 2
       ? participantIds.sort().join('#')
-      : uuidv4();
+      : uuidv4()
 
-    const conversationType = participantIds.length === 2 ? 'direct' : 'group';
+    const conversationType = participantIds.length === 2 ? 'direct' : 'group'
 
-    const participantNames = await fetchUserNames(participantIds);
+    const participantNames = await fetchUserNames(participantIds)
 
-    const now = new Date().toISOString();
+    const now = new Date().toISOString()
     const memberRecords = participantIds.map(pid => ({
       PutRequest: {
         Item: {
@@ -160,120 +160,120 @@ async function createConversation(event, userId) {
           participantNames: new Set(participantNames),
           lastMessageAt: now,
           unreadCount: pid === userId ? 0 : 1,
-          conversationTitle: conversationTitle || null
-        }
-      }
-    }));
+          conversationTitle: conversationTitle || null,
+        },
+      },
+    }))
 
     for (let i = 0; i < memberRecords.length; i += 25) {
-      const batch = memberRecords.slice(i, i + 25);
+      const batch = memberRecords.slice(i, i + 25)
       await docClient.send(new BatchWriteCommand({
         RequestItems: {
-          [CONVERSATION_MEMBERS_TABLE]: batch
-        }
-      }));
+          [CONVERSATION_MEMBERS_TABLE]: batch,
+        },
+      }))
     }
 
-    let message = null;
+    let message = null
     if (messageText) {
-      message = await createMessage(conversationId, userId, messageText, participantIds, conversationType);
+      message = await createMessage(conversationId, userId, messageText, participantIds, conversationType)
     }
 
     return successResponse({
       conversationId,
       conversationType,
       participantIds,
-      message
-    }, 201);
-
-  } catch (error) {
-    console.error('Error creating conversation:', { userId, participantIds, error });
-    throw error;
+      message,
+    }, 201)
+  }
+  catch (error) {
+    console.error('Error creating conversation:', { userId, participantIds, error })
+    throw error
   }
 }
 
 async function sendMessage(event, userId) {
-  const conversationId = event.pathParameters?.conversationId;
-  const body = JSON.parse(event.body || '{}');
-  const messageText = body.messageText;
-  const attachments = body.attachments || [];
+  const conversationId = event.pathParameters?.conversationId
+  const body = JSON.parse(event.body || '{}')
+  const messageText = body.messageText
+  const attachments = body.attachments || []
 
   if (!conversationId) {
-    return errorResponse(400, 'Missing conversationId parameter');
+    return errorResponse(400, 'Missing conversationId parameter')
   }
 
   if (!messageText || typeof messageText !== 'string') {
-    return errorResponse(400, 'Missing or invalid messageText');
+    return errorResponse(400, 'Missing or invalid messageText')
   }
 
   if (messageText.length > 5000) {
-    return errorResponse(400, 'Message text must be 5000 characters or less');
+    return errorResponse(400, 'Message text must be 5000 characters or less')
   }
 
   try {
     const memberCheck = await docClient.send(new GetCommand({
       TableName: CONVERSATION_MEMBERS_TABLE,
-      Key: { userId, conversationId }
-    }));
+      Key: { userId, conversationId },
+    }))
 
     if (!memberCheck.Item) {
-      return errorResponse(403, 'You are not a participant in this conversation');
+      return errorResponse(403, 'You are not a participant in this conversation')
     }
 
-    const conversation = memberCheck.Item;
-    const participantIds = Array.from(conversation.participantIds);
-    const conversationType = conversation.conversationType;
+    const conversation = memberCheck.Item
+    const participantIds = Array.from(conversation.participantIds)
+    const conversationType = conversation.conversationType
 
-    const message = await createMessage(conversationId, userId, messageText, participantIds, conversationType, attachments);
+    const message = await createMessage(conversationId, userId, messageText, participantIds, conversationType, attachments)
 
-    await updateConversationMembers(conversationId, userId, participantIds);
+    await updateConversationMembers(conversationId, userId, participantIds)
 
-    return successResponse(message, 201);
-
-  } catch (error) {
-    console.error('Error sending message:', { conversationId, userId, error });
-    throw error;
+    return successResponse(message, 201)
+  }
+  catch (error) {
+    console.error('Error sending message:', { conversationId, userId, error })
+    throw error
   }
 }
 
 async function generateUploadUrl(event, userId) {
-  const body = JSON.parse(event.body || '{}');
-  const fileName = body.fileName;
-  const contentType = body.contentType || 'application/octet-stream';
+  const body = JSON.parse(event.body || '{}')
+  const fileName = body.fileName
+  const contentType = body.contentType || 'application/octet-stream'
 
   if (!fileName) {
-    return errorResponse(400, 'Missing fileName');
+    return errorResponse(400, 'Missing fileName')
   }
 
   try {
-    const key = `messages/attachments/${userId}/${uuidv4()}_${fileName}`;
+    const key = `messages/attachments/${userId}/${uuidv4()}_${fileName}`
 
     const command = new PutObjectCommand({
       Bucket: BUCKET_NAME,
       Key: key,
-      ContentType: contentType
-    });
+      ContentType: contentType,
+    })
 
-    const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 900 });
+    const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 900 })
 
     return successResponse({
       uploadUrl: presignedUrl,
       s3Key: key,
       fileName,
-      contentType
-    });
-
-  } catch (error) {
-    console.error('Error generating upload URL:', { userId, fileName, error });
-    throw error;
+      contentType,
+    })
+  }
+  catch (error) {
+    console.error('Error generating upload URL:', { userId, fileName, error })
+    throw error
   }
 }
 
 async function markAsRead(event, userId) {
-  const conversationId = event.pathParameters?.conversationId;
+  const conversationId = event.pathParameters?.conversationId
 
   if (!conversationId) {
-    return errorResponse(400, 'Missing conversationId parameter');
+    return errorResponse(400, 'Missing conversationId parameter')
   }
 
   try {
@@ -283,30 +283,30 @@ async function markAsRead(event, userId) {
       UpdateExpression: 'SET unreadCount = :zero',
       ConditionExpression: 'attribute_exists(userId)',
       ExpressionAttributeValues: {
-        ':zero': 0
-      }
-    }));
+        ':zero': 0,
+      },
+    }))
 
-    return successResponse({ message: 'Conversation marked as read' });
-
-  } catch (error) {
-    console.error('Error marking conversation as read:', { conversationId, userId, error });
+    return successResponse({ message: 'Conversation marked as read' })
+  }
+  catch (error) {
+    console.error('Error marking conversation as read:', { conversationId, userId, error })
     if (error.name === 'ConditionalCheckFailedException') {
-      return errorResponse(403, 'You are not a member of this conversation');
+      return errorResponse(403, 'You are not a member of this conversation')
     }
-    throw error;
+    throw error
   }
 }
 
 async function createMessage(conversationId, senderId, messageText, participantIds, conversationType, attachments = []) {
   const profileResult = await docClient.send(new GetCommand({
     TableName: USER_PROFILES_TABLE,
-    Key: { userId: senderId }
-  }));
+    Key: { userId: senderId },
+  }))
 
-  const senderName = profileResult.Item?.displayName || 'Anonymous';
+  const senderName = profileResult.Item?.displayName || 'Anonymous'
 
-  const messageId = `${new Date().toISOString()}#${uuidv4()}`;
+  const messageId = `${new Date().toISOString()}#${uuidv4()}`
 
   const message = {
     conversationId,
@@ -317,68 +317,69 @@ async function createMessage(conversationId, senderId, messageText, participantI
     attachments,
     createdAt: new Date().toISOString(),
     conversationType,
-    participants: new Set(participantIds)
-  };
+    participants: new Set(participantIds),
+  }
 
   await docClient.send(new PutCommand({
     TableName: MESSAGES_TABLE,
-    Item: message
-  }));
+    Item: message,
+  }))
 
   return {
     ...message,
-    participants: participantIds
-  };
+    participants: participantIds,
+  }
 }
 
 async function updateConversationMembers(conversationId, senderId, participantIds) {
-  const now = new Date().toISOString();
+  const now = new Date().toISOString()
 
-  const updatePromises = participantIds.map(participantId => {
+  const updatePromises = participantIds.map((participantId) => {
     if (participantId === senderId) {
       return docClient.send(new UpdateCommand({
         TableName: CONVERSATION_MEMBERS_TABLE,
         Key: { userId: participantId, conversationId },
         UpdateExpression: 'SET lastMessageAt = :now',
         ExpressionAttributeValues: {
-          ':now': now
-        }
-      }));
-    } else {
+          ':now': now,
+        },
+      }))
+    }
+    else {
       return docClient.send(new UpdateCommand({
         TableName: CONVERSATION_MEMBERS_TABLE,
         Key: { userId: participantId, conversationId },
         UpdateExpression: 'SET lastMessageAt = :now ADD unreadCount :one',
         ExpressionAttributeValues: {
           ':now': now,
-          ':one': 1
-        }
-      }));
+          ':one': 1,
+        },
+      }))
     }
-  });
+  })
 
-  await Promise.all(updatePromises);
+  await Promise.all(updatePromises)
 }
 
 async function fetchUserNames(userIds) {
   if (userIds.length === 0) {
-    return [];
+    return []
   }
 
   const result = await docClient.send(new BatchGetCommand({
     RequestItems: {
       [USER_PROFILES_TABLE]: {
-        Keys: userIds.map(userId => ({ userId }))
-      }
-    }
-  }));
+        Keys: userIds.map(userId => ({ userId })),
+      },
+    },
+  }))
 
   const userMap = {};
-  (result.Responses?.[USER_PROFILES_TABLE] || []).forEach(item => {
-    userMap[item.userId] = item.displayName || 'Anonymous';
-  });
+  (result.Responses?.[USER_PROFILES_TABLE] || []).forEach((item) => {
+    userMap[item.userId] = item.displayName || 'Anonymous'
+  })
 
-  return userIds.map(userId => userMap[userId] || 'Anonymous');
+  return userIds.map(userId => userMap[userId] || 'Anonymous')
 }
 
 function successResponse(data, statusCode = 200) {
@@ -387,10 +388,10 @@ function successResponse(data, statusCode = 200) {
     headers: {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Credentials': true
+      'Access-Control-Allow-Credentials': true,
     },
-    body: JSON.stringify(data)
-  };
+    body: JSON.stringify(data),
+  }
 }
 
 function errorResponse(statusCode, message) {
@@ -399,8 +400,8 @@ function errorResponse(statusCode, message) {
     headers: {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Credentials': true
+      'Access-Control-Allow-Credentials': true,
     },
-    body: JSON.stringify({ error: message })
-  };
+    body: JSON.stringify({ error: message }),
+  }
 }

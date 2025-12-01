@@ -76,16 +76,16 @@ For more advanced control, you can add a Lambda trigger to filter users:
 
 ```javascript
 exports.handler = async (event) => {
-    const email = event.request.userAttributes.email;
-    const allowedDomains = ['yourcompany.com', 'partner.com'];
-    
-    const domain = email.split('@')[1];
-    if (!allowedDomains.includes(domain)) {
-        throw new Error('Email domain not authorized');
-    }
-    
-    return event;
-};
+  const email = event.request.userAttributes.email
+  const allowedDomains = ['yourcompany.com', 'partner.com']
+
+  const domain = email.split('@')[1]
+  if (!allowedDomains.includes(domain)) {
+    throw new Error('Email domain not authorized')
+  }
+
+  return event
+}
 ```
 
 ## 📊 Access Patterns

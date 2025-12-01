@@ -2,12 +2,12 @@
   "name": "urara",
   "type": "module",
   "version": "1.0.0",
-  "license": "WTFPL",
-  "repository": "importantimport/urara",
-  "homepage": "https://github.com/importantimport/urara",
-  "bugs": "https://github.com/importantimport/urara/issues",
-  "author": "藍+85CD",
   "packageManager": "pnpm@9.10.0",
+  "author": "藍+85CD",
+  "license": "WTFPL",
+  "homepage": "https://github.com/importantimport/urara",
+  "repository": "importantimport/urara",
+  "bugs": "https://github.com/importantimport/urara/issues",
   "scripts": {
     "build": "run-s tsc urara:build kit:build clean",
     "check": "svelte-check --tsconfig ./tsconfig.json",
@@ -37,6 +37,15 @@
     "tsc:watch": "tsc -w -p tsconfig.node.json",
     "urara:build": "node urara.js build",
     "urara:watch": "node urara.js watch"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.782.0",
+    "@aws-sdk/client-lambda": "^3.782.0",
+    "@aws-sdk/client-s3": "^3.758.0",
+    "aws-sdk": "^2.1692.0",
+    "gray-matter": "^4.0.3",
+    "jose": "^6.0.12",
+    "marked": "^15.0.7"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^3.5.1",
@@ -72,6 +81,7 @@
     "fenceparser": "^2.2.0",
     "fff-flavored-frontmatter": "1.0.0-alpha.1",
     "github-slugger": "^2.0.0",
+    "jiti": "^2.6.1",
     "mdast-util-to-string": "^3.2.0",
     "mdsvex": "^0.11.0",
     "npm-run-all": "^4.1.5",
@@ -102,14 +112,5 @@
     "vitest": "^2.1.0",
     "workbox-build": "^7.0.0",
     "workbox-window": "^7.0.0"
-  },
-  "dependencies": {
-    "@aws-sdk/client-cognito-identity-provider": "^3.782.0",
-    "@aws-sdk/client-lambda": "^3.782.0",
-    "@aws-sdk/client-s3": "^3.758.0",
-    "aws-sdk": "^2.1692.0",
-    "gray-matter": "^4.0.3",
-    "jose": "^6.0.12",
-    "marked": "^15.0.7"
   }
 }

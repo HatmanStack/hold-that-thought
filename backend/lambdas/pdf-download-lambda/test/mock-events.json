@@ -33,7 +33,7 @@
     "body": null,
     "isBase64Encoded": false
   },
-  
+
   "unauthorizedEvent": {
     "httpMethod": "GET",
     "path": "/pdf-download",
@@ -53,7 +53,7 @@
     "body": null,
     "isBase64Encoded": false
   },
-  
+
   "forbiddenEvent": {
     "httpMethod": "GET",
     "path": "/pdf-download",
@@ -85,7 +85,7 @@
     "body": null,
     "isBase64Encoded": false
   },
-  
+
   "corsPreflightEvent": {
     "httpMethod": "OPTIONS",
     "path": "/pdf-download",
@@ -107,7 +107,7 @@
     "body": null,
     "isBase64Encoded": false
   },
-  
+
   "multipleGroupsEvent": {
     "httpMethod": "GET",
     "path": "/pdf-download",
@@ -141,7 +141,7 @@
     "body": null,
     "isBase64Encoded": false
   },
-  
+
   "noFilenameEvent": {
     "httpMethod": "GET",
     "path": "/pdf-download",

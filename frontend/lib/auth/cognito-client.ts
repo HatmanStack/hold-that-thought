@@ -1,8 +1,8 @@
 import {
   CognitoIdentityProviderClient,
-  InitiateAuthCommand,
   GetUserCommand,
   GlobalSignOutCommand,
+  InitiateAuthCommand,
   type InitiateAuthCommandInput,
 } from '@aws-sdk/client-cognito-identity-provider'
 import { cognitoConfig } from './cognito-config'
@@ -30,7 +30,8 @@ export class CognitoAuthClient {
       const command = new InitiateAuthCommand(params)
       const response = await this.client.send(command)
       return { success: true, data: response }
-    } catch (error) {
+    }
+    catch (error) {
       return { success: false, error: error as Error }
     }
   }
@@ -48,7 +49,8 @@ export class CognitoAuthClient {
       const command = new InitiateAuthCommand(params)
       const response = await this.client.send(command)
       return { success: true, data: response }
-    } catch (error) {
+    }
+    catch (error) {
       return { success: false, error: error as Error }
     }
   }
@@ -60,7 +62,8 @@ export class CognitoAuthClient {
       })
       const response = await this.client.send(command)
       return { success: true, data: response }
-    } catch (error) {
+    }
+    catch (error) {
       return { success: false, error: error as Error }
     }
   }
@@ -72,11 +75,11 @@ export class CognitoAuthClient {
       })
       const response = await this.client.send(command)
       return { success: true, data: response }
-    } catch (error) {
+    }
+    catch (error) {
       return { success: false, error: error as Error }
     }
   }
-
 }
 
 export const cognitoAuth = new CognitoAuthClient()

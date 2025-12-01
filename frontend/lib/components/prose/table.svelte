@@ -1,5 +1,5 @@
-<div class='overflow-x-auto mb-4'>
-  <table class='table w-full'>
+<div class='mb-4 overflow-x-auto'>
+  <table class='w-full table'>
     <slot />
   </table>
 </div>

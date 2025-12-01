@@ -1,5 +1,5 @@
-import { writable, derived } from 'svelte/store'
 import { browser } from '$app/environment'
+import { derived, writable } from 'svelte/store'
 
 export interface AuthTokens {
   accessToken: string
@@ -35,26 +35,27 @@ function createAuthStore() {
 
   return {
     subscribe,
-    
+
     // Initialize auth state from localStorage
     init: () => {
-      if (!browser) return
-      
+      if (!browser)
+        return
+
       // Check if user intentionally signed out
       const signedOut = localStorage.getItem('auth_signed_out')
       if (signedOut === 'true') {
         set({ ...initialState, loading: false })
         return
       }
-      
+
       try {
         const storedTokens = localStorage.getItem('auth_tokens')
         const storedUser = localStorage.getItem('auth_user')
-        
+
         if (storedTokens && storedUser) {
           const tokens: AuthTokens = JSON.parse(storedTokens)
           const user: User = JSON.parse(storedUser)
-          
+
           // Check if tokens are still valid
           if (tokens.expiresAt > Date.now()) {
             set({
@@ -64,18 +65,20 @@ function createAuthStore() {
               loading: false,
             })
             return
-          } else {
+          }
+          else {
             // Tokens expired, clear storage
             localStorage.removeItem('auth_tokens')
             localStorage.removeItem('auth_user')
           }
         }
-      } catch (error) {
+      }
+      catch (error) {
         console.error('Error initializing auth state:', error)
         localStorage.removeItem('auth_tokens')
         localStorage.removeItem('auth_user')
       }
-      
+
       set({ ...initialState, loading: false })
     },
 
@@ -87,7 +90,7 @@ function createAuthStore() {
         localStorage.setItem('auth_tokens', JSON.stringify(tokens))
         localStorage.setItem('auth_user', JSON.stringify(user))
       }
-      
+
       set({
         isAuthenticated: true,
         user,
@@ -101,7 +104,7 @@ function createAuthStore() {
       if (browser) {
         localStorage.setItem('auth_tokens', JSON.stringify(tokens))
       }
-      
+
       update(state => ({
         ...state,
         tokens,
@@ -113,17 +116,17 @@ function createAuthStore() {
       if (browser) {
         // Set signout flag to prevent auto re-authentication
         localStorage.setItem('auth_signed_out', 'true')
-        
+
         // Clear auth store tokens
         localStorage.removeItem('auth_tokens')
         localStorage.removeItem('auth_user')
-        
+
         // Also clear client utility tokens
         localStorage.removeItem('cognito_id_token')
         localStorage.removeItem('cognito_access_token')
         localStorage.removeItem('cognito_refresh_token')
       }
-      
+
       set({
         isAuthenticated: false,
         user: null,

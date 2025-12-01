@@ -10,12 +10,12 @@ export interface Comment {
   createdAt: string
   updatedAt?: string
   isEdited: boolean
-  editHistory?: Array<{ text: string; timestamp: string }>
+  editHistory?: Array<{ text: string, timestamp: string }>
   reactionCount: number
   isDeleted: boolean
   itemType: 'letter' | 'media'
   itemTitle: string
-  userHasReacted?: boolean  // Whether current user has reacted to this comment
+  userHasReacted?: boolean // Whether current user has reacted to this comment
 }
 
 export interface Reaction {

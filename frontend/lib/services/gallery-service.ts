@@ -20,26 +20,26 @@ export interface GalleryItem {
 export async function getGalleryItems(
   category: 'pictures' | 'videos' | 'documents',
   userId: string,
-  authToken: string
+  authToken: string,
 ): Promise<GalleryItem[]> {
   try {
     const response = await fetch(`${GALLERY_API_BASE_URL}/gallery/${category}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${authToken}`,
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/json',
+      },
     })
-    
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
       throw new Error(errorData.message || `Failed to fetch ${category}: ${response.status} ${response.statusText}`)
     }
-    
+
     const data = await response.json()
     return data.items || []
-    
-  } catch (error) {
+  }
+  catch (error) {
     console.error(`Error fetching ${category} from API Gateway:`, error)
     throw new Error(`Failed to load ${category} from gallery: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
@@ -52,46 +52,47 @@ export async function checkAPIGatewayConnection(authToken: string): Promise<bool
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${authToken}`,
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/json',
+      },
     })
-    
+
     return response.ok
-  } catch (error) {
+  }
+  catch (error) {
     console.error('API Gateway connection check failed:', error)
     return false
   }
 }
 
 // Download letter function using API Gateway
-export async function downloadLetter(title: string, authToken: string): Promise<{ downloadUrl: string; fileNameSuggestion: string }> {
+export async function downloadLetter(title: string, authToken: string): Promise<{ downloadUrl: string, fileNameSuggestion: string }> {
   try {
     const encodedTitle = encodeURIComponent(title)
     const response = await fetch(`${GALLERY_API_BASE_URL}/gallery/letters/${encodedTitle}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${authToken}`,
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/json',
+      },
     })
-    
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
       throw new Error(errorData.message || `Failed to get download URL: ${response.status} ${response.statusText}`)
     }
-    
+
     const data = await response.json()
-    
+
     if (!data.downloadUrl) {
       throw new Error('No download URL received from server')
     }
-    
+
     return {
       downloadUrl: data.downloadUrl,
-      fileNameSuggestion: data.fileNameSuggestion || `${title}.pdf`
+      fileNameSuggestion: data.fileNameSuggestion || `${title}.pdf`,
     }
-    
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error downloading letter:', error)
     throw new Error(`Failed to download letter: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }

@@ -52,7 +52,7 @@
   }
 </script>
 
-<aside class='sticky top-16 py-8'>
+<aside class='sticky py-8 top-16'>
   <nav
     aria-label='TableOfContent'
     class='max-h-[calc(100vh-12rem)] overflow-y-hidden hover:overflow-y-auto'
@@ -63,8 +63,8 @@
         <li class='flex flex-col' id={`toc-item-${slug}`}>
           <!-- svelte-ignore a11y-click-events-have-key-events -->
           <span
-            class="cursor-pointer border-l-4 border-transparent transition-all hover:border-primary hover:bg-base-content hover:bg-opacity-10 active:bg-primary active:text-primary-content active:font-bold pr-4{depth
-            <= 2
+            class="border-transparent transition-all cursor-pointer border-l-4 hover:border-primary hover:bg-base-content hover:bg-opacity-10 active:bg-primary active:text-primary-content active:font-bold pr-4{depth
+              <= 2
               ? 'py-3'
               : 'py-2'}"
             class:pl-4={depth <= 2}
@@ -74,8 +74,8 @@
             class:pl-20={depth === 6}
             dir='ltr'
             id={`toc-link-${slug}`}
-            role="button"
-            tabindex="0"
+            role='button'
+            tabindex='0'
             on:click={() =>
               // @ts-ignore Object is possibly 'null'. ts(2531)
               document.getElementById(slug).scrollIntoView({ behavior: 'smooth' })}>

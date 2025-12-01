@@ -20,10 +20,8 @@ type GenTagsFunction = (posts: Urara.Post[]) => string[]
  * @param fm - post frontmatter
  * @returns - post type string
  */
-export const typeOfPost = (
-  fm: FFFFlavoredFrontmatter,
-): 'article' | 'audio' | 'bookmark' | 'like' | 'note' | 'photo' | 'reply' | 'repost' | 'video' =>
-  fm.title
+export function typeOfPost(fm: FFFFlavoredFrontmatter): 'article' | 'audio' | 'bookmark' | 'like' | 'note' | 'photo' | 'reply' | 'repost' | 'video' {
+  return fm.title
     ? 'article'
     : fm.image
       ? 'photo'
@@ -40,6 +38,7 @@ export const typeOfPost = (
                 : fm.in_reply_to
                   ? 'reply'
                   : 'note'
+}
 
 /**
  * Generate Posts List
@@ -54,8 +53,8 @@ export const genPosts: GenPostsFunction = ({
 } = {}) =>
   Object.entries(modules)
     .map(([, module]) => ({
-        ...module.metadata,
-        html:
+      ...module.metadata,
+      html:
           postHtml || typeOfPost(module.metadata) !== 'article'
             ? module.default
               .render()
@@ -69,39 +68,41 @@ export const genPosts: GenPostsFunction = ({
               .replace(/(<span>)(.*?)(<\/span>)/gi, '$2')
               .replace(/(<main>)(.*?)(<\/main>)/gi, '$2')
             : '',
-        type: typeOfPost(module.metadata),
+      type: typeOfPost(module.metadata),
     }))
     .filter((post, index) => (!filterUnlisted || !post.flags?.includes('unlisted')) && (!postLimit || index < postLimit))
-    .map(post => {
+    .map((post) => {
       if (post.created) {
-       
         try {
-          const date = new Date(post.created);
-          post._parsedDate = date.toISOString(); // Add a safely parsed date for debugging
+          const date = new Date(post.created)
+          post._parsedDate = date.toISOString() // Add a safely parsed date for debugging
           // Also log some info about suspicious dates
-          const year = date.getFullYear();
+          const year = date.getFullYear()
           if (year < 1900 || year > new Date().getFullYear() + 1) {
-            console.warn(`Suspicious year ${year} for post ${post.path || post._filePath}: ${post.created} -> ${post._parsedDate}`);
+            console.warn(`Suspicious year ${year} for post ${post.path || post._filePath}: ${post.created} -> ${post._parsedDate}`)
           }
-        } catch (e) {
-          console.error(`Failed to parse date for ${post.path || post._filePath}: ${post.created}`);
-          post._parsedDate = 'invalid';
         }
-      } else {
-        console.warn(`No date for ${post.path || post._filePath}`);
-        post._parsedDate = 'missing';
+        catch (e) {
+          console.error(`Failed to parse date for ${post.path || post._filePath}: ${post.created}`)
+          post._parsedDate = 'invalid'
+        }
       }
-      return post;
+      else {
+        console.warn(`No date for ${post.path || post._filePath}`)
+        post._parsedDate = 'missing'
+      }
+      return post
     })
     .sort((a, b) => {
       // Ensure we have valid dates
       try {
-        const dateA = a.created ? new Date(a.created).getTime() : 0;
-        const dateB = b.created ? new Date(b.created).getTime() : 0;
-        return dateB - dateA;
-      } catch (error) {
-        console.error('Error sorting posts by date:', error, { postA: a.path, dateA: a.created, postB: b.path, dateB: b.created });
-        return 0;
+        const dateA = a.created ? new Date(a.created).getTime() : 0
+        const dateB = b.created ? new Date(b.created).getTime() : 0
+        return dateB - dateA
+      }
+      catch (error) {
+        console.error('Error sorting posts by date:', error, { postA: a.path, dateA: a.created, postB: b.path, dateB: b.created })
+        return 0
       }
     })
 

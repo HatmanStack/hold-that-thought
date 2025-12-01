@@ -124,12 +124,12 @@
             {#if mention?.author?.photo}
               <img
                 alt={mention.author?.name ?? new URL(mention.url).host}
-                class='w-12 h-12 flex-none rounded-btn'
+                class='rounded-btn w-12 h-12 flex-none'
                 decoding='async'
                 loading='lazy'
                 src={mention.author.photo} />
             {/if}
-            <div class='flex-1 px-4 py-2 m-auto'>
+            <div class='flex-1 m-auto px-4 py-2'>
               <p>
                 {#if mention?.author?.url}
                   <a class='font-semibold{textColor} hover:underline' href={mention.author.url}>
@@ -151,7 +151,7 @@
             </div>
           </div>
           {#if mention.content}
-            <div class='prose max-w-none break-words mt-4'>
+            <div class='mt-4 break-words prose max-w-none'>
               <p>{@html mention.content?.html ?? mention.content?.text}</p>
             </div>
           {/if}
@@ -195,7 +195,7 @@
       <div class='flex gap-2'>
         <div class='flex-1'>
           <input
-            class='input input-bordered focus:input-primary w-full'
+            class='w-full input input-bordered focus:input-primary'
             id='reply-url'
             name='source'
             placeholder='https://example.com/my-post'

@@ -172,6 +172,7 @@ The `npm run deploy` command executes `backend/scripts/deploy.js`, which:
 
 ```toml
 version = 0.1
+
 [default.deploy.parameters]
 stack_name = "hold-that-thought"
 region = "us-east-1"
@@ -261,19 +262,19 @@ on:
 
 jobs:
   frontend-lint:
-    # ESLint + TypeScript check
+  # ESLint + TypeScript check
 
   frontend-tests:
-    # Vitest for frontend units
+  # Vitest for frontend units
 
   backend-tests:
-    # Vitest for backend units + integration
+  # Vitest for backend units + integration
 
   e2e-tests:
-    # Playwright tests
+  # Playwright tests
 
   status-check:
-    # Gate job that fails if any above fail
+  # Gate job that fails if any above fail
 ```
 
 ### Job Dependencies
@@ -304,14 +305,14 @@ After refactor, imports follow these patterns:
 
 ```javascript
 // Frontend (from within frontend/)
-import { auth } from '$lib/auth';
-import { Button } from '$lib/components/Button.svelte';
+import { auth } from '$lib/auth'
+import { Button } from '$lib/components/Button.svelte'
 
 // Backend (from within a Lambda)
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 
 // Tests (from tests/)
-import { handler } from '../../backend/comments-api/index.js';
+import { handler } from '../../backend/comments-api/index.js'
 ```
 
 ### Environment Variables

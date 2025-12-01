@@ -1,8 +1,8 @@
-<script lang="ts">
-  import { onMount } from 'svelte'
-  import { currentUser } from '$lib/auth/auth-store'
+<script lang='ts'>
   import { apiClient } from '$lib/auth/api-client'
+  import { currentUser } from '$lib/auth/auth-store'
   import AuthGuard from '$lib/components/auth/AuthGuard.svelte'
+  import { onMount } from 'svelte'
 
   let apiResponse: any = null
   let loading = false
@@ -11,14 +11,16 @@
   async function testProtectedApi() {
     loading = true
     error = ''
-    
+
     try {
       const response = await apiClient.get('/protected/example')
       apiResponse = response
-    } catch (err) {
+    }
+    catch (err) {
       error = err instanceof Error ? err.message : 'API call failed'
       console.error('API Error:', err)
-    } finally {
+    }
+    finally {
       loading = false
     }
   }
@@ -31,19 +33,19 @@
 
 <svelte:head>
   <title>Dashboard</title>
-  <meta name="description" content="Protected dashboard page" />
+  <meta name='description' content='Protected dashboard page' />
 </svelte:head>
 
 <AuthGuard>
-  <div class="container mx-auto px-4 py-8">
-    <div class="max-w-4xl mx-auto">
-      <h1 class="text-3xl font-bold mb-8">Dashboard</h1>
-      
+  <div class='container mx-auto px-4 py-8'>
+    <div class='max-w-4xl mx-auto'>
+      <h1 class='text-3xl font-bold mb-8'>Dashboard</h1>
+
       {#if $currentUser}
-        <div class="card bg-base-100 shadow-xl mb-8">
-          <div class="card-body">
-            <h2 class="card-title">Welcome back!</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class='card bg-base-100 shadow-xl mb-8'>
+          <div class='card-body'>
+            <h2 class='card-title'>Welcome back!</h2>
+            <div class='grid grid-cols-1 md:grid-cols-2 gap-4'>
               <div>
                 <p><strong>Email:</strong> {$currentUser.email}</p>
                 <p><strong>User ID:</strong> {$currentUser.sub}</p>
@@ -60,15 +62,15 @@
         </div>
       {/if}
 
-      <div class="card bg-base-100 shadow-xl">
-        <div class="card-body">
-          <h2 class="card-title">Protected API Test</h2>
-          <p class="mb-4">This section tests your JWT token authentication with the backend API.</p>
-          
-          <div class="flex gap-4 mb-4">
-            <button 
-              class="btn btn-primary" 
-              class:loading 
+      <div class='card bg-base-100 shadow-xl'>
+        <div class='card-body'>
+          <h2 class='card-title'>Protected API Test</h2>
+          <p class='mb-4'>This section tests your JWT token authentication with the backend API.</p>
+
+          <div class='flex gap-4 mb-4'>
+            <button
+              class='btn btn-primary'
+              class:loading
               disabled={loading}
               on:click={testProtectedApi}
             >
@@ -77,38 +79,38 @@
           </div>
 
           {#if error}
-            <div class="alert alert-error">
+            <div class='alert alert-error'>
               <span>Error: {error}</span>
             </div>
           {/if}
 
           {#if apiResponse}
-            <div class="alert alert-success">
+            <div class='alert alert-success'>
               <span>✅ API call successful!</span>
             </div>
-            
-            <div class="mockup-code mt-4">
+
+            <div class='mt-4 mockup-code'>
               <pre><code>{JSON.stringify(apiResponse, null, 2)}</code></pre>
             </div>
           {/if}
         </div>
       </div>
 
-      <div class="card bg-base-100 shadow-xl mt-8">
-        <div class="card-body">
-          <h2 class="card-title">Authentication Flow Summary</h2>
-          <div class="space-y-4">
-            <div class="steps steps-vertical lg:steps-horizontal">
-              <div class="step step-primary">User Registration</div>
-              <div class="step step-primary">Email Verification</div>
-              <div class="step step-primary">Sign In</div>
-              <div class="step step-primary">JWT Token Issued</div>
-              <div class="step step-primary">Protected API Access</div>
+      <div class='card bg-base-100 shadow-xl mt-8'>
+        <div class='card-body'>
+          <h2 class='card-title'>Authentication Flow Summary</h2>
+          <div class='space-y-4'>
+            <div class='steps steps-vertical lg:steps-horizontal'>
+              <div class='step step-primary'>User Registration</div>
+              <div class='step step-primary'>Email Verification</div>
+              <div class='step step-primary'>Sign In</div>
+              <div class='step step-primary'>JWT Token Issued</div>
+              <div class='step step-primary'>Protected API Access</div>
             </div>
-            
-            <div class="mt-6">
-              <h3 class="text-lg font-semibold mb-2">How it works:</h3>
-              <ul class="list-disc list-inside space-y-2 text-sm">
+
+            <div class='mt-6'>
+              <h3 class='text-lg font-semibold mb-2'>How it works:</h3>
+              <ul class='list-disc list-inside space-y-2 text-sm'>
                 <li>Users sign up with email and password through AWS Cognito</li>
                 <li>Email verification is required before account activation</li>
                 <li>Upon successful login, Cognito issues JWT tokens (Access, ID, Refresh)</li>

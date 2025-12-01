@@ -1,12 +1,11 @@
-import { authTokens } from '$lib/auth/auth-store'
-import { get } from 'svelte/store'
-import { PUBLIC_API_GATEWAY_URL } from '$env/static/public'
 import type {
-  Comment,
   CommentApiResponse,
   CreateCommentRequest,
-  UpdateCommentRequest
+  UpdateCommentRequest,
 } from '$lib/types/comment'
+import { PUBLIC_API_GATEWAY_URL } from '$env/static/public'
+import { authTokens } from '$lib/auth/auth-store'
+import { get } from 'svelte/store'
 
 const API_BASE = PUBLIC_API_GATEWAY_URL
 
@@ -20,8 +19,8 @@ function getAuthHeader(): Record<string, string> {
     throw new Error('Your session has expired. Please log in again.')
   }
   return {
-    Authorization: `Bearer ${tokens.idToken}`,
-    'Content-Type': 'application/json'
+    'Authorization': `Bearer ${tokens.idToken}`,
+    'Content-Type': 'application/json',
   }
 }
 
@@ -31,7 +30,7 @@ function getAuthHeader(): Record<string, string> {
 export async function getComments(
   itemId: string,
   limit: number = 50,
-  lastKey?: string
+  lastKey?: string,
 ): Promise<CommentApiResponse> {
   try {
     const params = new URLSearchParams({ limit: limit.toString() })
@@ -40,14 +39,14 @@ export async function getComments(
     }
 
     const response = await fetch(`${API_BASE}/comments/${encodeURIComponent(itemId)}?${params}`, {
-      headers: getAuthHeader()
+      headers: getAuthHeader(),
     })
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Failed to fetch comments' }))
       return {
         success: false,
-        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
       }
     }
 
@@ -55,13 +54,14 @@ export async function getComments(
     return {
       success: true,
       data: data.items || data,
-      lastEvaluatedKey: data.lastEvaluatedKey
+      lastEvaluatedKey: data.lastEvaluatedKey,
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error fetching comments:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to fetch comments'
+      error: error instanceof Error ? error.message : 'Failed to fetch comments',
     }
   }
 }
@@ -73,39 +73,40 @@ export async function createComment(
   itemId: string,
   text: string,
   itemType: 'letter' | 'media',
-  itemTitle: string
+  itemTitle: string,
 ): Promise<CommentApiResponse> {
   try {
     const body: CreateCommentRequest = {
       commentText: text,
       itemType,
-      itemTitle
+      itemTitle,
     }
 
     const response = await fetch(`${API_BASE}/comments/${encodeURIComponent(itemId)}`, {
       method: 'POST',
       headers: getAuthHeader(),
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     })
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Failed to create comment' }))
       return {
         success: false,
-        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
       }
     }
 
     const data = await response.json()
     return {
       success: true,
-      data
+      data,
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error creating comment:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to create comment'
+      error: error instanceof Error ? error.message : 'Failed to create comment',
     }
   }
 }
@@ -116,11 +117,11 @@ export async function createComment(
 export async function updateComment(
   itemId: string,
   commentId: string,
-  text: string
+  text: string,
 ): Promise<CommentApiResponse> {
   try {
     const body: UpdateCommentRequest = {
-      commentText: text
+      commentText: text,
     }
 
     const response = await fetch(
@@ -128,28 +129,29 @@ export async function updateComment(
       {
         method: 'PUT',
         headers: getAuthHeader(),
-        body: JSON.stringify(body)
-      }
+        body: JSON.stringify(body),
+      },
     )
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Failed to update comment' }))
       return {
         success: false,
-        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
       }
     }
 
     const data = await response.json()
     return {
       success: true,
-      data
+      data,
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error updating comment:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to update comment'
+      error: error instanceof Error ? error.message : 'Failed to update comment',
     }
   }
 }
@@ -159,35 +161,36 @@ export async function updateComment(
  */
 export async function deleteComment(
   itemId: string,
-  commentId: string
+  commentId: string,
 ): Promise<CommentApiResponse> {
   try {
     const response = await fetch(
       `${API_BASE}/comments/${encodeURIComponent(itemId)}/${encodeURIComponent(commentId)}`,
       {
         method: 'DELETE',
-        headers: getAuthHeader()
-      }
+        headers: getAuthHeader(),
+      },
     )
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Failed to delete comment' }))
       return {
         success: false,
-        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
       }
     }
 
     const data = await response.json()
     return {
       success: true,
-      data
+      data,
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error deleting comment:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to delete comment'
+      error: error instanceof Error ? error.message : 'Failed to delete comment',
     }
   }
 }
@@ -199,27 +202,28 @@ export async function adminDeleteComment(commentId: string): Promise<CommentApiR
   try {
     const response = await fetch(`${API_BASE}/admin/comments/${encodeURIComponent(commentId)}`, {
       method: 'DELETE',
-      headers: getAuthHeader()
+      headers: getAuthHeader(),
     })
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Failed to delete comment' }))
       return {
         success: false,
-        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
       }
     }
 
     const data = await response.json()
     return {
       success: true,
-      data
+      data,
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error deleting comment (admin):', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to delete comment'
+      error: error instanceof Error ? error.message : 'Failed to delete comment',
     }
   }
 }

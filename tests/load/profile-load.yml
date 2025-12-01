@@ -3,38 +3,38 @@ config:
   phases:
     - duration: 60
       arrivalRate: 10
-      name: "Warm up"
+      name: Warm up
     - duration: 120
       arrivalRate: 20
-      name: "Sustained load"
+      name: Sustained load
   http:
     timeout: 30
 
 scenarios:
-  - name: "View profiles"
+  - name: View profiles
     flow:
       # Get own profile
       - get:
-          url: "/profile/me"
+          url: /profile/me
           headers:
-            Authorization: "Bearer {{ $processEnvironment.TEST_TOKEN }}"
+            Authorization: 'Bearer {{ $processEnvironment.TEST_TOKEN }}'
           capture:
-            - json: "$.userId"
-              as: "userId"
+            - json: $.userId
+              as: userId
       - think: 2
 
       # Get profile details
       - get:
-          url: "/profile/{{ userId }}"
+          url: '/profile/{{ userId }}'
           headers:
-            Authorization: "Bearer {{ $processEnvironment.TEST_TOKEN }}"
-          ifTrue: "userId"
+            Authorization: 'Bearer {{ $processEnvironment.TEST_TOKEN }}'
+          ifTrue: userId
       - think: 3
 
       # Get comment history
       - get:
-          url: "/profile/{{ userId }}/comments"
+          url: '/profile/{{ userId }}/comments'
           headers:
-            Authorization: "Bearer {{ $processEnvironment.TEST_TOKEN }}"
-          ifTrue: "userId"
+            Authorization: 'Bearer {{ $processEnvironment.TEST_TOKEN }}'
+          ifTrue: userId
       - think: 1

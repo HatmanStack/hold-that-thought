@@ -1,13 +1,11 @@
-import { authTokens } from '$lib/auth/auth-store'
-import { get } from 'svelte/store'
-import { PUBLIC_API_GATEWAY_URL } from '$env/static/public'
 import type {
-  UserProfile,
+  CommentHistoryResponse,
   ProfileApiResponse,
   UpdateProfileRequest,
-  CommentHistoryItem,
-  CommentHistoryResponse
 } from '$lib/types/profile'
+import { PUBLIC_API_GATEWAY_URL } from '$env/static/public'
+import { authTokens } from '$lib/auth/auth-store'
+import { get } from 'svelte/store'
 
 const API_BASE = PUBLIC_API_GATEWAY_URL
 
@@ -21,8 +19,8 @@ function getAuthHeader(): Record<string, string> {
     throw new Error('Your session has expired. Please log in again.')
   }
   return {
-    Authorization: `Bearer ${tokens.idToken}`,
-    'Content-Type': 'application/json'
+    'Authorization': `Bearer ${tokens.idToken}`,
+    'Content-Type': 'application/json',
   }
 }
 
@@ -32,7 +30,7 @@ function getAuthHeader(): Record<string, string> {
 export async function getProfile(userId: string): Promise<ProfileApiResponse> {
   try {
     const response = await fetch(`${API_BASE}/profile/${encodeURIComponent(userId)}`, {
-      headers: getAuthHeader()
+      headers: getAuthHeader(),
     })
 
     if (!response.ok) {
@@ -42,33 +40,34 @@ export async function getProfile(userId: string): Promise<ProfileApiResponse> {
       if (response.status === 403) {
         return {
           success: false,
-          error: 'This profile is private'
+          error: 'This profile is private',
         }
       }
 
       if (response.status === 404) {
         return {
           success: false,
-          error: 'Profile not found'
+          error: 'Profile not found',
         }
       }
 
       return {
         success: false,
-        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
       }
     }
 
     const data = await response.json()
     return {
       success: true,
-      data
+      data,
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error fetching profile:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to fetch profile'
+      error: error instanceof Error ? error.message : 'Failed to fetch profile',
     }
   }
 }
@@ -81,27 +80,28 @@ export async function updateProfile(updates: UpdateProfileRequest): Promise<Prof
     const response = await fetch(`${API_BASE}/profile`, {
       method: 'PUT',
       headers: getAuthHeader(),
-      body: JSON.stringify(updates)
+      body: JSON.stringify(updates),
     })
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Failed to update profile' }))
       return {
         success: false,
-        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
       }
     }
 
     const data = await response.json()
     return {
       success: true,
-      data
+      data,
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error updating profile:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to update profile'
+      error: error instanceof Error ? error.message : 'Failed to update profile',
     }
   }
 }
@@ -112,7 +112,7 @@ export async function updateProfile(updates: UpdateProfileRequest): Promise<Prof
 export async function getCommentHistory(
   userId: string,
   limit: number = 50,
-  lastKey?: string
+  lastKey?: string,
 ): Promise<CommentHistoryResponse> {
   try {
     const params = new URLSearchParams({ limit: limit.toString() })
@@ -123,15 +123,15 @@ export async function getCommentHistory(
     const response = await fetch(
       `${API_BASE}/profile/${encodeURIComponent(userId)}/comments?${params}`,
       {
-        headers: getAuthHeader()
-      }
+        headers: getAuthHeader(),
+      },
     )
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Failed to fetch comment history' }))
       return {
         success: false,
-        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
       }
     }
 
@@ -139,13 +139,14 @@ export async function getCommentHistory(
     return {
       success: true,
       data: data.items || data,
-      lastEvaluatedKey: data.lastEvaluatedKey
+      lastEvaluatedKey: data.lastEvaluatedKey,
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error fetching comment history:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to fetch comment history'
+      error: error instanceof Error ? error.message : 'Failed to fetch comment history',
     }
   }
 }
@@ -156,27 +157,28 @@ export async function getCommentHistory(
 export async function getAllUsers(): Promise<ProfileApiResponse> {
   try {
     const response = await fetch(`${API_BASE}/users`, {
-      headers: getAuthHeader()
+      headers: getAuthHeader(),
     })
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Failed to fetch users' }))
       return {
         success: false,
-        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
       }
     }
 
     const data = await response.json()
     return {
       success: true,
-      data: data.items || data
+      data: data.items || data,
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error fetching users:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to fetch users'
+      error: error instanceof Error ? error.message : 'Failed to fetch users',
     }
   }
 }
@@ -185,7 +187,7 @@ export async function getAllUsers(): Promise<ProfileApiResponse> {
  * Upload a profile photo and get the S3 URL
  * This function gets a presigned URL from the backend and uploads the file to S3
  */
-export async function uploadProfilePhoto(file: File): Promise<{ success: boolean; url?: string; error?: string }> {
+export async function uploadProfilePhoto(file: File): Promise<{ success: boolean, url?: string, error?: string }> {
   try {
     // Validate file
     const validTypes = ['image/jpeg', 'image/png', 'image/gif']
@@ -194,14 +196,14 @@ export async function uploadProfilePhoto(file: File): Promise<{ success: boolean
     if (!validTypes.includes(file.type)) {
       return {
         success: false,
-        error: 'Invalid file type. Please use JPG, PNG, or GIF.'
+        error: 'Invalid file type. Please use JPG, PNG, or GIF.',
       }
     }
 
     if (file.size > maxSize) {
       return {
         success: false,
-        error: 'File too large. Maximum size is 5MB.'
+        error: 'File too large. Maximum size is 5MB.',
       }
     }
 
@@ -211,15 +213,15 @@ export async function uploadProfilePhoto(file: File): Promise<{ success: boolean
       headers: getAuthHeader(),
       body: JSON.stringify({
         filename: file.name,
-        contentType: file.type
-      })
+        contentType: file.type,
+      }),
     })
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Failed to get upload URL' }))
       return {
         success: false,
-        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
       }
     }
 
@@ -229,27 +231,28 @@ export async function uploadProfilePhoto(file: File): Promise<{ success: boolean
     const uploadResponse = await fetch(uploadUrl, {
       method: 'PUT',
       headers: {
-        'Content-Type': file.type
+        'Content-Type': file.type,
       },
-      body: file
+      body: file,
     })
 
     if (!uploadResponse.ok) {
       return {
         success: false,
-        error: 'Failed to upload photo to S3'
+        error: 'Failed to upload photo to S3',
       }
     }
 
     return {
       success: true,
-      url: photoUrl
+      url: photoUrl,
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error uploading profile photo:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to upload photo'
+      error: error instanceof Error ? error.message : 'Failed to upload photo',
     }
   }
 }
