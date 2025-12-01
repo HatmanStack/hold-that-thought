@@ -43,41 +43,8 @@ jobs:
       - name: Run type check
         run: pnpm check
 
-  frontend-tests:
-    name: Frontend Tests
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Get pnpm store directory
-        shell: bash
-        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run tests
-        run: pnpm test -- --reporter=verbose
-
-  backend-tests:
-    name: Backend Tests
+  tests:
+    name: Unit Tests
     runs-on: ubuntu-latest
     env:
       AWS_DEFAULT_REGION: us-east-1
@@ -121,19 +88,19 @@ jobs:
             fi
           done
 
-      - name: Run backend tests
-        run: pnpm test -- tests/unit --reporter=verbose
+      - name: Run unit tests
+        run: pnpm test -- tests/unit backend/lambdas --reporter=verbose
 
   status-check:
     name: All Checks Passed
     runs-on: ubuntu-latest
-    needs: [frontend-lint, frontend-tests, backend-tests]
+    needs: [frontend-lint, tests]
     if: always()
 
     steps:
       - name: Check if all jobs passed
         run: |
-          if [ "${{ needs.frontend-lint.result }}" != "success" ] || [ "${{ needs.frontend-tests.result }}" != "success" ] || [ "${{ needs.backend-tests.result }}" != "success" ]; then
+          if [ "${{ needs.frontend-lint.result }}" != "success" ] || [ "${{ needs.tests.result }}" != "success" ]; then
             echo "❌ Some checks failed"
             exit 1
           fi
