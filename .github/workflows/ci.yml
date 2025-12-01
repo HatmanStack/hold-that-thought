@@ -89,7 +89,7 @@ jobs:
           done
 
       - name: Run unit tests
-        run: pnpm test -- tests/unit backend/lambdas --reporter=verbose
+        run: pnpm test -- tests/unit backend/ --reporter=verbose
 
   status-check:
     name: All Checks Passed
