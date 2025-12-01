@@ -1,114 +1,86 @@
-# Hold That Thought Documentation
+# Hold That Thought
 
-Documentation hub for the Hold That Thought family letter sharing platform.
+A family letter-sharing platform built with SvelteKit and AWS serverless infrastructure.
 
-## Structure
+## Features
 
-```
-docs/
-├── developer/           # Developer documentation
-│   ├── api-reference.md   # API endpoint documentation
-│   ├── architecture.md    # System architecture
-│   ├── deployment.md      # Deployment guides
-│   └── troubleshooting.md # Common issues and solutions
-├── user-guide/          # End user documentation
-│   ├── README.md          # User guide overview
-│   ├── comments.md        # Using comments
-│   ├── messages.md        # Private messaging
-│   ├── profiles.md        # Profile management
-│   └── privacy.md         # Privacy settings
-└── plans/               # Implementation plans
-```
-
-## Quick Links
-
-### For Developers
-
-- [Architecture Overview](developer/architecture.md)
-- [API Reference](developer/api-reference.md)
-- [Deployment Guide](developer/deployment.md)
-- [Troubleshooting](developer/troubleshooting.md)
-
-### Setup Guides
-
-- [Authentication Setup](AUTHENTICATION_SETUP.md)
-- [Media Upload Setup](MEDIA_UPLOAD_SETUP.md)
-- [Gallery Setup](GALLERY_SETUP.md)
-- [Monitoring Guide](MONITORING_GUIDE.md)
-
-### For Users
-
-- [User Guide](user-guide/README.md)
+- **Letter Archive**: Browse and read family letters from 1999-2016
+- **Comments & Reactions**: Discuss letters with family members
+- **Private Messaging**: Direct messaging between approved users
+- **Media Gallery**: Share photos with the family
+- **PDF Downloads**: Download original letter scans
+- **Search & Tags**: Find letters by content or tags
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        Frontend                              │
-│                   (SvelteKit + Urara)                       │
+│                    Frontend (SvelteKit)                      │
+│                   Netlify / S3 + CloudFront                  │
 └──────────────────────────┬──────────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────────┐
-│                     API Gateway                              │
-│                  (AWS API Gateway)                          │
+│                  API Gateway + Cognito Auth                  │
 └──────────────────────────┬──────────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────────┐
-│                   Lambda Functions                           │
-│  ┌─────────────┬─────────────┬─────────────┬─────────────┐  │
-│  │ comments-api│ messages-api│ profile-api │reactions-api│  │
-│  └─────────────┴─────────────┴─────────────┴─────────────┘  │
-│  ┌─────────────────────────┬─────────────────────────────┐  │
-│  │  activity-aggregator    │  notification-processor     │  │
-│  └─────────────────────────┴─────────────────────────────┘  │
+│                    Lambda Functions                          │
+│  comments-api │ messages-api │ profile-api │ reactions-api  │
+│  media-upload │ pdf-download │ activity-aggregator          │
+│  notification-processor                                      │
 └──────────────────────────┬──────────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────────┐
 │                        Storage                               │
-│  ┌─────────────────────┐  ┌─────────────────────────────┐   │
-│  │      DynamoDB       │  │          S3                 │   │
-│  │  - UserProfiles     │  │  - Letters (PDFs)           │   │
-│  │  - Comments         │  │  - Media uploads            │   │
-│  │  - Messages         │  │  - Profile photos           │   │
-│  │  - Reactions        │  │                             │   │
-│  └─────────────────────┘  └─────────────────────────────┘   │
+│     DynamoDB (Users, Comments, Messages, Reactions)         │
+│     S3 (Letters, Media, Profile Photos)                     │
+│     SES (Email Notifications)                                │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ## Tech Stack
 
-- **Frontend**: SvelteKit + Urara (static blog framework)
-- **Backend**: AWS Lambda (Node.js 20.x)
+- **Frontend**: SvelteKit 2.x, TypeScript, TailwindCSS, DaisyUI
+- **Backend**: AWS Lambda (Node.js 20.x), API Gateway
 - **Database**: DynamoDB
-- **Storage**: S3
-- **Auth**: Amazon Cognito
+- **Storage**: S3, CloudFront CDN
+- **Auth**: Amazon Cognito (Google OAuth + Email/Password)
 - **IaC**: AWS SAM
 - **Testing**: Vitest
 
-## Development
+## API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/comments` | GET/POST | List/create comments on letters |
+| `/comments/{id}` | PUT/DELETE | Update/delete comment |
+| `/reactions` | GET/POST | List/add reactions to comments |
+| `/messages` | GET/POST | List/send direct messages |
+| `/profile` | GET/PUT | Get/update user profile |
+| `/media/upload` | POST | Get presigned URL for uploads |
+| `/pdf/{letterPath}` | GET | Download letter PDF |
+
+## Testing
 
 ```bash
-# Install dependencies
-pnpm install
-
-# Run development server
-pnpm dev
-
-# Run tests
-pnpm test
-
-# Build for production
-pnpm build
+pnpm test                    # Run all tests (91 tests)
+pnpm test tests/unit         # Frontend unit tests only
+pnpm test backend/           # Backend tests only
+pnpm lint                    # ESLint
+pnpm check                   # Svelte type check
 ```
 
-## Deployment
+## Environment Variables
 
-See [Deployment Guide](developer/deployment.md) for full instructions.
-
-```bash
-# Deploy backend with SAM
-cd backend && sam build && sam deploy
-
-# Deploy frontend
-pnpm build && netlify deploy --prod
+Frontend (`.env`):
 ```
+PUBLIC_AWS_REGION=us-east-1
+PUBLIC_API_ENDPOINT=https://api.example.com
+PUBLIC_COGNITO_USER_POOL_ID=us-east-1_xxxxx
+PUBLIC_COGNITO_USER_POOL_CLIENT_ID=xxxxxxxxx
+PUBLIC_S3_BUCKET=hold-that-thought-media
+```
+
+## License
+
+Apache License 2.0

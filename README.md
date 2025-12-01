@@ -1,42 +1,70 @@
-<h1 align="center">
-  <img width="300" src="round_robin_banner.png" alt="round-robin icon">
-</h1>
+<h1 align="center">Hold That Thought</h1>
+
 <h4 align="center">
-  <a href="https://www.apache.org/licenses/LICENSE-2.0.html">
-    <img src="https://img.shields.io/badge/license-Apache2.0-blue" alt="Round Robin is under the Apache 2.0 liscense" />
-  </a>
-  <a href="https://github.com/importantimport/urara">
-    <img src="https://img.shields.io/badge/Urara-green" alt="Expo Version" />
-  </a>
-  <a href="https://fff.js.org"><img src="https://img.shields.io/badge/%F0%9F%8C%9F%20F%20F%20F-1.2-yellow?style=flat" alt="fff" /></a>
-<img src="https://img.shields.io/github/languages/top/importantimport/urara?color=%23ff3e00" alt="Language" />
-<a href="https://github.com/importantimport/urara/blob/main/COPYING"><img src="https://img.shields.io/github/license/importantimport/urara?color=%23fff" alt="License" /></a>
-<img src="https://app.fossa.com/api/projects/git%2Bgithub.com%2Fimportantimport%2Furara.svg?type=shield" alt="FOSSA Status" />
-  </a>
+<a href="https://www.apache.org/licenses/LICENSE-2.0.html"><img src="https://img.shields.io/badge/license-Apache2.0-blue" alt="Apache 2.0 License" /></a>
+<a href="https://kit.svelte.dev"><img src="https://img.shields.io/badge/SvelteKit-2.x-orange" alt="SvelteKit" /></a>
+<a href="https://docs.aws.amazon.com/lambda/"><img src="https://img.shields.io/badge/AWS-Lambda-green" alt="AWS Lambda" /></a>
+<a href="https://aws.amazon.com/cognito/"><img src="https://img.shields.io/badge/AWS-Cognito-yellow" alt="AWS Cognito" /></a>
 </h4>
+
 <p align="center">
-  <p align="center"><b>Sharing letters, one typo at a time <br> <a href="https://float-app.fun/"> Round Robin » </a> </b> </p>
+<b>Sharing letters, one typo at a time<br><a href="https://float-app.fun/">Hold That Thought »</a></b>
 </p>
+
+## Structure
+
+```text
+├── frontend/   # SvelteKit client
+├── backend/    # AWS Lambda serverless API
+├── docs/       # Documentation
+└── tests/      # Centralized test suites
+```
+
+## Prerequisites
+
+- **Node.js** v24 LTS (via nvm)
+- **pnpm** v9.10+
+- **AWS CLI** configured with credentials
+- **AWS SAM CLI** for serverless deployment
+
+## Quick Start
+
+```bash
+pnpm install          # Install dependencies
+cp .env.example .env  # Configure environment
+pnpm dev              # Start dev server
+```
+
+## Testing
+
+```bash
+pnpm test             # Run all tests (91 tests)
+pnpm lint             # ESLint
+pnpm check            # Svelte type check
+```
+
+## Deployment
+
+```bash
+# Backend
+cd backend && sam build && sam deploy
+
+# Frontend
+pnpm build && netlify deploy --prod
+```
+
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for full documentation.
 
 ## Features
 
-- [X]  Base Round Robin  1999-2016
-- [X]  Tags for Search
-- [ ]  Comment on Letters
-- [ ]  Add Missing Letters to Round Robin
-- [X]  Edit Current Letters that don't conform after Optical Content Recognition
-- [ ]  Picture Gallery both for Immediate and Extended Family
-- [ ]  Family Documents for both Immediate and Extended Family
+- [x] Base Round Robin 1999-2016
+- [x] Tags for Search
+- [x] Comment on Letters
+- [x] Edit Letters (OCR corrections)
+- [x] Private Messaging
+- [ ] Picture Gallery
+- [ ] Family Documents
 
-## Getting Started
+## License
 
-To run this blog locally:
-
-1.  Clone the repository: `git clone [repository URL]`
-2.  Install dependencies: `npx pnpm install`
-3.  Run the development server: `npx pnpm dev`
-4.  Open your browser and navigate to `http://localhost:5173`
-
-## Contributing
-
-Reach out to your Round Robin Contact for credentials to modify base application
+Apache License 2.0
