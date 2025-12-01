@@ -169,7 +169,7 @@
   <input
     bind:this={fileInput}
     type="file"
-    {acceptString}
+    accept={acceptString}
     multiple={allowMultiple}
     class="hidden"
     on:change={handleFileSelect}
@@ -180,7 +180,7 @@
   <div
     class="drop-zone border-2 border-dashed rounded-lg p-8 text-center transition-colors duration-200"
     class:border-primary={dragActive}
-    class:bg-primary/5={dragActive}
+    class:bg-primary={dragActive}
     class:border-base-300={!dragActive}
     class:cursor-pointer={!disabled && !uploading}
     class:opacity-50={disabled}

@@ -29,10 +29,11 @@ declare global {
          * the created date of the post.
          * @remarks auto-generated or set manually
          */
+        created: string
         /**
          * post author (overrides the site author)
          */
-        created: string
+        author?: string
 
         /**
          * enable some advanced features.
@@ -103,7 +104,7 @@ declare global {
         metadata: Frontmatter
       }
     }
-    type Post = { html?: string } & Post.Frontmatter
+    type Post = { html?: string, _parsedDate?: string, _filePath?: string } & Post.Frontmatter
     interface Page { path: string, title?: string }
   }
 }

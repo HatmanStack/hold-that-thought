@@ -135,7 +135,8 @@ export async function saveMarkdownContent(path: string, content: string): Promis
     }
     catch (s3Error) {
       console.warn('S3 backup failed:', s3Error)
-      console.warn('Error details:', s3Error.message)
+      const message = s3Error instanceof Error ? s3Error.message : 'Unknown error'
+      console.warn('Error details:', message)
       // Don't throw error for S3 backup failure
     }
 

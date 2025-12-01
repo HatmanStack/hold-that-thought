@@ -5,8 +5,7 @@
 
   let userEmail = ''
   let timeWaiting = 0
-  let intervalId: number
-  let refreshIntervalId: number
+  let intervalId: ReturnType<typeof setInterval>
 
   onMount(() => {
     // Get user email from auth store
@@ -29,8 +28,6 @@
       unsubscribe()
       if (intervalId)
         clearInterval(intervalId)
-      if (refreshIntervalId)
-        clearInterval(refreshIntervalId)
     }
   })
 

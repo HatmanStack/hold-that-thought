@@ -9,9 +9,8 @@
   let currentComment: string | undefined
   let currentConfig: undefined | unknown
   currentComment = localStorage.getItem('comment') ?? toSnake(config.use[0])
-  // @ts-ignore No index signature with a parameter of type 'string' was found on type 'CommentConfig'. ts(7053)
   $: if (currentComment)
-    currentConfig = config[currentComment]
+    currentConfig = (config as unknown as Record<string, unknown>)[currentComment]
 </script>
 
 {#if config?.use.length > 0}

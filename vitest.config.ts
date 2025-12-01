@@ -13,6 +13,7 @@ export default defineConfig({
       '**/node_modules/**',
       'frontend',
       '.svelte-kit',
+      'tests/integration/**',
     ],
     coverage: {
       provider: 'v8',

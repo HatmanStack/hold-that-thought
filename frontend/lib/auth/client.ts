@@ -181,7 +181,20 @@ export async function refreshSession(): Promise<void> {
     // Update auth store with new tokens and user info
     const userInfo = getUserInfo()
     if (userInfo) {
-      authStore.setAuthenticated(userInfo, newTokens)
+      // Convert UserInfo to User type
+      const user = {
+        ...userInfo,
+        sub: userInfo.id,
+        email_verified: true, // Assume verified for authenticated users
+      }
+      // Convert CognitoTokens to AuthTokens
+      const authTokens = {
+        accessToken: newTokens.accessToken,
+        idToken: newTokens.idToken,
+        refreshToken: newTokens.refreshToken,
+        expiresAt: Date.now() + 3600 * 1000, // Default 1 hour expiry
+      }
+      authStore.setAuthenticated(user, authTokens)
     }
   }
   catch (error) {

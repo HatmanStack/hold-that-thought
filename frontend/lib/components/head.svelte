@@ -4,8 +4,8 @@
   import { head } from '$lib/config/general'
   import { site } from '$lib/config/site'
 
-  export let post: undefined | Urara.Post
-  export let page: undefined | Urara.Page
+  export let post: undefined | Urara.Post = undefined
+  export let page: undefined | Urara.Page = undefined
 </script>
 
 <svelte:head>

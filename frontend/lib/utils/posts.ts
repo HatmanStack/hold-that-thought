@@ -71,27 +71,28 @@ export const genPosts: GenPostsFunction = ({
       type: typeOfPost(module.metadata),
     }))
     .filter((post, index) => (!filterUnlisted || !post.flags?.includes('unlisted')) && (!postLimit || index < postLimit))
-    .map((post) => {
-      if (post.created) {
+    .map((post): Urara.Post => {
+      const p = post as Urara.Post
+      if (p.created) {
         try {
-          const date = new Date(post.created)
-          post._parsedDate = date.toISOString() // Add a safely parsed date for debugging
+          const date = new Date(p.created)
+          p._parsedDate = date.toISOString() // Add a safely parsed date for debugging
           // Also log some info about suspicious dates
           const year = date.getFullYear()
           if (year < 1900 || year > new Date().getFullYear() + 1) {
-            console.warn(`Suspicious year ${year} for post ${post.path || post._filePath}: ${post.created} -> ${post._parsedDate}`)
+            console.warn(`Suspicious year ${year} for post ${p.path || p._filePath}: ${p.created} -> ${p._parsedDate}`)
           }
         }
         catch (e) {
-          console.error(`Failed to parse date for ${post.path || post._filePath}: ${post.created}`)
-          post._parsedDate = 'invalid'
+          console.error(`Failed to parse date for ${p.path || p._filePath}: ${p.created}`)
+          p._parsedDate = 'invalid'
         }
       }
       else {
-        console.warn(`No date for ${post.path || post._filePath}`)
-        post._parsedDate = 'missing'
+        console.warn(`No date for ${p.path || p._filePath}`)
+        p._parsedDate = 'missing'
       }
-      return post
+      return p
     })
     .sort((a, b) => {
       // Ensure we have valid dates

@@ -33,10 +33,7 @@ export async function requireApprovedUser(event: RequestEvent): Promise<Authenti
   }
 
   if (!isUserApproved(payload)) {
-    throw error(403, {
-      message: 'Access denied. User is not in the ApprovedUsers group.',
-      code: 'INSUFFICIENT_PERMISSIONS',
-    })
+    throw error(403, 'Access denied. User is not in the ApprovedUsers group. (INSUFFICIENT_PERMISSIONS)')
   }
 
   return {

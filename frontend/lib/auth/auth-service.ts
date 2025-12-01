@@ -1,4 +1,4 @@
-import type { AuthTokens, User } from './auth-store'
+import type { AuthState, AuthTokens, User } from './auth-store'
 import { authStore } from './auth-store'
 import { cognitoAuth } from './cognito-client'
 
@@ -75,7 +75,7 @@ export class AuthService {
   }
 
   async refreshTokens() {
-    const currentState = await new Promise((resolve) => {
+    const currentState = await new Promise<AuthState>((resolve) => {
       let unsubscribe: (() => void) | undefined
       unsubscribe = authStore.subscribe((state) => {
         if (unsubscribe)
@@ -120,7 +120,7 @@ export class AuthService {
   }
 
   async signOut() {
-    const currentState = await new Promise((resolve) => {
+    const currentState = await new Promise<AuthState>((resolve) => {
       let unsubscribe: (() => void) | undefined
       unsubscribe = authStore.subscribe((state) => {
         if (unsubscribe)
@@ -163,7 +163,7 @@ export class AuthService {
 
   // Get current access token, refreshing if necessary
   async getValidAccessToken(): Promise<string | null> {
-    const currentState = await new Promise((resolve) => {
+    const currentState = await new Promise<AuthState>((resolve) => {
       let unsubscribe: (() => void) | undefined
       unsubscribe = authStore.subscribe((state) => {
         if (unsubscribe)

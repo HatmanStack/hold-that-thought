@@ -10,5 +10,25 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": false,
     "skipLibCheck": true
-  }
+  },
+  "include": [
+    ".svelte-kit/ambient.d.ts",
+    ".svelte-kit/non-ambient.d.ts",
+    ".svelte-kit/types/**/$types.d.ts",
+    "frontend/app.d.ts",
+    "frontend/routes/**/*.js",
+    "frontend/routes/**/*.ts",
+    "frontend/routes/**/*.svelte",
+    "frontend/lib/**/*.js",
+    "frontend/lib/**/*.ts",
+    "frontend/lib/**/*.svelte",
+    "vite.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "tests/**",
+    "backend/**",
+    "src/**",
+    "lambdas/**"
+  ]
 }

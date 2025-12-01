@@ -53,14 +53,15 @@
     }
     catch (error) {
       console.error('Error loading markdown content:', error)
-      alert(`Failed to load content: ${error.message}`)
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      alert(`Failed to load content: ${message}`)
     }
     finally {
       isModifying = false
     }
   }
 
-  async function handleSave(event) {
+  async function handleSave(event: CustomEvent<string>) {
     isModifying = true
     try {
       const updatedContent = event.detail
@@ -84,7 +85,8 @@
     }
     catch (error) {
       console.error('Error saving markdown content:', error)
-      alert(`Failed to save content: ${error.message}`)
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      alert(`Failed to save content: ${message}`)
     }
     finally {
       isModifying = false
@@ -195,7 +197,8 @@
             }
             catch (error) {
               console.error('Download failed:', error)
-              alert(`Download failed: ${error.message}`)
+              const message = error instanceof Error ? error.message : 'Unknown error'
+              alert(`Download failed: ${message}`)
             }
             finally {
               isDownloading = false

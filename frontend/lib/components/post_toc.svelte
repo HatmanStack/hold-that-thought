@@ -10,10 +10,12 @@
   let intersecting: string[] = []
   let intersectingArticle: boolean = true
   let bordered: string[] = []
+  let headingsObserver: IntersectionObserver | undefined
+  let articleObserver: IntersectionObserver | undefined
 
   onMount(() => {
     if (window.screen.availWidth >= 1280) {
-      const headingsObserver = new IntersectionObserver(
+      headingsObserver = new IntersectionObserver(
         headings =>
           headings.forEach(heading =>
             heading.isIntersecting
@@ -22,21 +24,17 @@
           ),
         { rootMargin: '-64px 0px 0px 0px' },
       )
-      const articleObserver = new IntersectionObserver(article => (intersectingArticle = article[0].isIntersecting))
+      articleObserver = new IntersectionObserver(article => (intersectingArticle = article[0].isIntersecting))
       Array.from(document.querySelectorAll('main h2, main h3, main h4, main h5, main h6')).forEach(element =>
-        headingsObserver.observe(element),
+        headingsObserver?.observe(element),
       )
       articleObserver.observe(document.getElementsByTagName('main')[0])
     }
   })
 
   onDestroy(() => {
-    // @ts-ignore: Cannot find name 'headingsObserver'
-    if (typeof headingsObserver !== 'undefined')
-      headingsObserver.disconnect()
-    // @ts-ignore: Cannot find name 'articleObserver'
-    if (typeof articleObserver !== 'undefined')
-      articleObserver.disconnect()
+    headingsObserver?.disconnect()
+    articleObserver?.disconnect()
   })
 
   $: if (intersecting.length > 0)

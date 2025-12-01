@@ -123,7 +123,8 @@
         }
         catch (error) {
           console.error('Error in file upload process:', error)
-          alert(`Error: ${error.message}`)
+          const message = error instanceof Error ? error.message : 'Unknown error'
+          alert(`Error: ${message}`)
         }
         finally {
           isProcessing = false

@@ -93,7 +93,8 @@ export async function POST({ request }) {
     }
     catch (error) {
       console.error(`[${timestamp}] Error writing markdown file:`, error)
-      return new Response(`Failed to save file: ${error.message}`, { status: 500 })
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      return new Response(`Failed to save file: ${message}`, { status: 500 })
     }
   }
   catch (error) {

@@ -2,7 +2,7 @@
   import { footer as footerConfig } from '$lib/config/general'
   import { site } from '$lib/config/site'
 
-  let className: string | undefined
+  let className: string | undefined = undefined
   export { className as class }
   export let sticky: boolean = false
   export let rounded: boolean = false

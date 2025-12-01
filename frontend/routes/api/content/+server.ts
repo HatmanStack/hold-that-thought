@@ -18,7 +18,7 @@ export async function GET({ url }) {
   catch (error) {
     console.error('Error in content GET endpoint:', error)
 
-    if (error.message.includes('not found')) {
+    if (error instanceof Error && error.message.includes('not found')) {
       return new Response('Content not found', { status: 404 })
     }
 
@@ -60,7 +60,8 @@ export async function POST({ request }) {
   }
   catch (error) {
     console.error(`[${timestamp}] Error in content save endpoint:`, error)
-    return new Response(`Failed to save content: ${error.message}`, { status: 500 })
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    return new Response(`Failed to save content: ${message}`, { status: 500 })
   }
 }
 
@@ -92,6 +93,7 @@ export async function DELETE({ url }) {
   }
   catch (error) {
     console.error(`[${timestamp}] Error in content delete endpoint:`, error)
-    return new Response(`Failed to delete content: ${error.message}`, { status: 500 })
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    return new Response(`Failed to delete content: ${message}`, { status: 500 })
   }
 }
