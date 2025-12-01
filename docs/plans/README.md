@@ -48,16 +48,16 @@ hold-that-thought/
 │   ├── routes/
 │   └── ...
 ├── backend/            # All Lambda functions + infra
-│   ├── comments-api/
-│   ├── messages-api/
-│   ├── profile-api/
-│   ├── reactions-api/
-│   ├── media-upload-lambda/
-│   ├── pdf-download-lambda/
-│   ├── download-presigned-url-lambda/
-│   ├── activity-aggregator/      # Ported from Python
-│   ├── notification-processor/   # Ported from Python
-│   ├── infra/                    # Consolidated CloudFormation
+│   ├── lambdas/
+│   │   ├── comments-api/
+│   │   ├── messages-api/
+│   │   ├── profile-api/
+│   │   ├── reactions-api/
+│   │   ├── media-upload-lambda/
+│   │   ├── pdf-download-lambda/
+│   │   ├── download-presigned-url-lambda/
+│   │   ├── activity-aggregator/      # Ported from Python
+│   │   └── notification-processor/   # Ported from Python
 │   ├── scripts/                  # Deployment scripts
 │   └── template.yaml             # SAM template
 ├── docs/               # Consolidated documentation

@@ -1,7 +1,12 @@
 #!/bin/bash
+# ============================================================================
+# DO NOT EXECUTE - DOCUMENTATION ONLY
+# ============================================================================
 # Hold That Thought - Monorepo Migration Script
 # This script documents the commands used to restructure the repository.
-# It is provided for documentation purposes and should not be re-run.
+# It is provided for documentation purposes and should NOT be re-run.
+# The migration has already been completed.
+# ============================================================================
 
 set -e
 

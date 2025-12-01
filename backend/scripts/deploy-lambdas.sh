@@ -19,7 +19,7 @@ if ! aws s3 ls "s3://$BUCKET_NAME" 2>/dev/null; then
 fi
 
 echo "Packaging Lambda functions..."
-for lambda_dir in lambdas/profile-api lambdas/comments-api lambdas/reactions-api lambdas/messages-api lambdas/notification-processor lambdas/activity-aggregator; do
+for lambda_dir in backend/lambdas/profile-api backend/lambdas/comments-api backend/lambdas/reactions-api backend/lambdas/messages-api backend/lambdas/notification-processor backend/lambdas/activity-aggregator; do
     lambda_name=$(basename "$lambda_dir")
     echo "  - Packaging $lambda_name..."
 

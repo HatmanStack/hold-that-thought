@@ -179,6 +179,11 @@ async function buildAndDeploy() {
       process.stderr.write(data);
     });
 
+    deploy.on('error', (err) => {
+      console.error(`Failed to spawn sam process: ${err.message}`);
+      reject(new Error(`Failed to start deployment: ${err.message}`));
+    });
+
     deploy.on('close', (code) => {
       if (code !== 0) {
         console.error(`Deployment failed with code ${code}`);

@@ -82,13 +82,13 @@ chore(structure): create backend directory skeleton
 **Files to Modify/Create:**
 - Move `lambdas/comments-api/` → `backend/comments-api/`
 - Move `lambdas/messages-api/` → `backend/messages-api/`
-- Move `lambdas/profile-api/` → `backend/profile-api/`
-- Move `lambdas/reactions-api/` → `backend/reactions-api/`
-- Move `lambdas/media-upload-lambda/` → `backend/media-upload-lambda/`
-- Move `lambdas/pdf-download-lambda/` → `backend/pdf-download-lambda/`
-- Move `lambdas/download-presigned-url-lambda/` → `backend/download-presigned-url-lambda/`
-- Move `lambdas/activity-aggregator/` → `backend/activity-aggregator/` (temporary, will be rewritten in Phase-2)
-- Move `lambdas/notification-processor/` → `backend/notification-processor/` (temporary, will be rewritten in Phase-2)
+- Move `lambdas/profile-api/` → `backend/lambdas/profile-api/`
+- Move `lambdas/reactions-api/` → `backend/lambdas/reactions-api/`
+- Move `lambdas/media-upload-lambda/` → `backend/lambdas/media-upload-lambda/`
+- Move `lambdas/pdf-download-lambda/` → `backend/lambdas/pdf-download-lambda/`
+- Move `lambdas/download-presigned-url-lambda/` → `backend/lambdas/download-presigned-url-lambda/`
+- Move `lambdas/activity-aggregator/` → `backend/lambdas/activity-aggregator/` (temporary, will be rewritten in Phase-2)
+- Move `lambdas/notification-processor/` → `backend/lambdas/notification-processor/` (temporary, will be rewritten in Phase-2)
 
 **Prerequisites:**
 - Task 1 complete
@@ -100,15 +100,15 @@ chore(structure): create backend directory skeleton
 - Verify no files remain in `lambdas/`
 
 **Verification Checklist:**
-- [ ] `backend/comments-api/index.js` exists
-- [ ] `backend/messages-api/index.js` exists
-- [ ] `backend/profile-api/index.js` exists
-- [ ] `backend/reactions-api/index.js` exists
-- [ ] `backend/media-upload-lambda/index.js` exists
-- [ ] `backend/pdf-download-lambda/index.js` exists
-- [ ] `backend/download-presigned-url-lambda/index.js` exists
-- [ ] `backend/activity-aggregator/index.py` exists
-- [ ] `backend/notification-processor/index.py` exists
+- [ ] `backend/lambdas/comments-api/index.js` exists
+- [ ] `backend/lambdas/messages-api/index.js` exists
+- [ ] `backend/lambdas/profile-api/index.js` exists
+- [ ] `backend/lambdas/reactions-api/index.js` exists
+- [ ] `backend/lambdas/media-upload-lambda/index.js` exists
+- [ ] `backend/lambdas/pdf-download-lambda/index.js` exists
+- [ ] `backend/lambdas/download-presigned-url-lambda/index.js` exists
+- [ ] `backend/lambdas/activity-aggregator/index.py` exists
+- [ ] `backend/lambdas/notification-processor/index.py` exists
 - [ ] `lambdas/` directory no longer exists
 
 **Testing Instructions:**

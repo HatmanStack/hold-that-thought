@@ -38,18 +38,18 @@ Clean and standardize the codebase by:
 **Goal:** Rewrite the Python activity-aggregator Lambda in Node.js with equivalent functionality.
 
 **Files to Create:**
-- `backend/activity-aggregator/index.js` - Node.js handler
-- `backend/activity-aggregator/package.json` - Dependencies
-- `backend/activity-aggregator/index.test.js` - Unit tests
+- `backend/lambdas/activity-aggregator/index.js` - Node.js handler
+- `backend/lambdas/activity-aggregator/package.json` - Dependencies
+- `backend/lambdas/activity-aggregator/index.test.js` - Unit tests
 
 **Files to Delete:**
-- `backend/activity-aggregator/index.py`
-- `backend/activity-aggregator/requirements.txt`
-- `backend/activity-aggregator/test_handler.py`
+- `backend/lambdas/activity-aggregator/index.py`
+- `backend/lambdas/activity-aggregator/requirements.txt`
+- `backend/lambdas/activity-aggregator/test_handler.py`
 
 **Prerequisites:**
 - Phase-1 complete
-- Review Python implementation at `backend/activity-aggregator/index.py`
+- Review Python implementation at `backend/lambdas/activity-aggregator/index.py`
 
 **Implementation Steps:**
 
@@ -104,9 +104,9 @@ async function updateLastActive(userId) {
 ```
 
 **Verification Checklist:**
-- [ ] `backend/activity-aggregator/index.js` exists
-- [ ] `backend/activity-aggregator/package.json` exists
-- [ ] No Python files in `backend/activity-aggregator/`
+- [ ] `backend/lambdas/activity-aggregator/index.js` exists
+- [ ] `backend/lambdas/activity-aggregator/package.json` exists
+- [ ] No Python files in `backend/lambdas/activity-aggregator/`
 - [ ] `npm install` in directory succeeds
 - [ ] Unit tests pass
 
@@ -118,7 +118,7 @@ async function updateLastActive(userId) {
   - Error handling for individual record failures
   - Table name extraction from ARN
 - Mock DynamoDBDocumentClient using `aws-sdk-client-mock`
-- Run `pnpm test backend/activity-aggregator`
+- Run `pnpm test backend/lambdas/activity-aggregator`
 
 **Commit Message Template:**
 ```
@@ -140,19 +140,19 @@ feat(backend): port activity-aggregator to Node.js
 **Goal:** Rewrite the Python notification-processor Lambda in Node.js with equivalent functionality.
 
 **Files to Create:**
-- `backend/notification-processor/index.js` - Node.js handler
-- `backend/notification-processor/package.json` - Dependencies
-- `backend/notification-processor/index.test.js` - Unit tests
+- `backend/lambdas/notification-processor/index.js` - Node.js handler
+- `backend/lambdas/notification-processor/package.json` - Dependencies
+- `backend/lambdas/notification-processor/index.test.js` - Unit tests
 
 **Files to Delete:**
-- `backend/notification-processor/index.py`
-- `backend/notification-processor/requirements.txt`
-- `backend/notification-processor/test_handler.py`
-- `backend/notification-processor/templates/` (if exists)
+- `backend/lambdas/notification-processor/index.py`
+- `backend/lambdas/notification-processor/requirements.txt`
+- `backend/lambdas/notification-processor/test_handler.py`
+- `backend/lambdas/notification-processor/templates/` (if exists)
 
 **Prerequisites:**
 - Phase-1 complete
-- Review Python implementation at `backend/notification-processor/index.py`
+- Review Python implementation at `backend/lambdas/notification-processor/index.py`
 
 **Implementation Steps:**
 
@@ -222,9 +222,9 @@ async function sendEmail(toEmail, subject, bodyHtml) {
 ```
 
 **Verification Checklist:**
-- [ ] `backend/notification-processor/index.js` exists
-- [ ] `backend/notification-processor/package.json` exists
-- [ ] No Python files in `backend/notification-processor/`
+- [ ] `backend/lambdas/notification-processor/index.js` exists
+- [ ] `backend/lambdas/notification-processor/package.json` exists
+- [ ] No Python files in `backend/lambdas/notification-processor/`
 - [ ] `npm install` in directory succeeds
 - [ ] Unit tests pass
 
@@ -236,7 +236,7 @@ async function sendEmail(toEmail, subject, bodyHtml) {
   - Email sending function (mocked)
   - Error handling for individual record failures
 - Mock SESClient using `aws-sdk-client-mock`
-- Run `pnpm test backend/notification-processor`
+- Run `pnpm test backend/lambdas/notification-processor`
 
 **Commit Message Template:**
 ```
@@ -379,8 +379,8 @@ refactor(tests): migrate tests from Jest to Vitest
 - `backend/media-upload-lambda/index.js`
 - `backend/pdf-download-lambda/index.js`
 - `backend/download-presigned-url-lambda/index.js`
-- `backend/activity-aggregator/index.js`
-- `backend/notification-processor/index.js`
+- `backend/lambdas/activity-aggregator/index.js`
+- `backend/lambdas/notification-processor/index.js`
 
 **Prerequisites:**
 - Tasks 1 and 2 complete (ported Lambdas exist)
@@ -786,13 +786,13 @@ Files deleted in this phase:
 
 | File | Reason |
 |------|--------|
-| `backend/activity-aggregator/index.py` | Replaced by Node.js |
-| `backend/activity-aggregator/requirements.txt` | No longer needed |
-| `backend/activity-aggregator/test_handler.py` | Replaced by JS tests |
-| `backend/notification-processor/index.py` | Replaced by Node.js |
-| `backend/notification-processor/requirements.txt` | No longer needed |
-| `backend/notification-processor/test_handler.py` | Replaced by JS tests |
-| `backend/notification-processor/templates/` | Moved to docs or deleted |
+| `backend/lambdas/activity-aggregator/index.py` | Replaced by Node.js |
+| `backend/lambdas/activity-aggregator/requirements.txt` | No longer needed |
+| `backend/lambdas/activity-aggregator/test_handler.py` | Replaced by JS tests |
+| `backend/lambdas/notification-processor/index.py` | Replaced by Node.js |
+| `backend/lambdas/notification-processor/requirements.txt` | No longer needed |
+| `backend/lambdas/notification-processor/test_handler.py` | Replaced by JS tests |
+| `backend/lambdas/notification-processor/templates/` | Moved to docs or deleted |
 | `backend/*/README.md` | Content consolidated to docs/ |
 
 ---
@@ -825,7 +825,7 @@ Files deleted in this phase:
 
 ### Task 2: notification-processor templates directory not deleted
 
-> **Consider:** The plan at line 151 specifies deleting `backend/notification-processor/templates/` (if exists). Looking at the directory listing, `backend/lambdas/notification-processor/templates/` still exists with 4 HTML/TXT files. Was this intentional, or should the templates be removed?
+> **Consider:** The plan at line 151 specifies deleting `backend/lambdas/notification-processor/templates/` (if exists). Looking at the directory listing, `backend/lambdas/notification-processor/templates/` still exists with 4 HTML/TXT files. Was this intentional, or should the templates be removed?
 
 > **Think about:** The notification processor currently has stubbed email functionality. Are these templates being used? Should they be preserved for future email implementation, or deleted per the plan?
 

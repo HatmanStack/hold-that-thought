@@ -6,6 +6,14 @@ import { Buffer } from 'buffer';
 
 const BUCKET_NAME = process.env.BUCKET_NAME;
 
+function sanitizeTitle(title) {
+  const sanitized = title.replace(/[\/\\]+/g, '_').replace(/\.\./g, '_').trim();
+  if (!sanitized || sanitized.length === 0) {
+    throw new Error('Invalid title: title cannot be empty after sanitization');
+  }
+  return sanitized;
+}
+
 export const handler = async (event, context) => {
   if (!BUCKET_NAME) {
     return {
@@ -26,16 +34,17 @@ export const handler = async (event, context) => {
 
     if (task.type === "update") {
       if (!task.title || typeof task.content === 'undefined') {
-        throw new Error("Missing 'name' or 'content' for update task.");
+        throw new Error("Missing 'title' or 'content' for update task.");
       }
 
+      const sanitizedTitle = sanitizeTitle(task.title);
       const items = [
-        { key: `urara${task.title}+page.svelte.md`, body: task.content }
+        { key: `urara/${sanitizedTitle}/+page.svelte.md`, body: task.content }
       ];
       await updateS3Items(BUCKET_NAME, items);
       return {
         statusCode: 200,
-        body: JSON.stringify({ message: `Successfully updated ${task.title}` }),
+        body: JSON.stringify({ message: `Successfully updated ${sanitizedTitle}` }),
       };
     }
 
@@ -44,14 +53,29 @@ export const handler = async (event, context) => {
         throw new Error("Missing or empty 'files' array for create task.");
       }
 
-      const ocrResult = await callGoogleGenAIOCRBatch(task.files)
+      const ocrResult = await callGoogleGenAIOCRBatch(task.files);
+      if (!ocrResult || typeof ocrResult !== 'string' || !ocrResult.includes('|||||')) {
+        throw new Error('Invalid OCR result format: missing delimiter');
+      }
       const holder = ocrResult.split('|||||');
+      if (holder.length < 2) {
+        throw new Error('Invalid OCR result format: expected title section');
+      }
       const lines = holder[0].split('\n');
+      if (lines.length < 3) {
+        throw new Error('Invalid OCR result format: content too short');
+      }
       const middleLines = lines.slice(1, -1);
       const markdown = middleLines.join('\n');
-      const title = holder[1].trim().replace(/`/g, '');
+      const rawTitle = holder[1].trim().replace(/`/g, '');
+      const title = sanitizeTitle(rawTitle);
       const markdownFilePath = `/tmp/${title}.md`;
       fs.writeFileSync(markdownFilePath, markdown);
+
+      const pdfPath = '/tmp/final_merged_document.pdf';
+      if (!fs.existsSync(pdfPath)) {
+        throw new Error('Merged PDF document not found after OCR processing');
+      }
 
       const itemsToUpload = [
         {
@@ -60,7 +84,7 @@ export const handler = async (event, context) => {
         },
         {
           key: `urara/${title}/document.pdf`,
-          body: fs.readFileSync('/tmp/final_merged_document.pdf')
+          body: fs.readFileSync(pdfPath)
         }
       ];
 
@@ -72,34 +96,22 @@ export const handler = async (event, context) => {
       };
     }
     else if (task.type === "deploy") {
-      try {
-        await startec2();
-        return {
-          statusCode: 200,
-          body: JSON.stringify({
-            message: `Successfully initiated start for instance`,
-          }),
-        };
-
-      } catch (error) {
-        console.error(`Error during Lambda execution:`, error);
-        return {
-          statusCode: 500,
-          body: JSON.stringify({
-            message: "Lambda execution failed",
-            error: error.message,
-            details: error,
-          }),
-        };
-      }
+      await startec2();
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          message: `Successfully initiated start for instance`,
+        }),
+      };
     }
 
     else if (task.type === "downloadMD") {
       const titleForPrefix = task.title || '';
       if (!titleForPrefix) {
-        throw new Error("Missing 'title' for download task.");
+        throw new Error("Missing 'title' for downloadMD task.");
       }
-      const targetKey = `urara${titleForPrefix}+page.svelte.md`;
+      const sanitizedTitle = sanitizeTitle(titleForPrefix);
+      const targetKey = `urara/${sanitizedTitle}/+page.svelte.md`;
 
       const downloadUrl = await getMarkdownContent(BUCKET_NAME, targetKey);
       return {
@@ -115,7 +127,8 @@ export const handler = async (event, context) => {
       if (!titleForPrefix) {
         throw new Error("Missing 'title' for download task.");
       }
-      const prefix = `urara${titleForPrefix}`;
+      const sanitizedTitle = sanitizeTitle(titleForPrefix);
+      const prefix = `urara/${sanitizedTitle}/`;
 
       const pdfKeys = await getS3PdfKeys(BUCKET_NAME, prefix);
 

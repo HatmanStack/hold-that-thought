@@ -366,8 +366,8 @@ Files to be deleted or moved during refactor:
 | `cloudformation/` | Move to `backend/infra/` | Phase-1 |
 | `scripts/` | Move to `backend/scripts/` | Phase-1 |
 | `src/` | Rename to `frontend/` | Phase-1 |
-| `backend/activity-aggregator/*.py` | Delete (rewritten as Node.js) | Phase-2 |
-| `backend/notification-processor/*.py` | Delete (rewritten as Node.js) | Phase-2 |
+| `backend/lambdas/activity-aggregator/*.py` | Delete (rewritten as Node.js) | Phase-2 |
+| `backend/lambdas/notification-processor/*.py` | Delete (rewritten as Node.js) | Phase-2 |
 | `backend/*/jest.config.js` | Delete (using root Vitest) | Phase-1 |
 | `tests/integration/jest.config.js` | Delete (using root Vitest) | Phase-1 |
 

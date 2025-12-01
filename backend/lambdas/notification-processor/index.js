@@ -58,6 +58,15 @@ function processMessageNotification(newImage) {
   const messageText = newImage.messageText?.S;
 }
 
+function maskEmail(email) {
+  if (!email || typeof email !== 'string') return '[invalid]';
+  const parts = email.split('@');
+  if (parts.length !== 2) return '[invalid]';
+  const name = parts[0];
+  const masked = name.length > 2 ? name.slice(0, 2) + '***' : '***';
+  return `${masked}@${parts[1]}`;
+}
+
 exports.sendEmail = async function sendEmail(toEmail, subject, bodyHtml) {
   try {
     await sesClient.send(new SendEmailCommand({
@@ -70,7 +79,7 @@ exports.sendEmail = async function sendEmail(toEmail, subject, bodyHtml) {
     }));
     return true;
   } catch (err) {
-    console.error(`Error sending email to ${toEmail}: ${err.message}`);
+    console.error(`Error sending email to ${maskEmail(toEmail)}: ${err.message}`);
     return false;
   }
 };

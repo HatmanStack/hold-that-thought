@@ -232,7 +232,8 @@ export const handler = async (event, context) => {
     if (requestData.type === 'markdown' || requestData.type === 'update') {
       return await handleMarkdownRequest(requestData);
     } else {
-      return await handlePdfRequest(requestData.key);
+      const requestKey = requestData.key || requestData.title;
+      return await handlePdfRequest(requestKey);
     }
 
   } catch (error) {
