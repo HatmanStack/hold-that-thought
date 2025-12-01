@@ -37,6 +37,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Setup environment
+        run: cp .env.example .env
+
+      - name: Generate SvelteKit types
+        run: npx svelte-kit sync
+
       - name: Run lint
         run: pnpm lint
 
