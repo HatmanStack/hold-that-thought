@@ -1,78 +1,76 @@
-const { DynamoDBClient } = require('@aws-sdk/client-dynamodb')
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3')
-const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand, BatchWriteCommand, BatchGetCommand } = require('@aws-sdk/lib-dynamodb')
+const { GetCommand, PutCommand, QueryCommand, UpdateCommand, BatchWriteCommand, BatchGetCommand } = require('@aws-sdk/lib-dynamodb')
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner')
 const { v4: uuidv4 } = require('uuid')
+const { docClient, TABLE_NAME, PREFIX, keys, BUCKETS, successResponse, errorResponse } = require('../utils')
 
-const ddbClient = new DynamoDBClient({})
-const docClient = DynamoDBDocumentClient.from(ddbClient)
 const s3Client = new S3Client({})
 
-const USER_PROFILES_TABLE = process.env.USER_PROFILES_TABLE
-const MESSAGES_TABLE = process.env.MESSAGES_TABLE
-const CONVERSATION_MEMBERS_TABLE = process.env.CONVERSATION_MEMBERS_TABLE
-const BUCKET_NAME = process.env.BUCKET_NAME
+async function handle(event, context) {
+  const { requesterId } = context
 
-exports.handler = async (event) => {
-  try {
-    const userId = event.requestContext?.authorizer?.claims?.sub
-    if (!userId) {
-      return errorResponse(401, 'Unauthorized: Missing user context')
-    }
-
-    const method = event.httpMethod
-    const resource = event.resource
-
-    if (method === 'GET' && resource === '/messages/conversations') {
-      return await listConversations(userId)
-    }
-
-    if (method === 'GET' && resource === '/messages/conversations/{conversationId}') {
-      return await getMessages(event, userId)
-    }
-
-    if (method === 'POST' && resource === '/messages/conversations') {
-      return await createConversation(event, userId)
-    }
-
-    if (method === 'POST' && resource === '/messages/conversations/{conversationId}') {
-      return await sendMessage(event, userId)
-    }
-
-    if (method === 'POST' && resource === '/messages/upload') {
-      return await generateUploadUrl(event, userId)
-    }
-
-    if (method === 'PUT' && resource === '/messages/conversations/{conversationId}/read') {
-      return await markAsRead(event, userId)
-    }
-
-    return errorResponse(404, 'Route not found')
+  if (!requesterId) {
+    return errorResponse(401, 'Unauthorized: Missing user context')
   }
-  catch (error) {
-    console.error('Error:', error)
-    return errorResponse(500, 'Internal server error')
+
+  const method = event.httpMethod
+  const resource = event.resource
+
+  if (method === 'GET' && resource === '/messages/conversations') {
+    return await listConversations(requesterId)
   }
+
+  if (method === 'GET' && resource === '/messages/{conversationId}') {
+    return await getMessages(event, requesterId)
+  }
+
+  if (method === 'POST' && resource === '/messages/conversations') {
+    return await createConversation(event, requesterId)
+  }
+
+  if (method === 'POST' && resource === '/messages/{conversationId}') {
+    return await sendMessage(event, requesterId)
+  }
+
+  if (method === 'POST' && resource === '/messages/{conversationId}/upload-url') {
+    return await generateUploadUrl(event, requesterId)
+  }
+
+  if (method === 'PUT' && resource === '/messages/{conversationId}/read') {
+    return await markAsRead(event, requesterId)
+  }
+
+  return errorResponse(404, 'Route not found')
 }
 
 async function listConversations(userId) {
   try {
+    // Query user's conversation memberships: PK=USER#<userId>, SK begins with CONV#
     const result = await docClient.send(new QueryCommand({
-      TableName: CONVERSATION_MEMBERS_TABLE,
-      IndexName: 'RecentConversationsIndex',
-      KeyConditionExpression: 'userId = :userId',
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
       ExpressionAttributeValues: {
-        ':userId': userId,
+        ':pk': `${PREFIX.USER}${userId}`,
+        ':skPrefix': PREFIX.CONV,
       },
       ScanIndexForward: false,
       Limit: 50,
     }))
 
-    return successResponse({
-      conversations: result.Items || [],
-    })
-  }
-  catch (error) {
+    const conversations = (result.Items || [])
+      .filter(item => item.entityType === 'CONVERSATION_MEMBER')
+      .map(item => ({
+        conversationId: item.conversationId,
+        conversationType: item.conversationType,
+        participantIds: item.participantIds ? Array.from(item.participantIds) : [],
+        participantNames: item.participantNames ? Array.from(item.participantNames) : [],
+        lastMessageAt: item.lastMessageAt,
+        unreadCount: item.unreadCount || 0,
+        conversationTitle: item.conversationTitle,
+      }))
+
+    return successResponse({ conversations })
+  } catch (error) {
     console.error('Error listing conversations:', { userId, error })
     throw error
   }
@@ -80,7 +78,7 @@ async function listConversations(userId) {
 
 async function getMessages(event, userId) {
   const conversationId = event.pathParameters?.conversationId
-  const limit = Number.parseInt(event.queryStringParameters?.limit || '50')
+  const limit = parseInt(event.queryStringParameters?.limit || '50', 10)
   const lastEvaluatedKey = event.queryStringParameters?.lastEvaluatedKey
 
   if (!conversationId) {
@@ -88,20 +86,23 @@ async function getMessages(event, userId) {
   }
 
   try {
+    // Check membership
     const memberCheck = await docClient.send(new GetCommand({
-      TableName: CONVERSATION_MEMBERS_TABLE,
-      Key: { userId, conversationId },
+      TableName: TABLE_NAME,
+      Key: keys.userConversation(userId, conversationId),
     }))
 
     if (!memberCheck.Item) {
       return errorResponse(403, 'You are not a participant in this conversation')
     }
 
+    // Query messages: PK=CONV#<convId>, SK begins with MSG#
     const queryParams = {
-      TableName: MESSAGES_TABLE,
-      KeyConditionExpression: 'conversationId = :conversationId',
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
       ExpressionAttributeValues: {
-        ':conversationId': conversationId,
+        ':pk': `${PREFIX.CONV}${conversationId}`,
+        ':skPrefix': PREFIX.MSG,
       },
       Limit: limit,
       ScanIndexForward: false,
@@ -113,14 +114,25 @@ async function getMessages(event, userId) {
 
     const result = await docClient.send(new QueryCommand(queryParams))
 
+    const messages = (result.Items || [])
+      .filter(item => item.entityType === 'MESSAGE')
+      .map(item => ({
+        messageId: item.messageId,
+        conversationId: item.conversationId,
+        senderId: item.senderId,
+        senderName: item.senderName,
+        messageText: item.messageText,
+        attachments: item.attachments || [],
+        createdAt: item.createdAt,
+      }))
+
     return successResponse({
-      messages: result.Items || [],
+      messages,
       lastEvaluatedKey: result.LastEvaluatedKey
         ? Buffer.from(JSON.stringify(result.LastEvaluatedKey)).toString('base64')
         : null,
     })
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error getting messages:', { conversationId, userId, error })
     throw error
   }
@@ -129,8 +141,7 @@ async function getMessages(event, userId) {
 async function createConversation(event, userId) {
   const body = JSON.parse(event.body || '{}')
   const participantIds = body.participantIds || []
-  const messageText = body.messageText
-  const conversationTitle = body.conversationTitle
+  const { messageText, conversationTitle } = body
 
   if (!Array.isArray(participantIds) || participantIds.length === 0) {
     return errorResponse(400, 'participantIds must be a non-empty array')
@@ -146,14 +157,16 @@ async function createConversation(event, userId) {
       : uuidv4()
 
     const conversationType = participantIds.length === 2 ? 'direct' : 'group'
-
     const participantNames = await fetchUserNames(participantIds)
 
     const now = new Date().toISOString()
+
+    // Create membership records for each participant
     const memberRecords = participantIds.map(pid => ({
       PutRequest: {
         Item: {
-          userId: pid,
+          ...keys.userConversation(pid, conversationId),
+          entityType: 'CONVERSATION_MEMBER',
           conversationId,
           conversationType,
           participantIds: new Set(participantIds),
@@ -165,28 +178,21 @@ async function createConversation(event, userId) {
       },
     }))
 
+    // Batch write memberships
     for (let i = 0; i < memberRecords.length; i += 25) {
-      const batch = memberRecords.slice(i, i + 25)
       await docClient.send(new BatchWriteCommand({
-        RequestItems: {
-          [CONVERSATION_MEMBERS_TABLE]: batch,
-        },
+        RequestItems: { [TABLE_NAME]: memberRecords.slice(i, i + 25) },
       }))
     }
 
+    // Send initial message if provided
     let message = null
     if (messageText) {
       message = await createMessage(conversationId, userId, messageText, participantIds, conversationType)
     }
 
-    return successResponse({
-      conversationId,
-      conversationType,
-      participantIds,
-      message,
-    }, 201)
-  }
-  catch (error) {
+    return successResponse({ conversationId, conversationType, participantIds, message }, 201)
+  } catch (error) {
     console.error('Error creating conversation:', { userId, participantIds, error })
     throw error
   }
@@ -195,8 +201,7 @@ async function createConversation(event, userId) {
 async function sendMessage(event, userId) {
   const conversationId = event.pathParameters?.conversationId
   const body = JSON.parse(event.body || '{}')
-  const messageText = body.messageText
-  const attachments = body.attachments || []
+  const { messageText, attachments = [] } = body
 
   if (!conversationId) {
     return errorResponse(400, 'Missing conversationId parameter')
@@ -211,9 +216,10 @@ async function sendMessage(event, userId) {
   }
 
   try {
+    // Check membership
     const memberCheck = await docClient.send(new GetCommand({
-      TableName: CONVERSATION_MEMBERS_TABLE,
-      Key: { userId, conversationId },
+      TableName: TABLE_NAME,
+      Key: keys.userConversation(userId, conversationId),
     }))
 
     if (!memberCheck.Item) {
@@ -225,12 +231,10 @@ async function sendMessage(event, userId) {
     const conversationType = conversation.conversationType
 
     const message = await createMessage(conversationId, userId, messageText, participantIds, conversationType, attachments)
-
     await updateConversationMembers(conversationId, userId, participantIds)
 
     return successResponse(message, 201)
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error sending message:', { conversationId, userId, error })
     throw error
   }
@@ -238,8 +242,7 @@ async function sendMessage(event, userId) {
 
 async function generateUploadUrl(event, userId) {
   const body = JSON.parse(event.body || '{}')
-  const fileName = body.fileName
-  const contentType = body.contentType || 'application/octet-stream'
+  const { fileName, contentType = 'application/octet-stream' } = body
 
   if (!fileName) {
     return errorResponse(400, 'Missing fileName')
@@ -249,21 +252,15 @@ async function generateUploadUrl(event, userId) {
     const key = `messages/attachments/${userId}/${uuidv4()}_${fileName}`
 
     const command = new PutObjectCommand({
-      Bucket: BUCKET_NAME,
+      Bucket: BUCKETS.media,
       Key: key,
       ContentType: contentType,
     })
 
     const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 900 })
 
-    return successResponse({
-      uploadUrl: presignedUrl,
-      s3Key: key,
-      fileName,
-      contentType,
-    })
-  }
-  catch (error) {
+    return successResponse({ uploadUrl: presignedUrl, s3Key: key, fileName, contentType })
+  } catch (error) {
     console.error('Error generating upload URL:', { userId, fileName, error })
     throw error
   }
@@ -278,55 +275,61 @@ async function markAsRead(event, userId) {
 
   try {
     await docClient.send(new UpdateCommand({
-      TableName: CONVERSATION_MEMBERS_TABLE,
-      Key: { userId, conversationId },
+      TableName: TABLE_NAME,
+      Key: keys.userConversation(userId, conversationId),
       UpdateExpression: 'SET unreadCount = :zero',
-      ConditionExpression: 'attribute_exists(userId)',
-      ExpressionAttributeValues: {
-        ':zero': 0,
-      },
+      ConditionExpression: 'attribute_exists(PK)',
+      ExpressionAttributeValues: { ':zero': 0 },
     }))
 
     return successResponse({ message: 'Conversation marked as read' })
-  }
-  catch (error) {
-    console.error('Error marking conversation as read:', { conversationId, userId, error })
+  } catch (error) {
     if (error.name === 'ConditionalCheckFailedException') {
       return errorResponse(403, 'You are not a member of this conversation')
     }
+    console.error('Error marking conversation as read:', { conversationId, userId, error })
     throw error
   }
 }
 
 async function createMessage(conversationId, senderId, messageText, participantIds, conversationType, attachments = []) {
+  // Get sender's profile
   const profileResult = await docClient.send(new GetCommand({
-    TableName: USER_PROFILES_TABLE,
-    Key: { userId: senderId },
+    TableName: TABLE_NAME,
+    Key: keys.userProfile(senderId),
   }))
 
   const senderName = profileResult.Item?.displayName || 'Anonymous'
-
-  const messageId = `${new Date().toISOString()}#${uuidv4()}`
+  const timestamp = new Date().toISOString()
+  const messageId = `${timestamp}#${uuidv4()}`
 
   const message = {
-    conversationId,
+    ...keys.message(conversationId, messageId),
+    entityType: 'MESSAGE',
     messageId,
+    conversationId,
     senderId,
     senderName,
     messageText,
     attachments,
-    createdAt: new Date().toISOString(),
+    createdAt: timestamp,
     conversationType,
     participants: new Set(participantIds),
   }
 
   await docClient.send(new PutCommand({
-    TableName: MESSAGES_TABLE,
+    TableName: TABLE_NAME,
     Item: message,
   }))
 
   return {
-    ...message,
+    messageId,
+    conversationId,
+    senderId,
+    senderName,
+    messageText,
+    attachments,
+    createdAt: timestamp,
     participants: participantIds,
   }
 }
@@ -334,74 +337,43 @@ async function createMessage(conversationId, senderId, messageText, participantI
 async function updateConversationMembers(conversationId, senderId, participantIds) {
   const now = new Date().toISOString()
 
-  const updatePromises = participantIds.map((participantId) => {
-    if (participantId === senderId) {
-      return docClient.send(new UpdateCommand({
-        TableName: CONVERSATION_MEMBERS_TABLE,
-        Key: { userId: participantId, conversationId },
-        UpdateExpression: 'SET lastMessageAt = :now',
-        ExpressionAttributeValues: {
-          ':now': now,
-        },
-      }))
-    }
-    else {
-      return docClient.send(new UpdateCommand({
-        TableName: CONVERSATION_MEMBERS_TABLE,
-        Key: { userId: participantId, conversationId },
-        UpdateExpression: 'SET lastMessageAt = :now ADD unreadCount :one',
-        ExpressionAttributeValues: {
-          ':now': now,
-          ':one': 1,
-        },
-      }))
-    }
-  })
+  await Promise.all(participantIds.map(participantId => {
+    const updateExpression = participantId === senderId
+      ? 'SET lastMessageAt = :now'
+      : 'SET lastMessageAt = :now ADD unreadCount :one'
 
-  await Promise.all(updatePromises)
+    const expressionValues = participantId === senderId
+      ? { ':now': now }
+      : { ':now': now, ':one': 1 }
+
+    return docClient.send(new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: keys.userConversation(participantId, conversationId),
+      UpdateExpression: updateExpression,
+      ExpressionAttributeValues: expressionValues,
+    }))
+  }))
 }
 
 async function fetchUserNames(userIds) {
-  if (userIds.length === 0) {
-    return []
-  }
+  if (userIds.length === 0) return []
 
   const result = await docClient.send(new BatchGetCommand({
     RequestItems: {
-      [USER_PROFILES_TABLE]: {
-        Keys: userIds.map(userId => ({ userId })),
+      [TABLE_NAME]: {
+        Keys: userIds.map(userId => keys.userProfile(userId)),
       },
     },
   }))
 
-  const userMap = {};
-  (result.Responses?.[USER_PROFILES_TABLE] || []).forEach((item) => {
-    userMap[item.userId] = item.displayName || 'Anonymous'
+  const userMap = {}
+  ;(result.Responses?.[TABLE_NAME] || []).forEach(item => {
+    // Extract userId from PK (USER#<userId>)
+    const userId = item.PK.replace(PREFIX.USER, '')
+    userMap[userId] = item.displayName || 'Anonymous'
   })
 
   return userIds.map(userId => userMap[userId] || 'Anonymous')
 }
 
-function successResponse(data, statusCode = 200) {
-  return {
-    statusCode,
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Credentials': true,
-    },
-    body: JSON.stringify(data),
-  }
-}
-
-function errorResponse(statusCode, message) {
-  return {
-    statusCode,
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Credentials': true,
-    },
-    body: JSON.stringify({ error: message }),
-  }
-}
+module.exports = { handle }

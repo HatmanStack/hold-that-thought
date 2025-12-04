@@ -58,7 +58,10 @@
     if (conversation.conversationTitle) {
       return conversation.conversationTitle
     }
-    return conversation.participantNames.join(', ')
+    if (conversation.participantNames && conversation.participantNames.length > 0) {
+      return conversation.participantNames.join(', ')
+    }
+    return 'Conversation'
   }
 
   /**

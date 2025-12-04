@@ -73,3 +73,4 @@ amplify-gradle-config.json
 amplifytools.xcconfig
 .secret-*
 **.sample
+backend/.env.deploy

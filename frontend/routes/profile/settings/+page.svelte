@@ -26,8 +26,6 @@
   let uploadError = ''
 
   $: bioLength = bio.length
-  $: bioRemaining = 500 - bioLength
-  $: bioExceeded = bioLength > 500
 
   /**
    * Load current user's profile
@@ -123,11 +121,6 @@
     // Validate
     if (!displayName.trim()) {
       error = 'Display name is required'
-      return
-    }
-
-    if (bioLength > 500) {
-      error = 'Bio must be 500 characters or less'
       return
     }
 
@@ -364,19 +357,15 @@
           <!-- Bio -->
           <div class='form-control'>
             <label class='label' for='bio'>
-              <span class='label-text font-semibold'>Bio</span>
-              <span class='label-text-alt' class:text-error={bioExceeded}>
-                {bioRemaining} characters remaining
-              </span>
+              <span class='label-text font-semibold'>About</span>
+              <span class='label-text-alt'>{bioLength.toLocaleString()} characters</span>
             </label>
             <textarea
               id='bio'
-              class='textarea textarea-bordered h-24'
-              class:textarea-error={bioExceeded}
+              class='textarea textarea-bordered min-h-48'
               bind:value={bio}
               disabled={saving}
-              maxlength='500'
-              placeholder='Tell your family about yourself...'
+              placeholder='Tell your family about yourself... Write as much as you want!'
             />
           </div>
 
@@ -466,7 +455,7 @@
           type='submit'
           class='btn btn-primary'
           class:loading={saving || uploading}
-          disabled={saving || uploading || bioExceeded || !displayName.trim()}
+          disabled={saving || uploading || !displayName.trim()}
         >
           {#if uploading}
             Uploading...

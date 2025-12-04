@@ -38,12 +38,15 @@ export default {
         : Object.keys(process.env).some(key => ['NETLIFY', 'VERCEL'].includes(key))
           ? adapter.auto
           : adapter.static,
-    csp: {
-      directives: {
-        'style-src': ['self', 'unsafe-inline', 'https://giscus.app'],
-      },
-      mode: 'auto',
-    },
+    // CSP disabled for development - re-enable for production with proper domains
+    // csp: {
+    //   directives: {
+    //     'style-src': ['self', 'unsafe-inline'],
+    //     'img-src': ['self', 'data:', 'blob:', 'https:'],
+    //     'connect-src': ['self', 'https:'],
+    //   },
+    //   mode: 'auto',
+    // },
     prerender: {
       handleMissingId: 'warn',
       handleHttpError: ({ path, referrer, message }) => {

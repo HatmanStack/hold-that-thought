@@ -7,7 +7,7 @@ import { PUBLIC_API_GATEWAY_URL } from '$env/static/public'
 import { authTokens } from '$lib/auth/auth-store'
 import { get } from 'svelte/store'
 
-const API_BASE = PUBLIC_API_GATEWAY_URL
+const API_BASE = PUBLIC_API_GATEWAY_URL?.replace(/\/+$/, '') || ''
 
 /**
  * Get authorization header with JWT token

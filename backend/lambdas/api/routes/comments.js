@@ -1,68 +1,43 @@
-const { DynamoDBClient } = require('@aws-sdk/client-dynamodb')
-const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb')
-const sanitizeHtml = require('sanitize-html')
+const { GetCommand, PutCommand, QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb')
 const { v4: uuidv4 } = require('uuid')
+const { docClient, TABLE_NAME, PREFIX, keys, sanitizeText, successResponse, errorResponse } = require('../utils')
 
-const client = new DynamoDBClient({})
-const docClient = DynamoDBDocumentClient.from(client)
+async function handle(event, context) {
+  const { requesterId, requesterEmail, isAdmin } = context
 
-const USER_PROFILES_TABLE = process.env.USER_PROFILES_TABLE
-const COMMENTS_TABLE = process.env.COMMENTS_TABLE
-
-exports.handler = async (event) => {
-  try {
-    const userId = event.requestContext?.authorizer?.claims?.sub
-    const userEmail = event.requestContext?.authorizer?.claims?.email
-    const userGroupsRaw = event.requestContext?.authorizer?.claims?.['cognito:groups']
-
-    let userGroups = []
-    if (Array.isArray(userGroupsRaw)) {
-      userGroups = userGroupsRaw
-    }
-    else if (typeof userGroupsRaw === 'string') {
-      userGroups = userGroupsRaw.split(',').map(g => g.trim()).filter(g => g)
-    }
-
-    const isAdmin = userGroups.includes('Admins')
-
-    if (!userId) {
-      return errorResponse(401, 'Unauthorized: Missing user context')
-    }
-
-    const method = event.httpMethod
-    const resource = event.resource
-
-    if (method === 'GET' && resource === '/comments/{itemId}') {
-      return await listComments(event)
-    }
-
-    if (method === 'POST' && resource === '/comments/{itemId}') {
-      return await createComment(event, userId, userEmail)
-    }
-
-    if (method === 'PUT' && resource === '/comments/{itemId}/{commentId}') {
-      return await editComment(event, userId, isAdmin)
-    }
-
-    if (method === 'DELETE' && resource === '/comments/{itemId}/{commentId}') {
-      return await deleteComment(event, userId, isAdmin)
-    }
-
-    if (method === 'DELETE' && resource === '/admin/comments/{commentId}') {
-      return await adminDeleteComment(event, isAdmin)
-    }
-
-    return errorResponse(404, 'Route not found')
+  if (!requesterId) {
+    return errorResponse(401, 'Unauthorized: Missing user context')
   }
-  catch (error) {
-    console.error('Error:', error)
-    return errorResponse(500, 'Internal server error')
+
+  const method = event.httpMethod
+  const resource = event.resource
+
+  if (method === 'GET' && resource === '/comments/{itemId}') {
+    return await listComments(event)
   }
+
+  if (method === 'POST' && resource === '/comments/{itemId}') {
+    return await createComment(event, requesterId, requesterEmail)
+  }
+
+  if (method === 'PUT' && resource === '/comments/{itemId}/{commentId}') {
+    return await editComment(event, requesterId, isAdmin)
+  }
+
+  if (method === 'DELETE' && resource === '/comments/{itemId}/{commentId}') {
+    return await deleteComment(event, requesterId, isAdmin)
+  }
+
+  if (method === 'DELETE' && resource === '/admin/comments/{commentId}') {
+    return await adminDeleteComment(event, isAdmin)
+  }
+
+  return errorResponse(404, 'Route not found')
 }
 
 async function listComments(event) {
   const itemId = event.pathParameters?.itemId
-  const limit = Number.parseInt(event.queryStringParameters?.limit || '50')
+  const limit = parseInt(event.queryStringParameters?.limit || '50', 10)
   const lastEvaluatedKey = event.queryStringParameters?.lastEvaluatedKey
 
   if (!itemId) {
@@ -71,10 +46,11 @@ async function listComments(event) {
 
   try {
     const queryParams = {
-      TableName: COMMENTS_TABLE,
-      KeyConditionExpression: 'itemId = :itemId',
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
       ExpressionAttributeValues: {
-        ':itemId': itemId,
+        ':pk': `${PREFIX.COMMENT}${itemId}`,
+        ':skPrefix': '20', // Comments start with timestamp (20xx-...)
       },
       Limit: limit,
       ScanIndexForward: true,
@@ -86,18 +62,29 @@ async function listComments(event) {
 
     const result = await docClient.send(new QueryCommand(queryParams))
 
-    const comments = (result.Items || []).filter(item => !item.isDeleted)
+    // Filter out deleted and non-comment items (reactions have different SK prefix)
+    const comments = (result.Items || [])
+      .filter(item => item.entityType === 'COMMENT' && !item.isDeleted)
+      .map(item => ({
+        itemId: item.itemId,
+        commentId: item.SK,
+        userId: item.userId,
+        userName: item.userName,
+        userPhotoUrl: item.userPhotoUrl,
+        commentText: item.commentText,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+        isEdited: item.isEdited,
+        reactionCount: item.reactionCount || 0,
+      }))
 
-    const response = {
+    return successResponse({
       items: comments,
       lastEvaluatedKey: result.LastEvaluatedKey
         ? Buffer.from(JSON.stringify(result.LastEvaluatedKey)).toString('base64')
         : null,
-    }
-
-    return successResponse(response)
-  }
-  catch (error) {
+    })
+  } catch (error) {
     console.error('Error listing comments:', { itemId, error })
     throw error
   }
@@ -106,9 +93,7 @@ async function listComments(event) {
 async function createComment(event, userId, userEmail) {
   const itemId = event.pathParameters?.itemId
   const body = JSON.parse(event.body || '{}')
-  const commentText = body.commentText
-  const itemType = body.itemType || 'letter'
-  const itemTitle = body.itemTitle || ''
+  const { commentText, itemType = 'letter', itemTitle = '' } = body
 
   if (!itemId) {
     return errorResponse(400, 'Missing itemId parameter')
@@ -118,23 +103,17 @@ async function createComment(event, userId, userEmail) {
     return errorResponse(400, 'Missing or invalid commentText')
   }
 
-  const sanitizedText = sanitizeHtml(commentText, {
-    allowedTags: [],
-    allowedAttributes: {},
-  }).trim()
+  const sanitizedText = sanitizeText(commentText, 2000)
 
   if (!sanitizedText) {
     return errorResponse(400, 'Comment text cannot be empty after sanitization')
   }
 
-  if (sanitizedText.length > 2000) {
-    return errorResponse(400, 'Comment text must be 2000 characters or less')
-  }
-
   try {
+    // Get user profile for display name
     const profileResult = await docClient.send(new GetCommand({
-      TableName: USER_PROFILES_TABLE,
-      Key: { userId },
+      TableName: TABLE_NAME,
+      Key: keys.userProfile(userId),
     }))
 
     const profile = profileResult.Item || {}
@@ -145,8 +124,9 @@ async function createComment(event, userId, userEmail) {
     const commentId = `${timestamp}#${uuidv4()}`
 
     const comment = {
+      ...keys.comment(itemId, commentId),
+      entityType: 'COMMENT',
       itemId,
-      commentId,
       userId,
       userName,
       userPhotoUrl,
@@ -159,16 +139,27 @@ async function createComment(event, userId, userEmail) {
       isDeleted: false,
       itemType,
       itemTitle,
+      // GSI1 for user's comment history
+      GSI1PK: `${PREFIX.USER}${userId}`,
+      GSI1SK: `${PREFIX.COMMENT}${timestamp}`,
     }
 
     await docClient.send(new PutCommand({
-      TableName: COMMENTS_TABLE,
+      TableName: TABLE_NAME,
       Item: comment,
     }))
 
-    return successResponse(comment, 201)
-  }
-  catch (error) {
+    return successResponse({
+      itemId,
+      commentId,
+      userId,
+      userName,
+      userPhotoUrl,
+      commentText: sanitizedText,
+      createdAt: timestamp,
+      reactionCount: 0,
+    }, 201)
+  } catch (error) {
     console.error('Error creating comment:', { itemId, userId, error })
     throw error
   }
@@ -178,36 +169,30 @@ async function editComment(event, userId, isAdmin) {
   const itemId = event.pathParameters?.itemId
   const commentId = event.pathParameters?.commentId
   const body = JSON.parse(event.body || '{}')
-  const newCommentText = body.commentText
+  const { commentText } = body
 
   if (!itemId || !commentId) {
     return errorResponse(400, 'Missing itemId or commentId parameter')
   }
 
-  if (!newCommentText || typeof newCommentText !== 'string') {
+  if (!commentText || typeof commentText !== 'string') {
     return errorResponse(400, 'Missing or invalid commentText')
   }
 
-  const sanitizedText = sanitizeHtml(newCommentText, {
-    allowedTags: [],
-    allowedAttributes: {},
-  }).trim()
+  const sanitizedText = sanitizeText(commentText, 2000)
 
   if (!sanitizedText) {
     return errorResponse(400, 'Comment text cannot be empty after sanitization')
   }
 
-  if (sanitizedText.length > 2000) {
-    return errorResponse(400, 'Comment text must be 2000 characters or less')
-  }
-
   try {
+    const key = keys.comment(itemId, commentId)
     const result = await docClient.send(new GetCommand({
-      TableName: COMMENTS_TABLE,
-      Key: { itemId, commentId },
+      TableName: TABLE_NAME,
+      Key: key,
     }))
 
-    if (!result.Item) {
+    if (!result.Item || result.Item.entityType !== 'COMMENT') {
       return errorResponse(404, 'Comment not found')
     }
 
@@ -222,28 +207,27 @@ async function editComment(event, userId, isAdmin) {
       text: existingComment.commentText,
       timestamp: existingComment.updatedAt || existingComment.createdAt,
     })
-    const trimmedHistory = editHistory.slice(0, 5)
 
     await docClient.send(new UpdateCommand({
-      TableName: COMMENTS_TABLE,
-      Key: { itemId, commentId },
+      TableName: TABLE_NAME,
+      Key: key,
       UpdateExpression: 'SET commentText = :text, updatedAt = :now, isEdited = :true, editHistory = :history',
       ExpressionAttributeValues: {
         ':text': sanitizedText,
         ':now': new Date().toISOString(),
         ':true': true,
-        ':history': trimmedHistory,
+        ':history': editHistory.slice(0, 5),
       },
     }))
 
-    const updatedResult = await docClient.send(new GetCommand({
-      TableName: COMMENTS_TABLE,
-      Key: { itemId, commentId },
-    }))
-
-    return successResponse(updatedResult.Item)
-  }
-  catch (error) {
+    return successResponse({
+      itemId,
+      commentId,
+      commentText: sanitizedText,
+      updatedAt: new Date().toISOString(),
+      isEdited: true,
+    })
+  } catch (error) {
     console.error('Error editing comment:', { itemId, commentId, userId, error })
     throw error
   }
@@ -258,24 +242,23 @@ async function deleteComment(event, userId, isAdmin) {
   }
 
   try {
+    const key = keys.comment(itemId, commentId)
     const result = await docClient.send(new GetCommand({
-      TableName: COMMENTS_TABLE,
-      Key: { itemId, commentId },
+      TableName: TABLE_NAME,
+      Key: key,
     }))
 
-    if (!result.Item) {
+    if (!result.Item || result.Item.entityType !== 'COMMENT') {
       return errorResponse(404, 'Comment not found')
     }
 
-    const existingComment = result.Item
-
-    if (existingComment.userId !== userId && !isAdmin) {
+    if (result.Item.userId !== userId && !isAdmin) {
       return errorResponse(403, 'You can only delete your own comments')
     }
 
     await docClient.send(new UpdateCommand({
-      TableName: COMMENTS_TABLE,
-      Key: { itemId, commentId },
+      TableName: TABLE_NAME,
+      Key: key,
       UpdateExpression: 'SET isDeleted = :true, updatedAt = :now',
       ExpressionAttributeValues: {
         ':true': true,
@@ -284,8 +267,7 @@ async function deleteComment(event, userId, isAdmin) {
     }))
 
     return successResponse({ message: 'Comment deleted successfully' })
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error deleting comment:', { itemId, commentId, userId, error })
     throw error
   }
@@ -298,7 +280,7 @@ async function adminDeleteComment(event, isAdmin) {
 
   const commentId = event.pathParameters?.commentId
   const body = JSON.parse(event.body || '{}')
-  const itemId = body.itemId
+  const { itemId } = body
 
   if (!commentId || !itemId) {
     return errorResponse(400, 'Missing commentId or itemId')
@@ -306,8 +288,8 @@ async function adminDeleteComment(event, isAdmin) {
 
   try {
     await docClient.send(new UpdateCommand({
-      TableName: COMMENTS_TABLE,
-      Key: { itemId, commentId },
+      TableName: TABLE_NAME,
+      Key: keys.comment(itemId, commentId),
       UpdateExpression: 'SET isDeleted = :true, updatedAt = :now',
       ExpressionAttributeValues: {
         ':true': true,
@@ -316,33 +298,10 @@ async function adminDeleteComment(event, isAdmin) {
     }))
 
     return successResponse({ message: 'Comment deleted by admin' })
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error admin deleting comment:', { itemId, commentId, error })
     throw error
   }
 }
 
-function successResponse(data, statusCode = 200) {
-  return {
-    statusCode,
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Credentials': true,
-    },
-    body: JSON.stringify(data),
-  }
-}
-
-function errorResponse(statusCode, message) {
-  return {
-    statusCode,
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Credentials': true,
-    },
-    body: JSON.stringify({ error: message }),
-  }
-}
+module.exports = { handle }
