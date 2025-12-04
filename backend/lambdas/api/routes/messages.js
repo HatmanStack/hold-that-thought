@@ -153,7 +153,7 @@ async function createConversation(event, userId) {
 
   try {
     const conversationId = participantIds.length === 2
-      ? participantIds.sort().join('#')
+      ? participantIds.sort().join('_')
       : uuidv4()
 
     const conversationType = participantIds.length === 2 ? 'direct' : 'group'
