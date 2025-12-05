@@ -445,12 +445,12 @@ feat(migration): add media files migration script
 7. Validate media migration
 
 **Verification Checklist:**
-- [ ] All ~180 letters migrated
-- [ ] All markdown files have frontmatter stripped
-- [ ] All files follow date-based naming
-- [ ] All PDFs paired with markdown files
-- [ ] Media files migrated correctly
-- [ ] Validation script passes
+- [x] All ~180 letters migrated
+- [x] All markdown files have frontmatter stripped
+- [x] All files follow date-based naming
+- [x] All PDFs paired with markdown files
+- [x] Media files migrated correctly
+- [x] Validation script passes
 
 **Testing Instructions:**
 - Run validation script after migration
