@@ -389,11 +389,11 @@ feat(migration): implement main letter migration script
 5. Support dry-run mode
 
 **Verification Checklist:**
-- [ ] All media files copied to new bucket
-- [ ] Folder structure preserved
-- [ ] Content types preserved
-- [ ] Report lists all migrated files
-- [ ] No files missed
+- [x] All media files copied to new bucket
+- [x] Folder structure preserved
+- [x] Content types preserved
+- [x] Report lists all migrated files
+- [x] No files missed
 
 **Testing Instructions:**
 - Run in dry-run mode first
