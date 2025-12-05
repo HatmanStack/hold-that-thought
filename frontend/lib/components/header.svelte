@@ -98,12 +98,12 @@
           <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
           <!-- reference: https://github.com/saadeghi/daisyui/issues/1285 -->
           <ul
-            class='flex menu dropdown-content bg-base-100 text-base-content rounded-box w-52 p-2 gap-2 flex-nowrap shadow-2xl overflow-y-auto max-h-[21.5rem]'
+            class='flex menu dropdown-content bg-base-100 rounded-box w-52 p-2 gap-2 text-base-content flex-nowrap shadow-2xl overflow-y-auto max-h-[21.5rem]'
             class:hidden={!pin}
             tabindex='0'>
             {#each theme as { name, text }}
               <button
-                class='btn btn-ghost w-full flex bg-base-100 p-2 transition-all hover:bg-primary group rounded-lg'
+                class='btn btn-ghost w-full flex bg-base-100 p-2 transition-all rounded-lg hover:bg-primary group'
                 class:border-2={currentTheme === name}
                 class:border-primary={currentTheme === name}
                 data-theme={name}
@@ -151,7 +151,7 @@
     class='transition-all duration-500 ease-in-out radial-progress text-accent group-hover:text-[color-mix(in_oklab,oklch(var(--a)),black_7%)] col-start-1 row-start-1'
     style={`--size:4rem; --thickness: 0.25rem; --value:${percent};`} />
   <div
-    class='col-start-1 row-start-1 rounded-full w-full h-full grid duration-500 ease-in-out border-4 border-base-content/10 group-hover:border-transparent p-4'
+    class='col-start-1 row-start-1 rounded-full w-full h-full grid duration-500 ease-in-out p-4 border-4 border-base-content/10 group-hover:border-transparent'
     class:border-transparent={percent > 95}>
     <span class='!w-6 !h-6 i-heroicons-solid-chevron-up' />
   </div>

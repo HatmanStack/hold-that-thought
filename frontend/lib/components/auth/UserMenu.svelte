@@ -3,8 +3,8 @@
   import { authService } from '$lib/auth/auth-service'
   import { currentUser, isAuthenticated } from '$lib/auth/auth-store'
   import { googleOAuth } from '$lib/auth/google-oauth'
-  import { unreadCount, updateUnreadCount } from '$lib/stores/messages'
   import { getProfile } from '$lib/services/profileService'
+  import { unreadCount, updateUnreadCount } from '$lib/stores/messages'
   import { onDestroy, onMount } from 'svelte'
 
   let showDropdown = false
@@ -57,7 +57,8 @@
               userProfilePhotoUrl = profile.profilePhotoUrl
             }
           }
-        } catch (e) {
+        }
+ catch (e) {
           // Silently fail - will fall back to OAuth picture or initials
         }
       }

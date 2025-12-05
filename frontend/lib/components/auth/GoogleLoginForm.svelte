@@ -21,7 +21,7 @@
   }
 </script>
 
-<div class='card w-full max-w-md mx-auto bg-base-100 shadow-xl'>
+<div class='card w-full mx-auto bg-base-100 shadow-xl max-w-md'>
   <div class='card-body'>
     <h2 class='justify-center card-title mb-4'>Sign In</h2>
 

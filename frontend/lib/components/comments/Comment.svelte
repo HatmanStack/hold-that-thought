@@ -222,7 +222,7 @@
       {/if}
 
       {#if error}
-        <div class='alert alert-error mt-2 alert-sm'>
+        <div class='mt-2 alert alert-error alert-sm'>
           <span class='text-xs'>{error}</span>
         </div>
       {/if}

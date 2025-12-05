@@ -79,7 +79,7 @@
 
 <div class='flex flex-col gap-8'>
   <div class='flex'>
-    <p class='flex-1 m-auto italic opacity-50'>
+    <p class='flex-1 italic m-auto opacity-50'>
       {`sort-by=${config?.sortBy ?? 'created'}&sort-dir=${sortDirUp ? 'up' : 'down'}`}
     </p>
     <button

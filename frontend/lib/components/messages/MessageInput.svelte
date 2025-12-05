@@ -214,7 +214,7 @@
       on:keydown={handleKeyDown}
       placeholder='Type a message...'
       rows='1'
-      class='textarea textarea-bordered textarea-sm flex-1 sm:textarea-md resize-none'
+      class='textarea textarea-bordered textarea-sm flex-1 resize-none sm:textarea-md'
       disabled={sending}
       style='min-height: 2.5rem; max-height: 8rem;'
       on:input={(e) => {

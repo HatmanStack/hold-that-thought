@@ -27,7 +27,7 @@ Parameters:
   TableName:
     Type: String
     Description: DynamoDB table name (single table design)
-    Default: 'HoldThatThought'
+    Default: HoldThatThought
 
   ArchiveBucket:
     Type: String
@@ -36,7 +36,7 @@ Parameters:
   SesFromEmail:
     Type: String
     Description: Email address to send notifications from (domain must be verified in SES)
-    Default: 'noreply@holdthatthought.family'
+    Default: noreply@holdthatthought.family
 
 Conditions:
   HasGoogleOAuth: !Not [!Equals [!Ref GoogleClientId, '']]
@@ -160,7 +160,7 @@ Resources:
       ProviderDetails:
         client_id: !Ref GoogleClientId
         client_secret: !Ref GoogleClientSecret
-        authorize_scopes: 'email openid profile'
+        authorize_scopes: email openid profile
       AttributeMapping:
         email: email
         name: name
@@ -185,7 +185,7 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: 2012-10-17
         Statement:
           - Effect: Allow
             Principal:
@@ -199,7 +199,7 @@ Resources:
       Policies:
         - PolicyName: CognitoAuthorizedPolicy
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: 2012-10-17
             Statement:
               - Effect: Allow
                 Action:

@@ -1,7 +1,7 @@
 <script lang='ts'>
   import type { Message } from '$lib/types/message'
   import { getMessages, markAsRead } from '$lib/services/messageService'
-  import { profileCache, prefetchProfiles, getCachedProfile } from '$lib/stores/profiles'
+  import { getCachedProfile, prefetchProfiles, profileCache } from '$lib/stores/profiles'
   import { afterUpdate, onMount, tick } from 'svelte'
 
   export let conversationId: string
@@ -253,7 +253,7 @@
             <div class='flex flex-col w-full sm:max-w-xs md:max-w-md'>
               <!-- Sender name -->
               {#if !isOwnMessage}
-                <a href='/profile/{message.senderId}' class='text-xs text-base-content/60 mb-1 px-2 hover:text-primary hover:underline'>
+                <a href='/profile/{message.senderId}' class='text-xs text-base-content/60 mb-1 hover:text-primary hover:underline px-2'>
                   {message.senderName || 'Unknown'}
                 </a>
               {/if}

@@ -85,7 +85,7 @@
 
 <div class='flex flex-col h-[calc(100vh-4.125rem)] mt-[4.125rem]'>
   <!-- Header -->
-  <div class='navbar bg-base-100 border-base-300 border-b flex-shrink-0'>
+  <div class='navbar bg-base-100 border-base-300 flex-shrink-0 border-b'>
     <div class='navbar-start'>
       <button class='btn btn-ghost btn-circle' on:click={() => goto('/messages')}>
         <svg

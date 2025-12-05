@@ -192,7 +192,7 @@
 
         <!-- User dropdown -->
         {#if searchQuery}
-          <div class='mt-2 overflow-y-auto border-base-300 rounded-lg max-h-48 border'>
+          <div class='mt-2 overflow-y-auto border-base-300 rounded-lg border max-h-48'>
             {#each filteredUsers as user}
               <button
                 class='w-full text-left p-3 hover:bg-base-200 transition-colors flex items-center gap-3'

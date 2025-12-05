@@ -1,6 +1,6 @@
 import type { UserProfile } from '$lib/types/profile'
 import { getProfile } from '$lib/services/profileService'
-import { writable, get } from 'svelte/store'
+import { get, writable } from 'svelte/store'
 
 interface ProfileCache {
   [userId: string]: {
@@ -45,7 +45,8 @@ export async function getCachedProfile(userId: string): Promise<UserProfile | nu
         return profile
       }
     }
-  } catch (e) {
+  }
+  catch (e) {
     console.error('Error fetching profile:', e)
   }
 
@@ -60,7 +61,7 @@ export async function prefetchProfiles(userIds: string[]): Promise<void> {
   const now = Date.now()
 
   // Filter to only fetch profiles not in cache or stale
-  const toFetch = userIds.filter(id => {
+  const toFetch = userIds.filter((id) => {
     const cached = cache[id]
     return !cached || now - cached.fetchedAt >= CACHE_TTL
   })

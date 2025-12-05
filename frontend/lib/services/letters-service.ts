@@ -56,7 +56,8 @@ export async function listLetters(
   cursor?: string,
 ): Promise<LettersListResponse> {
   const params = new URLSearchParams({ limit: String(limit) })
-  if (cursor) params.set('cursor', cursor)
+  if (cursor)
+    params.set('cursor', cursor)
 
   const response = await fetch(`${API_URL}/letters?${params}`, {
     method: 'GET',
