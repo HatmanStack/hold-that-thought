@@ -247,11 +247,11 @@ feat(migration): implement S3 operations module
 3. Track used filenames to prevent duplicates
 
 **Verification Checklist:**
-- [ ] Generates clean slugs from titles
-- [ ] Handles special characters in titles
-- [ ] Detects collisions and appends slug
-- [ ] Generates unique names for multiple same-date letters
-- [ ] Works with actual letter titles from S3
+- [x] Generates clean slugs from titles
+- [x] Handles special characters in titles
+- [x] Detects collisions and appends slug
+- [x] Generates unique names for multiple same-date letters
+- [x] Works with actual letter titles from S3
 
 **Testing Instructions:**
 Create `tests/unit/migration/slug-generator.test.js`:
