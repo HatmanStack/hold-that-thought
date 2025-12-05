@@ -177,12 +177,12 @@ feat(migration): implement frontmatter stripper utility
 6. Add progress callback support for reporting
 
 **Verification Checklist:**
-- [ ] Lists all folders in urara/ prefix
-- [ ] Retrieves markdown content from folders
-- [ ] Identifies PDF files in folders
-- [ ] Copies files between buckets preserving metadata
-- [ ] Uploads modified content correctly
-- [ ] Handles pagination for large buckets
+- [x] Lists all folders in urara/ prefix
+- [x] Retrieves markdown content from folders
+- [x] Identifies PDF files in folders
+- [x] Copies files between buckets preserving metadata
+- [x] Uploads modified content correctly
+- [x] Handles pagination for large buckets
 
 **Testing Instructions:**
 Create `tests/unit/migration/s3-operations.test.js`:
