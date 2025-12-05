@@ -114,11 +114,11 @@ feat(migration): implement date parser for letter content
    - Content that looks like frontmatter but isn't
 
 **Verification Checklist:**
-- [ ] Removes standard frontmatter correctly
-- [ ] Preserves content after frontmatter
-- [ ] Handles files without frontmatter
-- [ ] Extracts frontmatter fields for metadata
-- [ ] Handles malformed frontmatter gracefully
+- [x] Removes standard frontmatter correctly
+- [x] Preserves content after frontmatter
+- [x] Handles files without frontmatter
+- [x] Extracts frontmatter fields for metadata
+- [x] Handles malformed frontmatter gracefully
 
 **Testing Instructions:**
 Create `tests/unit/migration/frontmatter-stripper.test.js`:
