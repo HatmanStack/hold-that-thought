@@ -11,6 +11,21 @@ echo "Hold That Thought - Backend Deployment"
 echo "==================================="
 echo ""
 
+# Check for force-migrate flag
+FORCE_MIGRATE=false
+for arg in "$@"; do
+    case $arg in
+        --force-migrate)
+            FORCE_MIGRATE=true
+            shift
+            ;;
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+    esac
+done
+
 # Warning if running sam deploy directly would cause issues
 if [ -f "$FRONTEND_ENV" ] && [ -f "$ENV_DEPLOY_FILE" ]; then
     FRONTEND_API=$(grep "^PUBLIC_API_GATEWAY_URL=" "$FRONTEND_ENV" 2>/dev/null | cut -d'=' -f2)
@@ -100,15 +115,33 @@ read -p "From Email [$DEFAULT_SES_FROM]: " input_ses_from
 SES_FROM_EMAIL="${input_ses_from:-$DEFAULT_SES_FROM}"
 
 echo ""
-echo "--- S3 Buckets ---"
+echo "--- S3 Archive Bucket ---"
+echo "Single bucket for letters, media, and deployment artifacts."
+echo ""
 
-DEFAULT_MEDIA="${MEDIA_BUCKET:-hold-that-thought-media}"
-read -p "Media Bucket [$DEFAULT_MEDIA]: " input_bucket
-MEDIA_BUCKET="${input_bucket:-$DEFAULT_MEDIA}"
+DEFAULT_ARCHIVE="${ARCHIVE_BUCKET:-hold-that-thought-archive}"
+read -p "Archive Bucket [$DEFAULT_ARCHIVE]: " input_bucket
+ARCHIVE_BUCKET="${input_bucket:-$DEFAULT_ARCHIVE}"
 
-DEFAULT_PHOTOS="${PROFILE_PHOTOS_BUCKET:-hold-that-thought-profile-photos}"
-read -p "Profile Photos Bucket [$DEFAULT_PHOTOS]: " input_bucket
-PROFILE_PHOTOS_BUCKET="${input_bucket:-$DEFAULT_PHOTOS}"
+# Letters migration setup (only if not already migrated)
+echo ""
+echo "--- Letter Migration ---"
+if [ "$LETTERS_MIGRATED" = "true" ] && [ "$FORCE_MIGRATE" != "true" ]; then
+    echo "Letters have already been migrated."
+    echo "Use --force-migrate to re-run migration."
+else
+    if [ -n "$LETTERS_SOURCE_URI" ]; then
+        echo "Letters Source URI: [${LETTERS_SOURCE_URI} - press Enter to keep, or enter new]"
+    else
+        echo "Enter the S3 URI where existing letters are stored."
+        echo "Example: s3://hold-that-thought-bucket/urara/"
+        echo "Leave empty to skip letter migration."
+    fi
+    read -p "Letters Source URI: " input_letters_uri
+    if [ -n "$input_letters_uri" ]; then
+        LETTERS_SOURCE_URI="$input_letters_uri"
+    fi
+fi
 
 # Save configuration
 cat > "$ENV_DEPLOY_FILE" << EOF
@@ -121,15 +154,16 @@ GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
 GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET
 TABLE_NAME=$TABLE_NAME
 SES_FROM_EMAIL=$SES_FROM_EMAIL
-MEDIA_BUCKET=$MEDIA_BUCKET
-PROFILE_PHOTOS_BUCKET=$PROFILE_PHOTOS_BUCKET
+ARCHIVE_BUCKET=$ARCHIVE_BUCKET
+LETTERS_SOURCE_URI=$LETTERS_SOURCE_URI
+LETTERS_MIGRATED=$LETTERS_MIGRATED
 EOF
 echo ""
 echo "Configuration saved to $ENV_DEPLOY_FILE"
 
 # Generate samconfig.toml so `sam deploy` without arguments uses correct config
 DEPLOY_BUCKET="sam-deploy-hold-that-thought-${AWS_REGION}"
-PARAM_OVERRIDES_TOML="AllowedOrigins=$ALLOWED_ORIGINS AppDomain=$APP_DOMAIN TableName=$TABLE_NAME SesFromEmail=$SES_FROM_EMAIL MediaBucket=$MEDIA_BUCKET ProfilePhotosBucket=$PROFILE_PHOTOS_BUCKET"
+PARAM_OVERRIDES_TOML="AllowedOrigins=$ALLOWED_ORIGINS AppDomain=$APP_DOMAIN TableName=$TABLE_NAME SesFromEmail=$SES_FROM_EMAIL ArchiveBucket=$ARCHIVE_BUCKET"
 if [ -n "$GOOGLE_CLIENT_ID" ]; then
     PARAM_OVERRIDES_TOML="$PARAM_OVERRIDES_TOML GoogleClientId=$GOOGLE_CLIENT_ID GoogleClientSecret=$GOOGLE_CLIENT_SECRET"
 fi
@@ -159,12 +193,21 @@ echo "  Region: $AWS_REGION"
 echo "  Stack Name: $STACK_NAME"
 echo "  App Domain: $APP_DOMAIN"
 echo "  Allowed Origins: $ALLOWED_ORIGINS"
+echo "  Archive Bucket: $ARCHIVE_BUCKET"
 if [ -n "$GOOGLE_CLIENT_ID" ]; then
     echo "  Google OAuth: Enabled"
 else
     echo "  Google OAuth: Disabled"
 fi
 echo ""
+
+# Dry run mode - stop here
+if [ "$DRY_RUN" = "true" ]; then
+    echo "==================================="
+    echo "DRY RUN - Configuration validated"
+    echo "==================================="
+    exit 0
+fi
 
 # Create deployment bucket if needed
 DEPLOY_BUCKET="sam-deploy-hold-that-thought-${AWS_REGION}"
@@ -180,11 +223,11 @@ else
     echo "Deployment bucket exists: ${DEPLOY_BUCKET}"
 fi
 
-# Media bucket
-if ! aws s3 ls "s3://${MEDIA_BUCKET}" --region "$AWS_REGION" 2>/dev/null; then
-    echo "Creating media bucket: ${MEDIA_BUCKET}"
-    aws s3 mb "s3://${MEDIA_BUCKET}" --region "$AWS_REGION"
-    aws s3api put-bucket-cors --bucket "$MEDIA_BUCKET" --region "$AWS_REGION" --cors-configuration '{
+# Archive bucket (replaces media and profile photos buckets)
+if ! aws s3 ls "s3://${ARCHIVE_BUCKET}" --region "$AWS_REGION" 2>/dev/null; then
+    echo "Creating archive bucket: ${ARCHIVE_BUCKET}"
+    aws s3 mb "s3://${ARCHIVE_BUCKET}" --region "$AWS_REGION"
+    aws s3api put-bucket-cors --bucket "$ARCHIVE_BUCKET" --region "$AWS_REGION" --cors-configuration '{
       "CORSRules": [{
         "AllowedHeaders": ["*"],
         "AllowedMethods": ["GET", "PUT", "POST", "HEAD"],
@@ -193,39 +236,69 @@ if ! aws s3 ls "s3://${MEDIA_BUCKET}" --region "$AWS_REGION" 2>/dev/null; then
         "MaxAgeSeconds": 3000
       }]
     }'
-    echo "  CORS configured for media bucket"
+    echo "  CORS configured for archive bucket"
 else
-    echo "Media bucket exists: ${MEDIA_BUCKET}"
+    echo "Archive bucket exists: ${ARCHIVE_BUCKET}"
 fi
 
-# Profile photos bucket
-if ! aws s3 ls "s3://${PROFILE_PHOTOS_BUCKET}" --region "$AWS_REGION" 2>/dev/null; then
-    echo "Creating profile photos bucket: ${PROFILE_PHOTOS_BUCKET}"
-    aws s3 mb "s3://${PROFILE_PHOTOS_BUCKET}" --region "$AWS_REGION"
-    aws s3api put-bucket-cors --bucket "$PROFILE_PHOTOS_BUCKET" --region "$AWS_REGION" --cors-configuration '{
-      "CORSRules": [{
-        "AllowedHeaders": ["*"],
-        "AllowedMethods": ["GET", "PUT", "POST", "HEAD"],
-        "AllowedOrigins": ["*"],
-        "ExposeHeaders": ["ETag"],
-        "MaxAgeSeconds": 3000
-      }]
-    }'
-    echo "  CORS configured for profile photos bucket"
+# Run letter migration if source provided and not already migrated
+echo ""
+echo "==================================="
+echo "Step 2: Letter Migration"
+echo "==================================="
+
+if [ "$LETTERS_MIGRATED" != "true" ] || [ "$FORCE_MIGRATE" = "true" ]; then
+    if [ -n "$LETTERS_SOURCE_URI" ]; then
+        # Parse S3 URI to extract bucket and prefix
+        SOURCE_BUCKET=$(echo "$LETTERS_SOURCE_URI" | sed 's|s3://||' | cut -d'/' -f1)
+        SOURCE_PREFIX=$(echo "$LETTERS_SOURCE_URI" | sed 's|s3://||' | cut -d'/' -f2-)
+
+        echo "Running letter migration..."
+        echo "  Source: $SOURCE_BUCKET/$SOURCE_PREFIX"
+        echo "  Destination: $ARCHIVE_BUCKET/letters/"
+
+        # Run migration script
+        if node scripts/migrate-letters.js \
+            --source-bucket "$SOURCE_BUCKET" \
+            --source-prefix "$SOURCE_PREFIX" \
+            --dest-bucket "$ARCHIVE_BUCKET" \
+            --dest-prefix "letters/" \
+            --verbose \
+            --output "migration-report.json"; then
+
+            echo "Letter migration complete!"
+            echo "  Report saved to migration-report.json"
+
+            # Mark as migrated
+            sed -i "s/^LETTERS_MIGRATED=.*/LETTERS_MIGRATED=true/" "$ENV_DEPLOY_FILE"
+            LETTERS_MIGRATED=true
+        else
+            echo "ERROR: Letter migration failed!"
+            echo "Check migration-report.json for details."
+            echo ""
+            read -p "Continue with deployment anyway? [y/N] " continue_deploy
+            if [ "$continue_deploy" != "y" ] && [ "$continue_deploy" != "Y" ]; then
+                exit 1
+            fi
+        fi
+    else
+        echo "No letters source URI provided, skipping migration."
+    fi
 else
-    echo "Profile photos bucket exists: ${PROFILE_PHOTOS_BUCKET}"
+    echo "Letters already migrated. Skipping."
+    echo "Use --force-migrate to re-run migration."
 fi
 
 echo ""
 echo "==================================="
-echo "Step 2: Build SAM Application"
+echo "Step 3: Build SAM Application"
 echo "==================================="
 echo ""
 sam build --template template.yaml
 
 echo ""
 echo "==================================="
-echo "Step 3: Deploy Stack"
+echo "Step 4: Deploy Stack"
 echo "==================================="
 echo ""
 
@@ -234,8 +307,7 @@ PARAM_OVERRIDES="AllowedOrigins=$ALLOWED_ORIGINS"
 PARAM_OVERRIDES="$PARAM_OVERRIDES AppDomain=$APP_DOMAIN"
 PARAM_OVERRIDES="$PARAM_OVERRIDES TableName=$TABLE_NAME"
 PARAM_OVERRIDES="$PARAM_OVERRIDES SesFromEmail=$SES_FROM_EMAIL"
-PARAM_OVERRIDES="$PARAM_OVERRIDES MediaBucket=$MEDIA_BUCKET"
-PARAM_OVERRIDES="$PARAM_OVERRIDES ProfilePhotosBucket=$PROFILE_PHOTOS_BUCKET"
+PARAM_OVERRIDES="$PARAM_OVERRIDES ArchiveBucket=$ARCHIVE_BUCKET"
 
 if [ -n "$GOOGLE_CLIENT_ID" ]; then
     PARAM_OVERRIDES="$PARAM_OVERRIDES GoogleClientId=$GOOGLE_CLIENT_ID"
@@ -337,6 +409,9 @@ PUBLIC_COGNITO_HOSTED_UI_DOMAIN=$COGNITO_HOSTED_UI_DOMAIN
 
 # API Gateway URL
 PUBLIC_API_GATEWAY_URL=$API_URL
+
+# Archive Bucket
+PUBLIC_ARCHIVE_BUCKET=$ARCHIVE_BUCKET
 EOF
     echo "Created frontend .env file"
 else
@@ -347,6 +422,7 @@ else
     update_env_var "PUBLIC_COGNITO_IDENTITY_POOL_ID" "$IDENTITY_POOL_ID" "$FRONTEND_ENV"
     update_env_var "PUBLIC_COGNITO_HOSTED_UI_URL" "$COGNITO_HOSTED_UI_URL" "$FRONTEND_ENV"
     update_env_var "PUBLIC_COGNITO_HOSTED_UI_DOMAIN" "$COGNITO_HOSTED_UI_DOMAIN" "$FRONTEND_ENV"
+    update_env_var "PUBLIC_ARCHIVE_BUCKET" "$ARCHIVE_BUCKET" "$FRONTEND_ENV"
     echo "Updated frontend .env file"
 fi
 

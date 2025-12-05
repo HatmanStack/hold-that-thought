@@ -503,11 +503,11 @@ feat(migration): add validation script and execute migration
 4. Ensure migration runs before SAM deploy
 
 **Verification Checklist:**
-- [ ] Migration runs on first deploy with source URI
-- [ ] Migration skipped on subsequent deploys
-- [ ] Force flag triggers re-migration
-- [ ] Errors halt deployment with clear message
-- [ ] Migration status saved to .env.deploy
+- [x] Migration runs on first deploy with source URI
+- [x] Migration skipped on subsequent deploys
+- [x] Force flag triggers re-migration
+- [x] Errors halt deployment with clear message
+- [x] Migration status saved to .env.deploy
 
 **Testing Instructions:**
 - Test fresh deploy flow

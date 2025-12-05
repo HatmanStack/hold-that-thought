@@ -29,13 +29,9 @@ Parameters:
     Description: DynamoDB table name (single table design)
     Default: 'HoldThatThought'
 
-  MediaBucket:
+  ArchiveBucket:
     Type: String
-    Description: S3 bucket name for media uploads
-
-  ProfilePhotosBucket:
-    Type: String
-    Description: S3 bucket name for profile photos
+    Description: S3 bucket for letters, media, and profile photos (single bucket architecture)
 
   SesFromEmail:
     Type: String
@@ -259,15 +255,12 @@ Resources:
       Environment:
         Variables:
           TABLE_NAME: !Ref TableName
-          MEDIA_BUCKET: !Ref MediaBucket
-          PROFILE_PHOTOS_BUCKET: !Ref ProfilePhotosBucket
+          ARCHIVE_BUCKET: !Ref ArchiveBucket
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref TableName
         - S3CrudPolicy:
-            BucketName: !Ref MediaBucket
-        - S3CrudPolicy:
-            BucketName: !Ref ProfilePhotosBucket
+            BucketName: !Ref ArchiveBucket
       Events:
         # Comments
         GetComments:

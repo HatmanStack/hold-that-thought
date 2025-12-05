@@ -9,10 +9,14 @@ const docClient = DynamoDBDocumentClient.from(client)
 // Single table name from environment
 const TABLE_NAME = process.env.TABLE_NAME || process.env.DYNAMODB_TABLE
 
-// S3 buckets
-const BUCKETS = {
-  media: process.env.MEDIA_BUCKET,
-  profilePhotos: process.env.PROFILE_PHOTOS_BUCKET,
+// S3 archive bucket (single bucket for all storage)
+const ARCHIVE_BUCKET = process.env.ARCHIVE_BUCKET
+
+// S3 prefixes within archive bucket
+const S3_PREFIXES = {
+  letters: 'letters/',
+  media: 'media/',
+  profilePhotos: 'profile-photos/',
 }
 
 // =============================================================================
@@ -298,7 +302,8 @@ async function ensureProfile(userId, email, groups) {
 module.exports = {
   docClient,
   TABLE_NAME,
-  BUCKETS,
+  ARCHIVE_BUCKET,
+  S3_PREFIXES,
   PREFIX,
   keys,
   checkRateLimit,
