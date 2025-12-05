@@ -3,6 +3,7 @@ const messages = require('./routes/messages')
 const profile = require('./routes/profile')
 const reactions = require('./routes/reactions')
 const media = require('./routes/media')
+const letters = require('./routes/letters')
 const { ensureProfile } = require('./utils')
 
 /**
@@ -48,6 +49,10 @@ exports.handler = async (event) => {
 
     if (path.startsWith('/media') || path.startsWith('/pdf') || path.startsWith('/download') || path.startsWith('/upload')) {
       return await media.handle(event, context)
+    }
+
+    if (path.startsWith('/letters')) {
+      return await letters.handle(event, context)
     }
 
     if (path.startsWith('/admin')) {

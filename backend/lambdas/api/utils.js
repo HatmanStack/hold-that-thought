@@ -29,6 +29,8 @@ const PREFIX = {
   MSG: 'MSG#',
   REACTION: 'REACTION#',
   RATE: 'RATE#',
+  LETTER: 'LETTER#',
+  VERSION: 'VERSION#',
 }
 
 // =============================================================================
@@ -92,6 +94,24 @@ const keys = {
   messagesInConversation: (convId) => ({
     PK: `${PREFIX.CONV}${convId}`,
     SKPrefix: PREFIX.MSG,
+  }),
+
+  // Letter: PK=LETTER#<date>, SK=CURRENT
+  letter: (date) => ({
+    PK: `${PREFIX.LETTER}${date}`,
+    SK: 'CURRENT',
+  }),
+
+  // Letter versions: PK=LETTER#<date>, SK=VERSION#<timestamp>
+  letterVersion: (date, timestamp) => ({
+    PK: `${PREFIX.LETTER}${date}`,
+    SK: `${PREFIX.VERSION}${timestamp}`,
+  }),
+
+  // Query all versions: PK=LETTER#<date>, SK begins_with VERSION#
+  letterVersions: (date) => ({
+    PK: `${PREFIX.LETTER}${date}`,
+    SKPrefix: PREFIX.VERSION,
   }),
 }
 

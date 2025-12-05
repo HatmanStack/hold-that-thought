@@ -387,6 +387,37 @@ Resources:
           Properties:
             Path: /download/presigned-url
             Method: get
+        # Letters
+        ListLetters:
+          Type: Api
+          Properties:
+            Path: /letters
+            Method: get
+        GetLetter:
+          Type: Api
+          Properties:
+            Path: /letters/{date}
+            Method: get
+        UpdateLetter:
+          Type: Api
+          Properties:
+            Path: /letters/{date}
+            Method: put
+        GetLetterVersions:
+          Type: Api
+          Properties:
+            Path: /letters/{date}/versions
+            Method: get
+        RevertLetterVersion:
+          Type: Api
+          Properties:
+            Path: /letters/{date}/revert
+            Method: post
+        GetLetterPdf:
+          Type: Api
+          Properties:
+            Path: /letters/{date}/pdf
+            Method: get
 
   # =============================================================================
   # Background Processors (keep separate - different triggers)
