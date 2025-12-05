@@ -32,6 +32,9 @@
     </li>
     {#if isUserApproved}
       <li>
+        <a class:font-bold={path === '/letters' || path.startsWith('/letters/')} href='/letters'>Letters</a>
+      </li>
+      <li>
         <a class:font-bold={path === '/gallery'} href='/gallery'>Gallery</a>
       </li>
     {/if}
