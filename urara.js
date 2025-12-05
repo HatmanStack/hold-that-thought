@@ -1,6 +1,11 @@
 /**
  * Urara.TS
  * Version: Any
+ *
+ * NOTE: Family letters are now served dynamically from API Gateway,
+ * not from static files. The urara/ directory no longer contains letters.
+ * Letters are stored in DynamoDB with markdown content and served via
+ * the /letters route using letters-service.ts.
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
