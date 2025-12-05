@@ -25,6 +25,9 @@
   $: isUserApproved = $isAuthenticated && $currentUser
     && ($currentUser['cognito:groups']?.includes('ApprovedUsers') || false)
 
+  // Hide scroll-to-top button on messages pages (they have their own scroll container)
+  $: isMessagesPage = path?.startsWith('/messages/')
+
   $: if (browser && currentTheme) {
     document.documentElement.setAttribute('data-theme', currentTheme)
     currentThemeColor = hslToHex(
@@ -138,8 +141,9 @@
   > 95
     ? 'btn-accent shadow-lg'
     : 'btn-ghost bg-base-100/30 md:bg-base-200/30'}"
-  class:opacity-100={scrollY}
-  class:translate-y-24={!pin || scrollY === 0}
+  class:opacity-100={scrollY && !isMessagesPage}
+  class:translate-y-24={!pin || scrollY === 0 || isMessagesPage}
+  class:hidden={isMessagesPage}
   id='totop'
   on:click={() => window.scrollTo(0, 0)}>
   <!-- https://daisyui.com/blog/how-to-update-daisyui-4/#3-all--focus-colors-are-removed -->

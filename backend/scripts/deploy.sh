@@ -4,11 +4,27 @@ set -e
 cd "$(dirname "$0")/.."
 
 ENV_DEPLOY_FILE=".env.deploy"
+FRONTEND_ENV="../.env"
 
 echo "==================================="
 echo "Hold That Thought - Backend Deployment"
 echo "==================================="
 echo ""
+
+# Warning if running sam deploy directly would cause issues
+if [ -f "$FRONTEND_ENV" ] && [ -f "$ENV_DEPLOY_FILE" ]; then
+    FRONTEND_API=$(grep "^PUBLIC_API_GATEWAY_URL=" "$FRONTEND_ENV" 2>/dev/null | cut -d'=' -f2)
+    SAVED_STACK=$(grep "^STACK_NAME=" "$ENV_DEPLOY_FILE" 2>/dev/null | cut -d'=' -f2)
+
+    if [ -n "$FRONTEND_API" ] && [ -n "$SAVED_STACK" ]; then
+        echo "NOTE: Frontend .env points to API: $FRONTEND_API"
+        echo "      Saved stack name: $SAVED_STACK"
+        echo ""
+        echo "IMPORTANT: Always use this script (./scripts/deploy.sh) instead of"
+        echo "           running 'sam deploy' directly to keep configurations in sync."
+        echo ""
+    fi
+fi
 
 # Load from .env.deploy if it exists
 if [ -f "$ENV_DEPLOY_FILE" ]; then
@@ -74,6 +90,16 @@ read -p "DynamoDB Table Name [$DEFAULT_TABLE]: " input_table
 TABLE_NAME="${input_table:-$DEFAULT_TABLE}"
 
 echo ""
+echo "--- Email Notifications (SES) ---"
+echo "Enter the email address to send notifications from."
+echo "The domain must be verified in SES."
+echo ""
+
+DEFAULT_SES_FROM="${SES_FROM_EMAIL:-noreply@holdthatthought.family}"
+read -p "From Email [$DEFAULT_SES_FROM]: " input_ses_from
+SES_FROM_EMAIL="${input_ses_from:-$DEFAULT_SES_FROM}"
+
+echo ""
 echo "--- S3 Buckets ---"
 
 DEFAULT_MEDIA="${MEDIA_BUCKET:-hold-that-thought-media}"
@@ -94,11 +120,38 @@ ALLOWED_ORIGINS=$ALLOWED_ORIGINS
 GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
 GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET
 TABLE_NAME=$TABLE_NAME
+SES_FROM_EMAIL=$SES_FROM_EMAIL
 MEDIA_BUCKET=$MEDIA_BUCKET
 PROFILE_PHOTOS_BUCKET=$PROFILE_PHOTOS_BUCKET
 EOF
 echo ""
 echo "Configuration saved to $ENV_DEPLOY_FILE"
+
+# Generate samconfig.toml so `sam deploy` without arguments uses correct config
+DEPLOY_BUCKET="sam-deploy-hold-that-thought-${AWS_REGION}"
+PARAM_OVERRIDES_TOML="AllowedOrigins=$ALLOWED_ORIGINS AppDomain=$APP_DOMAIN TableName=$TABLE_NAME SesFromEmail=$SES_FROM_EMAIL MediaBucket=$MEDIA_BUCKET ProfilePhotosBucket=$PROFILE_PHOTOS_BUCKET"
+if [ -n "$GOOGLE_CLIENT_ID" ]; then
+    PARAM_OVERRIDES_TOML="$PARAM_OVERRIDES_TOML GoogleClientId=$GOOGLE_CLIENT_ID GoogleClientSecret=$GOOGLE_CLIENT_SECRET"
+fi
+
+cat > "samconfig.toml" << EOF
+# SAM CLI configuration file (auto-generated from .env.deploy)
+# This ensures 'sam deploy' uses the same config as ./scripts/deploy.sh
+# Re-run ./scripts/deploy.sh to regenerate this file
+
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "$STACK_NAME"
+s3_bucket = "$DEPLOY_BUCKET"
+s3_prefix = "$STACK_NAME"
+region = "$AWS_REGION"
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = false
+fail_on_empty_changeset = false
+parameter_overrides = "$PARAM_OVERRIDES_TOML"
+EOF
+echo "Updated samconfig.toml"
 
 echo ""
 echo "Using configuration:"
@@ -180,6 +233,7 @@ echo ""
 PARAM_OVERRIDES="AllowedOrigins=$ALLOWED_ORIGINS"
 PARAM_OVERRIDES="$PARAM_OVERRIDES AppDomain=$APP_DOMAIN"
 PARAM_OVERRIDES="$PARAM_OVERRIDES TableName=$TABLE_NAME"
+PARAM_OVERRIDES="$PARAM_OVERRIDES SesFromEmail=$SES_FROM_EMAIL"
 PARAM_OVERRIDES="$PARAM_OVERRIDES MediaBucket=$MEDIA_BUCKET"
 PARAM_OVERRIDES="$PARAM_OVERRIDES ProfilePhotosBucket=$PROFILE_PHOTOS_BUCKET"
 

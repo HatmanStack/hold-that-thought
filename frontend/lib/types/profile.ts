@@ -16,6 +16,9 @@ export interface UserProfile {
   lastActive: string
   createdAt?: string
   updatedAt?: string
+  contactEmail?: string
+  notifyOnMessage?: boolean
+  notifyOnComment?: boolean
 }
 
 export interface ProfileApiResponse {
@@ -33,6 +36,9 @@ export interface UpdateProfileRequest {
   familyBranch?: string
   isProfilePrivate?: boolean
   profilePhotoUrl?: string
+  contactEmail?: string
+  notifyOnMessage?: boolean
+  notifyOnComment?: boolean
 }
 
 export interface CommentHistoryItem {

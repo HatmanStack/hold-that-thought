@@ -54,7 +54,7 @@ export async function getConversations(
     const data = await response.json()
     return {
       success: true,
-      data: data.items || data,
+      data: data.conversations || data.items || data,
       lastEvaluatedKey: data.lastEvaluatedKey,
     }
   }
@@ -99,7 +99,7 @@ export async function getMessages(
     const data = await response.json()
     return {
       success: true,
-      data: data.items || data,
+      data: data.messages || data.items || data,
       lastEvaluatedKey: data.lastEvaluatedKey,
     }
   }

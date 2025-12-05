@@ -105,6 +105,9 @@ async function getProfile(event, requesterId, isAdmin) {
       lastActive: profile.lastActive,
       commentCount: profile.commentCount || 0,
       mediaUploadCount: profile.mediaUploadCount || 0,
+      contactEmail: profile.contactEmail,
+      notifyOnMessage: profile.notifyOnMessage !== false,
+      notifyOnComment: profile.notifyOnComment !== false,
     })
   } catch (error) {
     console.error('Error fetching profile:', { userId, error })
@@ -156,6 +159,9 @@ async function updateProfile(event, requesterId, requesterEmail) {
         generation: body.generation || null,
         familyBranch: body.familyBranch || null,
         isProfilePrivate: body.isProfilePrivate || false,
+        contactEmail: body.contactEmail || null,
+        notifyOnMessage: body.notifyOnMessage !== false,
+        notifyOnComment: body.notifyOnComment !== false,
         joinedDate: now,
         createdAt: now,
         updatedAt: now,
@@ -186,7 +192,7 @@ async function updateProfile(event, requesterId, requesterEmail) {
     const expressionAttributeNames = {}
     const expressionAttributeValues = {}
 
-    const allowedFields = ['displayName', 'profilePhotoUrl', 'bio', 'familyRelationship', 'generation', 'familyBranch', 'isProfilePrivate']
+    const allowedFields = ['displayName', 'profilePhotoUrl', 'bio', 'familyRelationship', 'generation', 'familyBranch', 'isProfilePrivate', 'contactEmail', 'notifyOnMessage', 'notifyOnComment']
 
     allowedFields.forEach(field => {
       if (body[field] !== undefined) {
@@ -381,11 +387,19 @@ async function listUsers(requesterId) {
       Limit: 100,
     }))
 
-    const users = await Promise.all((result.Items || []).map(async user => ({
-      userId: user.userId,
-      displayName: user.displayName || 'Anonymous',
-      profilePhotoUrl: await signPhotoUrl(user.profilePhotoUrl),
-    })))
+    const users = await Promise.all((result.Items || []).map(async user => {
+      let photoUrl = null
+      try {
+        photoUrl = await signPhotoUrl(user.profilePhotoUrl)
+      } catch (e) {
+        console.error('Error signing photo URL for user:', user.userId, e)
+      }
+      return {
+        userId: user.userId,
+        displayName: user.displayName || 'Anonymous',
+        profilePhotoUrl: photoUrl,
+      }
+    }))
 
     return successResponse({ items: users })
   } catch (error) {

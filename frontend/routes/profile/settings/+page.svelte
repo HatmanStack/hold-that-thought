@@ -19,6 +19,11 @@
   let familyBranch = ''
   let isProfilePrivate = false
 
+  // Notification settings
+  let contactEmail = ''
+  let notifyOnMessage = true
+  let notifyOnComment = true
+
   // Photo upload
   let photoFile: File | null = null
   let previewUrl = ''
@@ -52,6 +57,11 @@
       familyBranch = profile.familyBranch || ''
       isProfilePrivate = profile.isProfilePrivate || false
       previewUrl = profile.profilePhotoUrl || ''
+
+      // Notification settings
+      contactEmail = profile.contactEmail || ''
+      notifyOnMessage = profile.notifyOnMessage !== false
+      notifyOnComment = profile.notifyOnComment !== false
     }
     else {
       error = result.error || 'Failed to load profile'
@@ -156,6 +166,9 @@
         generation: generation.trim() || undefined,
         familyBranch: familyBranch.trim() || undefined,
         isProfilePrivate,
+        contactEmail: contactEmail.trim() || undefined,
+        notifyOnMessage,
+        notifyOnComment,
         ...(photoUrl && { profilePhotoUrl: photoUrl }),
       })
 
@@ -417,6 +430,64 @@
               maxlength='100'
               placeholder='e.g., Smith Family, Jones Branch'
             />
+          </div>
+
+          <div class='divider'>Notifications</div>
+
+          <!-- Contact Email -->
+          <div class='form-control'>
+            <label class='label' for='contactEmail'>
+              <span class='label-text font-semibold'>Contact Email (optional)</span>
+            </label>
+            <input
+              id='contactEmail'
+              type='email'
+              class='input input-bordered'
+              bind:value={contactEmail}
+              disabled={saving}
+              placeholder={profile?.email || 'Use your account email'}
+            />
+            <label class='label'>
+              <span class='label-text-alt text-base-content/60'>
+                Leave blank to use your account email for notifications
+              </span>
+            </label>
+          </div>
+
+          <!-- Message Notifications Toggle -->
+          <div class='form-control'>
+            <label class='label cursor-pointer gap-4 justify-start'>
+              <input
+                type='checkbox'
+                class='toggle toggle-primary'
+                bind:checked={notifyOnMessage}
+                disabled={saving}
+              />
+              <div>
+                <span class='label-text font-semibold'>Message notifications</span>
+                <p class='text-xs text-base-content/60 mt-1'>
+                  Get notified when someone sends you a message
+                </p>
+              </div>
+            </label>
+          </div>
+
+          <!-- Comment Notifications Toggle -->
+          <div class='form-control'>
+            <label class='label cursor-pointer gap-4 justify-start'>
+              <input
+                type='checkbox'
+                class='toggle toggle-primary'
+                bind:checked={notifyOnComment}
+                disabled={saving}
+              />
+              <div>
+                <span class='label-text font-semibold'>Comment notifications</span>
+                <p class='text-xs text-base-content/60 mt-1'>
+                  Get notified when someone comments on your items or replies to your comments
+                </p>
+              </div>
+            </label>
           </div>
 
           <div class='divider'>Privacy</div>

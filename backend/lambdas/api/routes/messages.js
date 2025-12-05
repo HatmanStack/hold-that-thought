@@ -1,10 +1,28 @@
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3')
+const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3')
 const { GetCommand, PutCommand, QueryCommand, UpdateCommand, BatchWriteCommand, BatchGetCommand } = require('@aws-sdk/lib-dynamodb')
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner')
 const { v4: uuidv4 } = require('uuid')
 const { docClient, TABLE_NAME, PREFIX, keys, BUCKETS, successResponse, errorResponse } = require('../utils')
 
-const s3Client = new S3Client({})
+const s3Client = new S3Client({
+  requestChecksumCalculation: 'WHEN_REQUIRED',
+  responseChecksumValidation: 'WHEN_REQUIRED',
+})
+
+/**
+ * Sign a profile photo URL for private bucket access
+ */
+async function signPhotoUrl(photoUrl) {
+  if (!photoUrl) return null
+
+  // Extract bucket and key from S3 URL
+  const match = photoUrl.match(/https:\/\/([^.]+)\.s3\.[^/]+\.amazonaws\.com\/(.+)/)
+  if (!match) return photoUrl
+
+  const [, bucket, key] = match
+  const command = new GetObjectCommand({ Bucket: bucket, Key: key })
+  return getSignedUrl(s3Client, command, { expiresIn: 3600 })
+}
 
 async function handle(event, context) {
   const { requesterId } = context
@@ -33,6 +51,10 @@ async function handle(event, context) {
   }
 
   if (method === 'POST' && resource === '/messages/{conversationId}/upload-url') {
+    return await generateUploadUrl(event, requesterId)
+  }
+
+  if (method === 'POST' && resource === '/messages/attachments/upload-url') {
     return await generateUploadUrl(event, requesterId)
   }
 
@@ -114,17 +136,37 @@ async function getMessages(event, userId) {
 
     const result = await docClient.send(new QueryCommand(queryParams))
 
-    const messages = (result.Items || [])
-      .filter(item => item.entityType === 'MESSAGE')
-      .map(item => ({
-        messageId: item.messageId,
-        conversationId: item.conversationId,
-        senderId: item.senderId,
-        senderName: item.senderName,
-        messageText: item.messageText,
-        attachments: item.attachments || [],
-        createdAt: item.createdAt,
-      }))
+    const messages = await Promise.all(
+      (result.Items || [])
+        .filter(item => item.entityType === 'MESSAGE')
+        .map(async item => {
+          // Generate signed URLs for attachments
+          const attachmentsWithUrls = await Promise.all(
+            (item.attachments || []).map(async attachment => {
+              if (attachment.s3Key) {
+                const command = new GetObjectCommand({
+                  Bucket: BUCKETS.media,
+                  Key: attachment.s3Key,
+                })
+                const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 })
+                return { ...attachment, url }
+              }
+              return attachment
+            })
+          )
+
+          return {
+            messageId: item.messageId,
+            conversationId: item.conversationId,
+            senderId: item.senderId,
+            senderName: item.senderName,
+            senderPhotoUrl: await signPhotoUrl(item.senderPhotoUrl),
+            messageText: item.messageText,
+            attachments: attachmentsWithUrls,
+            createdAt: item.createdAt,
+          }
+        })
+    )
 
     return successResponse({
       messages,
@@ -201,17 +243,21 @@ async function createConversation(event, userId) {
 async function sendMessage(event, userId) {
   const conversationId = event.pathParameters?.conversationId
   const body = JSON.parse(event.body || '{}')
-  const { messageText, attachments = [] } = body
+  const { messageText = '', attachments = [] } = body
 
   if (!conversationId) {
     return errorResponse(400, 'Missing conversationId parameter')
   }
 
-  if (!messageText || typeof messageText !== 'string') {
-    return errorResponse(400, 'Missing or invalid messageText')
+  // Require either text or attachments
+  const hasText = messageText && typeof messageText === 'string' && messageText.trim().length > 0
+  const hasAttachments = Array.isArray(attachments) && attachments.length > 0
+
+  if (!hasText && !hasAttachments) {
+    return errorResponse(400, 'Message must have text or attachments')
   }
 
-  if (messageText.length > 5000) {
+  if (messageText && messageText.length > 5000) {
     return errorResponse(400, 'Message text must be 5000 characters or less')
   }
 
@@ -242,10 +288,12 @@ async function sendMessage(event, userId) {
 
 async function generateUploadUrl(event, userId) {
   const body = JSON.parse(event.body || '{}')
-  const { fileName, contentType = 'application/octet-stream' } = body
+  // Support both fileName and filename for backwards compatibility
+  const fileName = body.fileName || body.filename
+  const contentType = body.contentType || 'application/octet-stream'
 
   if (!fileName) {
-    return errorResponse(400, 'Missing fileName')
+    return errorResponse(400, 'Missing fileName - received: ' + JSON.stringify(Object.keys(body)))
   }
 
   try {
@@ -300,6 +348,7 @@ async function createMessage(conversationId, senderId, messageText, participantI
   }))
 
   const senderName = profileResult.Item?.displayName || 'Anonymous'
+  const senderPhotoUrl = profileResult.Item?.profilePhotoUrl || null
   const timestamp = new Date().toISOString()
   const messageId = `${timestamp}#${uuidv4()}`
 
@@ -310,6 +359,7 @@ async function createMessage(conversationId, senderId, messageText, participantI
     conversationId,
     senderId,
     senderName,
+    senderPhotoUrl,
     messageText,
     attachments,
     createdAt: timestamp,
@@ -322,13 +372,29 @@ async function createMessage(conversationId, senderId, messageText, participantI
     Item: message,
   }))
 
+  // Generate signed URLs for attachments in the response
+  const attachmentsWithUrls = await Promise.all(
+    attachments.map(async attachment => {
+      if (attachment.s3Key) {
+        const command = new GetObjectCommand({
+          Bucket: BUCKETS.media,
+          Key: attachment.s3Key,
+        })
+        const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 })
+        return { ...attachment, url }
+      }
+      return attachment
+    })
+  )
+
   return {
     messageId,
     conversationId,
     senderId,
     senderName,
+    senderPhotoUrl: await signPhotoUrl(senderPhotoUrl),
     messageText,
-    attachments,
+    attachments: attachmentsWithUrls,
     createdAt: timestamp,
     participants: participantIds,
   }

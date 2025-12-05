@@ -37,6 +37,11 @@ Parameters:
     Type: String
     Description: S3 bucket name for profile photos
 
+  SesFromEmail:
+    Type: String
+    Description: Email address to send notifications from (domain must be verified in SES)
+    Default: 'noreply@holdthatthought.family'
+
 Conditions:
   HasGoogleOAuth: !Not [!Equals [!Ref GoogleClientId, '']]
 
@@ -239,6 +244,8 @@ Resources:
       TimeToLiveSpecification:
         AttributeName: ttl
         Enabled: true
+      StreamSpecification:
+        StreamViewType: NEW_IMAGE
 
   # =============================================================================
   # Consolidated API Lambda
@@ -313,6 +320,11 @@ Resources:
           Type: Api
           Properties:
             Path: /messages/{conversationId}/upload-url
+            Method: post
+        AttachmentUploadUrl:
+          Type: Api
+          Properties:
+            Path: /messages/attachments/upload-url
             Method: post
         MarkAsRead:
           Type: Api
@@ -408,7 +420,7 @@ Resources:
       Environment:
         Variables:
           TABLE_NAME: !Ref TableName
-          SES_FROM_EMAIL: noreply@holdthatthought.family
+          SES_FROM_EMAIL: !Ref SesFromEmail
           BASE_URL: https://holdthatthought.family
       Policies:
         - DynamoDBReadPolicy:
@@ -418,6 +430,16 @@ Resources:
               Action:
                 - ses:SendEmail
               Resource: '*'
+      Events:
+        DynamoDBStream:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt DynamoDBTable.StreamArn
+            StartingPosition: LATEST
+            BatchSize: 10
+            FilterCriteria:
+              Filters:
+                - Pattern: '{"eventName": ["INSERT"]}'
 
 Outputs:
   ApiUrl:

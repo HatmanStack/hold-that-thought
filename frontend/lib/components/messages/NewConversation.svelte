@@ -201,13 +201,21 @@
                   searchQuery = ''
                 }}
               >
-                <div class='avatar placeholder'>
-                  <div class='bg-neutral text-neutral-content rounded-full w-10 h-10'>
-                    <span class='text-sm'>
-                      {user.displayName.charAt(0).toUpperCase()}
-                    </span>
+                {#if user.profilePhotoUrl}
+                  <div class='avatar'>
+                    <div class='rounded-full w-10 h-10'>
+                      <img src={user.profilePhotoUrl} alt={user.displayName} />
+                    </div>
                   </div>
-                </div>
+                {:else}
+                  <div class='avatar placeholder'>
+                    <div class='bg-neutral text-neutral-content rounded-full w-10 h-10'>
+                      <span class='text-sm'>
+                        {user.displayName.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+                {/if}
                 <div class='flex-1'>
                   <p class='font-semibold'>{user.displayName}</p>
                   <p class='text-sm text-base-content/60'>{user.email}</p>
