@@ -66,10 +66,10 @@ Extend the existing backend to support letter storage in DynamoDB with version h
 4. Export handle function
 
 **Verification Checklist:**
-- [ ] Route dispatcher handles all letter endpoints
-- [ ] Stub functions return appropriate status codes
-- [ ] Error handling follows existing patterns
-- [ ] Module exports handle function
+- [x] Route dispatcher handles all letter endpoints
+- [x] Stub functions return appropriate status codes
+- [x] Error handling follows existing patterns
+- [x] Module exports handle function
 
 **Testing Instructions:**
 Create `tests/unit/letters-handler.test.js` with basic routing tests:
@@ -117,10 +117,10 @@ feat(api): create letters route handler structure
 4. Maintain existing route priority
 
 **Verification Checklist:**
-- [ ] Letters routes accessible through main handler
-- [ ] Authentication context passed correctly
-- [ ] Existing routes unaffected
-- [ ] Handler returns appropriate responses
+- [x] Letters routes accessible through main handler
+- [x] Authentication context passed correctly
+- [x] Existing routes unaffected
+- [x] Handler returns appropriate responses
 
 **Testing Instructions:**
 - Update existing handler tests to verify letters routes registered
@@ -189,10 +189,10 @@ feat(api): register letters routes in main handler
 3. Validate template after changes
 
 **Verification Checklist:**
-- [ ] All six letter endpoints defined
-- [ ] All endpoints use Cognito authorization
-- [ ] Template validates with `sam validate`
-- [ ] Path parameters correctly named
+- [x] All six letter endpoints defined
+- [x] All endpoints use Cognito authorization
+- [x] Template validates with `sam validate`
+- [x] Path parameters correctly named
 
 **Testing Instructions:**
 - Run `sam validate --template backend/template.yaml`
@@ -268,10 +268,10 @@ feat(api): add letters API routes to SAM template
 3. Return only metadata (not full content)
 
 **Verification Checklist:**
-- [ ] Returns list of letters with metadata
-- [ ] Sorted by date (newest first)
-- [ ] Pagination works correctly
-- [ ] Handles empty results
+- [x] Returns list of letters with metadata
+- [x] Sorted by date (newest first)
+- [x] Pagination works correctly
+- [x] Handles empty results
 
 **Testing Instructions:**
 Add tests to `tests/unit/letters-handler.test.js`:
@@ -352,10 +352,10 @@ feat(api): implement list letters endpoint
 3. Return full letter content
 
 **Verification Checklist:**
-- [ ] Returns letter content for valid date
-- [ ] Returns 404 for non-existent letter
-- [ ] Validates date format
-- [ ] Includes all metadata fields
+- [x] Returns letter content for valid date
+- [x] Returns 404 for non-existent letter
+- [x] Validates date format
+- [x] Includes all metadata fields
 
 **Testing Instructions:**
 ```javascript
@@ -468,11 +468,11 @@ feat(api): implement get letter endpoint
 3. Track version count
 
 **Verification Checklist:**
-- [ ] Creates version of previous content
-- [ ] Updates current letter with new content
-- [ ] Increments version count
-- [ ] Records editor information
-- [ ] Returns updated letter
+- [x] Creates version of previous content
+- [x] Updates current letter with new content
+- [x] Increments version count
+- [x] Records editor information
+- [x] Returns updated letter
 
 **Testing Instructions:**
 ```javascript
@@ -568,10 +568,10 @@ feat(api): implement update letter with versioning
    ```
 
 **Verification Checklist:**
-- [ ] getVersions returns list of all versions
-- [ ] Versions sorted by timestamp (newest first)
-- [ ] revertToVersion copies version content to current
-- [ ] Revert creates a new version (audit trail)
+- [x] getVersions returns list of all versions
+- [x] Versions sorted by timestamp (newest first)
+- [x] revertToVersion copies version content to current
+- [x] Revert creates a new version (audit trail)
 
 **Testing Instructions:**
 ```javascript
@@ -645,10 +645,10 @@ feat(api): implement version history and revert endpoints
 3. Return URL with suggested filename
 
 **Verification Checklist:**
-- [ ] Returns presigned URL for PDF
-- [ ] URL expires after 1 hour
-- [ ] Returns 404 if letter or PDF not found
-- [ ] Filename suggestion matches date
+- [x] Returns presigned URL for PDF
+- [x] URL expires after 1 hour
+- [x] Returns 404 if letter or PDF not found
+- [x] Filename suggestion matches date
 
 **Testing Instructions:**
 ```javascript
@@ -717,11 +717,11 @@ feat(api): implement PDF download URL endpoint
 4. Generate report of populated letters
 
 **Verification Checklist:**
-- [ ] Reads all letters from S3
-- [ ] Creates correct DynamoDB items
-- [ ] Handles letters without PDFs
-- [ ] Skips already-populated letters
-- [ ] Reports progress and results
+- [x] Reads all letters from S3
+- [x] Creates correct DynamoDB items
+- [x] Handles letters without PDFs
+- [x] Skips already-populated letters
+- [x] Reports progress and results
 
 **Testing Instructions:**
 Create `tests/unit/migration/populate-letters-db.test.js`:
@@ -779,10 +779,10 @@ feat(migration): create DynamoDB population script
 4. Add `--force-populate` flag for re-running
 
 **Verification Checklist:**
-- [ ] Population runs after SAM deploy
-- [ ] Skips if already populated
-- [ ] Force flag triggers re-population
-- [ ] Errors reported clearly
+- [x] Population runs after SAM deploy
+- [x] Skips if already populated
+- [x] Force flag triggers re-population
+- [x] Errors reported clearly
 
 **Testing Instructions:**
 - Deploy to test stack

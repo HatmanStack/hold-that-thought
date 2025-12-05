@@ -11,12 +11,17 @@ echo "Hold That Thought - Backend Deployment"
 echo "==================================="
 echo ""
 
-# Check for force-migrate flag
+# Check for command line flags
 FORCE_MIGRATE=false
+FORCE_POPULATE=false
 for arg in "$@"; do
     case $arg in
         --force-migrate)
             FORCE_MIGRATE=true
+            shift
+            ;;
+        --force-populate)
+            FORCE_POPULATE=true
             shift
             ;;
         --dry-run)
@@ -157,6 +162,7 @@ SES_FROM_EMAIL=$SES_FROM_EMAIL
 ARCHIVE_BUCKET=$ARCHIVE_BUCKET
 LETTERS_SOURCE_URI=$LETTERS_SOURCE_URI
 LETTERS_MIGRATED=$LETTERS_MIGRATED
+LETTERS_DB_POPULATED=$LETTERS_DB_POPULATED
 EOF
 echo ""
 echo "Configuration saved to $ENV_DEPLOY_FILE"
@@ -323,6 +329,53 @@ sam deploy \
     --parameter-overrides $PARAM_OVERRIDES \
     --no-confirm-changeset \
     --no-fail-on-empty-changeset
+
+# Populate DynamoDB with letter data (after stack is deployed so table exists)
+echo ""
+echo "==================================="
+echo "Step 5: DynamoDB Letter Population"
+echo "==================================="
+
+if [ "$LETTERS_DB_POPULATED" != "true" ] || [ "$FORCE_POPULATE" = "true" ]; then
+    if [ "$LETTERS_MIGRATED" = "true" ]; then
+        echo "Populating DynamoDB with letter data..."
+        echo "  Source: s3://$ARCHIVE_BUCKET/letters/"
+        echo "  Table: $TABLE_NAME"
+
+        POPULATE_FLAGS="--verbose"
+        if [ "$FORCE_POPULATE" = "true" ]; then
+            POPULATE_FLAGS="$POPULATE_FLAGS --force-all"
+        fi
+
+        if node scripts/populate-letters-db.js \
+            --bucket "$ARCHIVE_BUCKET" \
+            --prefix "letters/" \
+            --table "$TABLE_NAME" \
+            --region "$AWS_REGION" \
+            $POPULATE_FLAGS \
+            --output "populate-report.json"; then
+
+            echo "DynamoDB population complete!"
+            echo "  Report saved to populate-report.json"
+
+            # Mark as populated
+            sed -i "s/^LETTERS_DB_POPULATED=.*/LETTERS_DB_POPULATED=true/" "$ENV_DEPLOY_FILE"
+            if ! grep -q "^LETTERS_DB_POPULATED=" "$ENV_DEPLOY_FILE"; then
+                echo "LETTERS_DB_POPULATED=true" >> "$ENV_DEPLOY_FILE"
+            fi
+        else
+            echo "WARNING: DynamoDB population failed!"
+            echo "Check populate-report.json for details."
+            echo "You can re-run with --force-populate to try again."
+        fi
+    else
+        echo "Letters not migrated to S3 yet. Skipping DynamoDB population."
+        echo "Run migration first, then use --force-populate."
+    fi
+else
+    echo "DynamoDB already populated. Skipping."
+    echo "Use --force-populate to re-run population."
+fi
 
 echo ""
 echo "==================================="
