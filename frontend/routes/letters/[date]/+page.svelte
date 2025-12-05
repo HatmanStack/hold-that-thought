@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { marked } from 'marked'
-  import { getLetter, getPdfUrl, type Letter } from '$lib/services/letters-service'
+  import { getLetter, getPdfUrl, getVersions, revertToVersion, type Letter, type LetterVersion } from '$lib/services/letters-service'
   import { isAuthenticated, authTokens } from '$lib/auth/auth-store'
+  import VersionHistory from '$lib/components/VersionHistory.svelte'
 
   export let data: { date: string }
 
@@ -10,6 +11,10 @@
   let loading = true
   let error = ''
   let pdfLoading = false
+
+  let versions: LetterVersion[] = []
+  let versionsLoading = false
+  let showVersions = false
 
   function formatDate(dateStr: string): string {
     const [year, month, day] = dateStr.split('-').map(Number)
@@ -36,6 +41,20 @@
     loading = false
   }
 
+  async function loadVersions() {
+    if (!$authTokens?.accessToken || !letter || letter.versionCount === 0)
+      return
+
+    versionsLoading = true
+    try {
+      versions = await getVersions(letter.date, $authTokens.accessToken)
+    }
+    catch (e) {
+      console.error('Failed to load versions:', e)
+    }
+    versionsLoading = false
+  }
+
   async function downloadPdf() {
     if (!$authTokens?.accessToken || !letter)
       return
@@ -49,6 +68,28 @@
       console.error('Failed to get PDF URL:', e)
     }
     pdfLoading = false
+  }
+
+  async function handleRevert(event: CustomEvent<{ timestamp: string }>) {
+    if (!$authTokens?.accessToken || !letter)
+      return
+
+    try {
+      await revertToVersion(letter.date, event.detail.timestamp, $authTokens.accessToken)
+      // Reload letter and versions
+      letter = await getLetter(letter.date, $authTokens.accessToken)
+      versions = await getVersions(letter.date, $authTokens.accessToken)
+    }
+    catch (e) {
+      console.error('Failed to revert:', e)
+    }
+  }
+
+  function toggleVersions() {
+    showVersions = !showVersions
+    if (showVersions && versions.length === 0) {
+      loadVersions()
+    }
   }
 
   onMount(() => {
@@ -113,8 +154,27 @@
             Edit Letter
           </a>
         {/if}
+
+        {#if $isAuthenticated && letter.versionCount > 0}
+          <button
+            class="btn btn-ghost btn-sm"
+            on:click={toggleVersions}
+          >
+            {showVersions ? 'Hide' : 'Show'} Version History ({letter.versionCount})
+          </button>
+        {/if}
       </div>
     </header>
+
+    {#if showVersions && $isAuthenticated}
+      <div class="mb-8">
+        <VersionHistory
+          {versions}
+          loading={versionsLoading}
+          on:revert={handleRevert}
+        />
+      </div>
+    {/if}
 
     <div class="prose max-w-none">
       {@html htmlContent}
