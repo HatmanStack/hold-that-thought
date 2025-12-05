@@ -321,14 +321,14 @@ feat(migration): implement slug generator for filename collisions
 5. Support resume capability (skip already-migrated files)
 
 **Verification Checklist:**
-- [ ] Parses all command line arguments
-- [ ] Processes all folders in source bucket
-- [ ] Extracts dates and generates correct filenames
-- [ ] Strips frontmatter from markdown
-- [ ] Copies PDFs alongside markdown
-- [ ] Generates comprehensive report
-- [ ] Dry-run mode works correctly
-- [ ] Resume skips existing files
+- [x] Parses all command line arguments
+- [x] Processes all folders in source bucket
+- [x] Extracts dates and generates correct filenames
+- [x] Strips frontmatter from markdown
+- [x] Copies PDFs alongside markdown
+- [x] Generates comprehensive report
+- [x] Dry-run mode works correctly
+- [x] Resume skips existing files
 
 **Testing Instructions:**
 Create `tests/unit/migration/migrate-letters.test.js`:
