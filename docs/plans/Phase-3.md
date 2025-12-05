@@ -102,11 +102,11 @@ Transform the frontend from static markdown routes to dynamic letter fetching, i
 - Auth tokens are obtained from `authTokens` store in `$lib/auth/auth-store.ts` (e.g., `$authTokens?.accessToken`)
 
 **Verification Checklist:**
-- [ ] All API methods implemented
-- [ ] Authentication headers included
-- [ ] Error handling consistent
-- [ ] TypeScript types accurate
-- [ ] Works with existing auth store
+- [x] All API methods implemented
+- [x] Authentication headers included
+- [x] Error handling consistent
+- [x] TypeScript types accurate
+- [x] Works with existing auth store
 
 **Testing Instructions:**
 Create `tests/unit/frontend/letters-service.test.ts` (or test manually):
@@ -206,11 +206,11 @@ feat(frontend): create letters service for API interaction
 4. Add date formatting helper
 
 **Verification Checklist:**
-- [ ] Displays list of letters
-- [ ] Links to individual letter pages
-- [ ] Pagination loads more letters
-- [ ] Handles empty state
-- [ ] Matches existing site styling
+- [x] Displays list of letters
+- [x] Links to individual letter pages
+- [x] Pagination loads more letters
+- [x] Handles empty state
+- [x] Matches existing site styling
 
 **Testing Instructions:**
 - Navigate to /letters in browser
@@ -327,11 +327,11 @@ feat(frontend): create letters index page
 5. Add edit button for authenticated users
 
 **Verification Checklist:**
-- [ ] Displays letter content rendered as HTML
-- [ ] Shows title and date
-- [ ] PDF download works
-- [ ] Edit button visible when authenticated
-- [ ] 404 handling for missing letters
+- [x] Displays letter content rendered as HTML
+- [x] Shows title and date
+- [x] PDF download works
+- [x] Edit button visible when authenticated
+- [x] 404 handling for missing letters
 
 **Testing Instructions:**
 - Navigate to /letters/2016-02-10 (valid date)
@@ -442,11 +442,11 @@ feat(frontend): create letter detail page
 4. Responsive layout
 
 **Verification Checklist:**
-- [ ] Split view displays editor and preview
-- [ ] Preview updates in real-time
-- [ ] Title input functional
-- [ ] Save/cancel buttons dispatch events
-- [ ] Handles long content with scroll
+- [x] Split view displays editor and preview
+- [x] Preview updates in real-time
+- [x] Title input functional
+- [x] Save/cancel buttons dispatch events
+- [x] Handles long content with scroll
 
 **Testing Instructions:**
 - Import component in a test page
@@ -583,11 +583,11 @@ feat(frontend): create split-view markdown editor component
 6. Redirect after save
 
 **Verification Checklist:**
-- [ ] Loads letter content into editor
-- [ ] Requires authentication
-- [ ] Saves changes via API
-- [ ] Shows error on failure
-- [ ] Redirects after save
+- [x] Loads letter content into editor
+- [x] Requires authentication
+- [x] Saves changes via API
+- [x] Shows error on failure
+- [x] Redirects after save
 
 **Testing Instructions:**
 - Navigate to /letters/2016-02-10/edit when logged in
@@ -676,11 +676,11 @@ feat(frontend): create letter edit page
 4. Dispatch revert event
 
 **Verification Checklist:**
-- [ ] Displays list of versions
-- [ ] Shows version number and timestamp
-- [ ] Confirmation dialog before revert
-- [ ] Handles empty version list
-- [ ] Revert event dispatched correctly
+- [x] Displays list of versions
+- [x] Shows version number and timestamp
+- [x] Confirmation dialog before revert
+- [x] Handles empty version list
+- [x] Revert event dispatched correctly
 
 **Testing Instructions:**
 - Import component in test page
@@ -766,11 +766,11 @@ feat(frontend): create version history component
 4. Handle revert and refresh
 
 **Verification Checklist:**
-- [ ] Version history toggle visible when versions exist
-- [ ] Versions load correctly
-- [ ] Revert updates letter content
-- [ ] Hidden for letters with no versions
-- [ ] Only shown to authenticated users
+- [x] Version history toggle visible when versions exist
+- [x] Versions load correctly
+- [x] Revert updates letter content
+- [x] Hidden for letters with no versions
+- [x] Only shown to authenticated users
 
 **Testing Instructions:**
 - View letter that has been edited
@@ -819,11 +819,11 @@ feat(frontend): integrate version history into letter detail
 5. Test that non-letter functionality still works
 
 **Verification Checklist:**
-- [ ] No frontmatter parsing for letters
-- [ ] Non-letter content still works (if applicable)
-- [ ] No unused imports remain
-- [ ] Build completes without errors
-- [ ] Linting passes
+- [x] No frontmatter parsing for letters
+- [x] Non-letter content still works (if applicable)
+- [x] No unused imports remain
+- [x] Build completes without errors (pre-existing favicon issue unrelated)
+- [x] Linting passes (errors fixed, warnings remain)
 
 **Testing Instructions:**
 - Run `pnpm build` to verify no import errors
@@ -872,10 +872,10 @@ refactor(frontend): remove frontmatter processing for letters
 4. Test navigation flow
 
 **Verification Checklist:**
-- [ ] Letters link in main navigation
-- [ ] `frontend/routes/api/letters/` directory removed
-- [ ] No broken links
-- [ ] Navigation works on all pages
+- [x] Letters link in main navigation
+- [x] `frontend/routes/api/letters/` directory removed
+- [x] No broken links
+- [x] Navigation works on all pages
 
 **Testing Instructions:**
 - Navigate entire site
@@ -922,10 +922,10 @@ refactor(frontend): update navigation and remove deprecated letter APIs
 4. Document any changes
 
 **Verification Checklist:**
-- [ ] Letters not processed by urara.js
-- [ ] Non-letter content still works (if applicable)
-- [ ] Build scripts updated
-- [ ] Documentation updated
+- [x] Letters not processed by urara.js
+- [x] Non-letter content still works (if applicable)
+- [x] Build scripts updated
+- [x] Documentation updated
 
 **Testing Instructions:**
 - Run `pnpm dev` and verify no letter processing
