@@ -39,7 +39,10 @@ jobs:
     name: Unit Tests
     runs-on: ubuntu-latest
     env:
+      AWS_REGION: us-east-1
       AWS_DEFAULT_REGION: us-east-1
+      TABLE_NAME: test-table
+      ARCHIVE_BUCKET: test-archive-bucket
       USER_PROFILES_TABLE: test-profiles
       COMMENTS_TABLE: test-comments
       MESSAGES_TABLE: test-messages
