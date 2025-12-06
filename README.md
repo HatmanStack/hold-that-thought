@@ -23,24 +23,25 @@
 ## Prerequisites
 
 - **Node.js** v24 LTS (via nvm)
-- **pnpm** v9.10+
+- **npm** (included with Node.js)
 - **AWS CLI** configured with credentials
 - **AWS SAM CLI** for serverless deployment
 
 ## Quick Start
 
 ```bash
-pnpm install          # Install dependencies
+npm install           # Install dependencies
 cp .env.example .env  # Configure environment
-pnpm dev              # Start dev server
+npm run dev           # Start dev server
 ```
 
 ## Testing
 
 ```bash
-pnpm test             # Run all tests (91 tests)
-pnpm lint             # ESLint
-pnpm check            # Svelte type check
+npm run check:test    # Run all tests
+npm run check:lint    # ESLint
+npm run check:types   # Svelte type check
+npm run check         # Run all checks
 ```
 
 ## Deployment
@@ -50,7 +51,7 @@ pnpm check            # Svelte type check
 cd backend && sam build && sam deploy
 
 # Frontend
-pnpm build && netlify deploy --prod
+npm run build && netlify deploy --prod
 ```
 
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for full documentation.

@@ -31,7 +31,7 @@ async function streamToString(stream) {
  * List all letter folders under a given prefix
  *
  * @param {string} bucket - S3 bucket name
- * @param {string} prefix - Prefix to list under (e.g., 'urara/')
+ * @param {string} prefix - Prefix to list under (e.g., 'letters/')
  * @returns {Promise<string[]>} Array of folder paths
  */
 export async function listLetterFolders(bucket, prefix) {
@@ -66,7 +66,7 @@ export async function listLetterFolders(bucket, prefix) {
  * Get markdown and PDF files from a letter folder
  *
  * @param {string} bucket - S3 bucket name
- * @param {string} folderPath - Full folder path (e.g., 'urara/Family Letter/')
+ * @param {string} folderPath - Full folder path (e.g., 'letters/Family Letter/')
  * @returns {Promise<{markdown: string|null, pdfKey: string|null, folderName: string}>}
  */
 export async function getLetterFiles(bucket, folderPath) {

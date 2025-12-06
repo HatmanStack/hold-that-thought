@@ -19,33 +19,33 @@ describe('s3 operations', () => {
     it('should list letter folders', async () => {
       s3Mock.on(ListObjectsV2Command).resolves({
         CommonPrefixes: [
-          { Prefix: 'urara/Family Update Letter February 2016/' },
-          { Prefix: 'urara/Christmas 2015/' }
+          { Prefix: 'letters/Family Update Letter February 2016/' },
+          { Prefix: 'letters/Christmas 2015/' }
         ],
         IsTruncated: false
       })
 
-      const folders = await s3Operations.listLetterFolders('test-bucket', 'urara/')
+      const folders = await s3Operations.listLetterFolders('test-bucket', 'letters/')
       expect(folders).toHaveLength(2)
-      expect(folders[0]).toBe('urara/Family Update Letter February 2016/')
-      expect(folders[1]).toBe('urara/Christmas 2015/')
+      expect(folders[0]).toBe('letters/Family Update Letter February 2016/')
+      expect(folders[1]).toBe('letters/Christmas 2015/')
     })
 
     it('should handle pagination', async () => {
       s3Mock
         .on(ListObjectsV2Command, { ContinuationToken: undefined })
         .resolves({
-          CommonPrefixes: [{ Prefix: 'urara/Letter 1/' }],
+          CommonPrefixes: [{ Prefix: 'letters/Letter 1/' }],
           IsTruncated: true,
           NextContinuationToken: 'token123'
         })
         .on(ListObjectsV2Command, { ContinuationToken: 'token123' })
         .resolves({
-          CommonPrefixes: [{ Prefix: 'urara/Letter 2/' }],
+          CommonPrefixes: [{ Prefix: 'letters/Letter 2/' }],
           IsTruncated: false
         })
 
-      const folders = await s3Operations.listLetterFolders('test-bucket', 'urara/')
+      const folders = await s3Operations.listLetterFolders('test-bucket', 'letters/')
       expect(folders).toHaveLength(2)
     })
 
@@ -55,7 +55,7 @@ describe('s3 operations', () => {
         IsTruncated: false
       })
 
-      const folders = await s3Operations.listLetterFolders('test-bucket', 'urara/')
+      const folders = await s3Operations.listLetterFolders('test-bucket', 'letters/')
       expect(folders).toHaveLength(0)
     })
   })
@@ -65,8 +65,8 @@ describe('s3 operations', () => {
       // Mock list to get files in folder
       s3Mock.on(ListObjectsV2Command).resolves({
         Contents: [
-          { Key: 'urara/Letter/+page.svelte.md' },
-          { Key: 'urara/Letter/letter.pdf' }
+          { Key: 'letters/Letter/+page.svelte.md' },
+          { Key: 'letters/Letter/letter.pdf' }
         ],
         IsTruncated: false
       })
@@ -80,17 +80,17 @@ describe('s3 operations', () => {
         Body: markdownStream
       })
 
-      const result = await s3Operations.getLetterFiles('test-bucket', 'urara/Letter/')
+      const result = await s3Operations.getLetterFiles('test-bucket', 'letters/Letter/')
       expect(result.markdown).toBe('---\ntitle: Test\n---\n\nContent')
-      expect(result.pdfKey).toBe('urara/Letter/letter.pdf')
+      expect(result.pdfKey).toBe('letters/Letter/letter.pdf')
       expect(result.folderName).toBe('Letter')
     })
 
     it('should handle folders with .md files', async () => {
       s3Mock.on(ListObjectsV2Command).resolves({
         Contents: [
-          { Key: 'urara/Letter/content.md' },
-          { Key: 'urara/Letter/document.pdf' }
+          { Key: 'letters/Letter/content.md' },
+          { Key: 'letters/Letter/document.pdf' }
         ],
         IsTruncated: false
       })
@@ -103,23 +103,23 @@ describe('s3 operations', () => {
         Body: markdownStream
       })
 
-      const result = await s3Operations.getLetterFiles('test-bucket', 'urara/Letter/')
+      const result = await s3Operations.getLetterFiles('test-bucket', 'letters/Letter/')
       expect(result.markdown).toBe('Test content')
-      expect(result.pdfKey).toBe('urara/Letter/document.pdf')
+      expect(result.pdfKey).toBe('letters/Letter/document.pdf')
     })
 
     it('should return null markdown if no markdown file found', async () => {
       s3Mock.on(ListObjectsV2Command).resolves({
         Contents: [
-          { Key: 'urara/Letter/document.pdf' },
-          { Key: 'urara/Letter/image.png' }
+          { Key: 'letters/Letter/document.pdf' },
+          { Key: 'letters/Letter/image.png' }
         ],
         IsTruncated: false
       })
 
-      const result = await s3Operations.getLetterFiles('test-bucket', 'urara/Letter/')
+      const result = await s3Operations.getLetterFiles('test-bucket', 'letters/Letter/')
       expect(result.markdown).toBeNull()
-      expect(result.pdfKey).toBe('urara/Letter/document.pdf')
+      expect(result.pdfKey).toBe('letters/Letter/document.pdf')
     })
   })
 

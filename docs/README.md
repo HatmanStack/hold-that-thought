@@ -63,18 +63,17 @@ A family letter-sharing platform built with SvelteKit and AWS serverless infrast
 ## Testing
 
 ```bash
-pnpm test                    # Run all tests (91 tests)
-pnpm test tests/unit         # Frontend unit tests only
-pnpm test backend/           # Backend tests only
-pnpm lint                    # ESLint
-pnpm check                   # Svelte type check
+npm run check:test           # Run all tests
+npm run check:lint           # ESLint
+npm run check:types          # Svelte type check
+npm run check                # Run all checks
 ```
 
 ## Quick Start
 
 ```bash
 # Install dependencies
-pnpm install
+npm install
 
 # Copy environment template
 cp .env.example .env

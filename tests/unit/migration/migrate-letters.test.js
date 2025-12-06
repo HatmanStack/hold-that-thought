@@ -18,10 +18,10 @@ describe('migration script', () => {
   describe('processLetter', () => {
     it('should process letter folder correctly', async () => {
       // Mock list files in folder
-      s3Mock.on(ListObjectsV2Command, { Prefix: 'urara/Family Letter/' }).resolves({
+      s3Mock.on(ListObjectsV2Command, { Prefix: 'letters/Family Letter/' }).resolves({
         Contents: [
-          { Key: 'urara/Family Letter/+page.svelte.md' },
-          { Key: 'urara/Family Letter/letter.pdf' }
+          { Key: 'letters/Family Letter/+page.svelte.md' },
+          { Key: 'letters/Family Letter/letter.pdf' }
         ],
         IsTruncated: false
       })
@@ -42,7 +42,7 @@ describe('migration script', () => {
       const existingDates = new Set()
       const result = await migrateLetters.processLetter(
         'source-bucket',
-        'urara/Family Letter/',
+        'letters/Family Letter/',
         'dest-bucket',
         'letters/',
         existingDates,
@@ -58,7 +58,7 @@ describe('migration script', () => {
     it('should handle date extraction failure gracefully', async () => {
       s3Mock.on(ListObjectsV2Command).resolves({
         Contents: [
-          { Key: 'urara/Unknown Letter/+page.svelte.md' }
+          { Key: 'letters/Unknown Letter/+page.svelte.md' }
         ],
         IsTruncated: false
       })
@@ -74,7 +74,7 @@ describe('migration script', () => {
       const existingDates = new Set()
       const result = await migrateLetters.processLetter(
         'source-bucket',
-        'urara/Unknown Letter/',
+        'letters/Unknown Letter/',
         'dest-bucket',
         'letters/',
         existingDates,
@@ -88,8 +88,8 @@ describe('migration script', () => {
     it('should not modify files in dry-run mode', async () => {
       s3Mock.on(ListObjectsV2Command).resolves({
         Contents: [
-          { Key: 'urara/Letter/+page.svelte.md' },
-          { Key: 'urara/Letter/letter.pdf' }
+          { Key: 'letters/Letter/+page.svelte.md' },
+          { Key: 'letters/Letter/letter.pdf' }
         ],
         IsTruncated: false
       })
@@ -105,7 +105,7 @@ describe('migration script', () => {
       const existingDates = new Set()
       const result = await migrateLetters.processLetter(
         'source-bucket',
-        'urara/Letter/',
+        'letters/Letter/',
         'dest-bucket',
         'letters/',
         existingDates,

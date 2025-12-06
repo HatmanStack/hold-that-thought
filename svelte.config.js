@@ -62,6 +62,12 @@ export default {
           return
         }
 
+        // Ignore favicon 404 during prerender (known issue)
+        if (path === '/favicon.png') {
+          console.warn(`Ignoring missing favicon during prerender: ${path}`)
+          return
+        }
+
         // For other errors, throw to fail the build
         throw new Error(message)
       },

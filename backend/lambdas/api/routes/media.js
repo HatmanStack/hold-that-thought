@@ -150,7 +150,7 @@ async function getPdfDownloadUrl(event, requesterId) {
   }
 
   try {
-    const prefix = `urara/${sanitizedTitle}/`
+    const prefix = `letters/${sanitizedTitle}/`
 
     const response = await s3Client.send(new ListObjectsV2Command({
       Bucket: BUCKETS.media,

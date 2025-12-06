@@ -135,7 +135,7 @@ export function generateReport(results) {
 export async function runMigration(options) {
   const {
     sourceBucket,
-    sourcePrefix = 'urara/',
+    sourcePrefix = 'letters/',
     destBucket,
     destPrefix = 'letters/',
     dryRun = false,
@@ -201,7 +201,7 @@ export async function runMigration(options) {
 function parseArgs(args) {
   const options = {
     sourceBucket: null,
-    sourcePrefix: 'urara/',
+    sourcePrefix: 'letters/',
     destBucket: null,
     destPrefix: 'letters/',
     dryRun: false,
@@ -244,7 +244,7 @@ Usage: node migrate-letters.js [options]
 
 Options:
   --source-bucket <name>  Source S3 bucket (required)
-  --source-prefix <path>  Source prefix (default: urara/)
+  --source-prefix <path>  Source prefix (default: letters/)
   --dest-bucket <name>    Destination S3 bucket (required)
   --dest-prefix <path>    Destination prefix (default: letters/)
   --dry-run               Don't modify files, just report what would happen

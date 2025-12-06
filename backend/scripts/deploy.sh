@@ -139,7 +139,7 @@ else
         echo "Letters Source URI: [${LETTERS_SOURCE_URI} - press Enter to keep, or enter new]"
     else
         echo "Enter the S3 URI where existing letters are stored."
-        echo "Example: s3://hold-that-thought-bucket/urara/"
+        echo "Example: s3://hold-that-thought-bucket/letters/"
         echo "Leave empty to skip letter migration."
     fi
     read -p "Letters Source URI: " input_letters_uri

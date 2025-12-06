@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - **Node.js** v24 LTS (via nvm)
-- **pnpm** v9.10+
+- **npm** (included with Node.js)
 - **AWS CLI** configured with credentials
 - **AWS SAM CLI** for serverless deployment
 
@@ -14,7 +14,7 @@
 cd backend && sam build && sam deploy --guided
 
 # Frontend (after backend is deployed)
-pnpm build
+npm run build
 netlify deploy --prod  # or your preferred host
 ```
 
@@ -57,7 +57,7 @@ sam deploy --config-env prod
 ### Build
 
 ```bash
-pnpm build
+npm run build
 ```
 
 ### Deploy to Netlify
