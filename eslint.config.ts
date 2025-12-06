@@ -8,8 +8,6 @@ export default antfu({
     'backend/**/*.js',
     'tests/**/*.js',
     'tests/**/*.ts',
-    'urara.js',
-    'urara.ts',
     'mdsvex.config.js',
     'docs/**/*',
     '**/*.md',

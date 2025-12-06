@@ -122,7 +122,7 @@
   }
 </script>
 
-<div class='border-t border-base-300 bg-base-100 p-4'>
+<div class='border-t border-base-300 bg-base-100 p-4 flex-shrink-0'>
   {#if error}
     <div class='alert alert-error mb-2 text-sm'>
       <span>{error}</span>
@@ -214,7 +214,7 @@
       on:keydown={handleKeyDown}
       placeholder='Type a message...'
       rows='1'
-      class='textarea textarea-bordered textarea-sm flex-1 sm:textarea-md resize-none'
+      class='textarea textarea-bordered textarea-sm flex-1 resize-none sm:textarea-md'
       disabled={sending}
       style='min-height: 2.5rem; max-height: 8rem;'
       on:input={(e) => {

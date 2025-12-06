@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Transform: AWS::Serverless-2016-10-31
-Description: Hold That Thought - Lambda API Functions
+Description: Hold That Thought - Consolidated API with Single-Table DynamoDB
 
 Parameters:
   AllowedOrigins:
@@ -8,66 +8,263 @@ Parameters:
     Description: CORS allowed origins
     Default: '*'
 
-  UserProfilesTable:
+  AppDomain:
     Type: String
-    Description: DynamoDB table name for user profiles
+    Description: App domain for OAuth callbacks (e.g., localhost:5173 for dev, holdthatthought.family for prod)
+    Default: 'localhost:5173'
 
-  CommentsTable:
+  GoogleClientId:
     Type: String
-    Description: DynamoDB table name for comments
+    Description: Google OAuth Client ID (leave empty to skip Google OAuth setup)
+    Default: ''
 
-  MessagesTable:
+  GoogleClientSecret:
     Type: String
-    Description: DynamoDB table name for messages
+    Description: Google OAuth Client Secret
+    Default: ''
+    NoEcho: true
 
-  ConversationMembersTable:
+  TableName:
     Type: String
-    Description: DynamoDB table name for conversation members
+    Description: DynamoDB table name (single table design)
+    Default: HoldThatThought
 
-  ReactionsTable:
+  ArchiveBucket:
     Type: String
-    Description: DynamoDB table name for comment reactions
+    Description: S3 bucket for letters, media, and profile photos (single bucket architecture)
 
-  RateLimitTable:
+  SesFromEmail:
     Type: String
-    Description: DynamoDB table name for rate limiting
+    Description: Email address to send notifications from (domain must be verified in SES)
+    Default: noreply@holdthatthought.family
 
-  MediaBucket:
-    Type: String
-    Description: S3 bucket name for media uploads
-
-  ProfilePhotosBucket:
-    Type: String
-    Description: S3 bucket name for profile photos
+Conditions:
+  HasGoogleOAuth: !Not [!Equals [!Ref GoogleClientId, '']]
 
 Globals:
   Function:
     Runtime: nodejs24.x
     Timeout: 30
-    MemorySize: 256
+    MemorySize: 512
     Architectures:
       - x86_64
-    Environment:
-      Variables:
-        CORS_ORIGIN: !Ref AllowedOrigins
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+      AllowHeaders: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+      AllowOrigin: "'*'"
+    Auth:
+      DefaultAuthorizer: CognitoAuthorizer
+      AddDefaultAuthorizerToCorsPreflight: false
+      Authorizers:
+        CognitoAuthorizer:
+          UserPoolArn: !GetAtt UserPool.Arn
 
 Resources:
-  CommentsApiFunction:
+  # =============================================================================
+  # Cognito User Pool
+  # =============================================================================
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub '${AWS::StackName}-users'
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Schema:
+        - Name: email
+          Required: true
+          Mutable: true
+        - Name: name
+          Required: false
+          Mutable: true
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+          RequireUppercase: true
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub '${AWS::StackName}-client'
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      SupportedIdentityProviders:
+        - COGNITO
+      CallbackURLs:
+        - !Sub 'http://${AppDomain}/auth/callback'
+        - !Sub 'https://${AppDomain}/auth/callback'
+      LogoutURLs:
+        - !Sub 'http://${AppDomain}/auth/logout'
+        - !Sub 'https://${AppDomain}/auth/logout'
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+      AllowedOAuthFlowsUserPoolClient: true
+
+  UserPoolClientWithGoogle:
+    Type: AWS::Cognito::UserPoolClient
+    Condition: HasGoogleOAuth
+    DependsOn: GoogleIdentityProvider
+    Properties:
+      ClientName: !Sub '${AWS::StackName}-client-google'
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      SupportedIdentityProviders:
+        - COGNITO
+        - Google
+      CallbackURLs:
+        - !Sub 'http://${AppDomain}/auth/callback'
+        - !Sub 'https://${AppDomain}/auth/callback'
+      LogoutURLs:
+        - !Sub 'http://${AppDomain}/auth/logout'
+        - !Sub 'https://${AppDomain}/auth/logout'
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+      AllowedOAuthFlowsUserPoolClient: true
+
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Sub '${AWS::StackName}-${AWS::AccountId}'
+      UserPoolId: !Ref UserPool
+
+  GoogleIdentityProvider:
+    Type: AWS::Cognito::UserPoolIdentityProvider
+    Condition: HasGoogleOAuth
+    Properties:
+      UserPoolId: !Ref UserPool
+      ProviderName: Google
+      ProviderType: Google
+      ProviderDetails:
+        client_id: !Ref GoogleClientId
+        client_secret: !Ref GoogleClientSecret
+        authorize_scopes: email openid profile
+      AttributeMapping:
+        email: email
+        name: name
+
+  IdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      IdentityPoolName: !Sub '${AWS::StackName}-identity'
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders:
+        - ClientId: !Ref UserPoolClient
+          ProviderName: !GetAtt UserPool.ProviderName
+
+  IdentityPoolRoleAttachment:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId: !Ref IdentityPool
+      Roles:
+        authenticated: !GetAtt AuthenticatedRole.Arn
+
+  AuthenticatedRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                'cognito-identity.amazonaws.com:aud': !Ref IdentityPool
+              ForAnyValue:StringLike:
+                'cognito-identity.amazonaws.com:amr': authenticated
+      Policies:
+        - PolicyName: CognitoAuthorizedPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - execute-api:Invoke
+                Resource: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ServerlessRestApi}/*'
+
+  # =============================================================================
+  # DynamoDB Single Table
+  # =============================================================================
+  DynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref TableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      StreamSpecification:
+        StreamViewType: NEW_IMAGE
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  # =============================================================================
+  # Consolidated API Lambda
+  # =============================================================================
+  ApiFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: lambdas/comments-api/
+      CodeUri: lambdas/api/
       Handler: index.handler
-      Description: Comments API - list, create, edit, delete comments
+      Description: Consolidated API - comments, messages, profiles, reactions, media
       Environment:
         Variables:
-          COMMENTS_TABLE: !Ref CommentsTable
-          USER_PROFILES_TABLE: !Ref UserProfilesTable
+          TABLE_NAME: !Ref TableName
+          ARCHIVE_BUCKET: !Ref ArchiveBucket
       Policies:
         - DynamoDBCrudPolicy:
-            TableName: !Ref CommentsTable
-        - DynamoDBReadPolicy:
-            TableName: !Ref UserProfilesTable
+            TableName: !Ref TableName
+        - S3CrudPolicy:
+            BucketName: !Ref ArchiveBucket
       Events:
+        # Comments
         GetComments:
           Type: Api
           Properties:
@@ -93,29 +290,7 @@ Resources:
           Properties:
             Path: /admin/comments/{commentId}
             Method: delete
-
-  MessagesApiFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: lambdas/messages-api/
-      Handler: index.handler
-      Description: Messages API - direct messaging functionality
-      Environment:
-        Variables:
-          MESSAGES_TABLE: !Ref MessagesTable
-          CONVERSATION_MEMBERS_TABLE: !Ref ConversationMembersTable
-          USER_PROFILES_TABLE: !Ref UserProfilesTable
-          BUCKET_NAME: !Ref MediaBucket
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref MessagesTable
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ConversationMembersTable
-        - DynamoDBReadPolicy:
-            TableName: !Ref UserProfilesTable
-        - S3CrudPolicy:
-            BucketName: !Ref MediaBucket
-      Events:
+        # Messages
         GetConversations:
           Type: Api
           Properties:
@@ -136,34 +311,22 @@ Resources:
           Properties:
             Path: /messages/{conversationId}
             Method: post
-        GetUploadUrl:
+        MessageUploadUrl:
           Type: Api
           Properties:
             Path: /messages/{conversationId}/upload-url
             Method: post
-
-  ProfileApiFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: lambdas/profile-api/
-      Handler: index.handler
-      Description: Profile API - user profile management
-      Environment:
-        Variables:
-          USER_PROFILES_TABLE: !Ref UserProfilesTable
-          COMMENTS_TABLE: !Ref CommentsTable
-          PROFILE_PHOTOS_BUCKET: !Ref ProfilePhotosBucket
-          RATE_LIMIT_TABLE: !Ref RateLimitTable
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref UserProfilesTable
-        - DynamoDBReadPolicy:
-            TableName: !Ref CommentsTable
-        - DynamoDBCrudPolicy:
-            TableName: !Ref RateLimitTable
-        - S3CrudPolicy:
-            BucketName: !Ref ProfilePhotosBucket
-      Events:
+        AttachmentUploadUrl:
+          Type: Api
+          Properties:
+            Path: /messages/attachments/upload-url
+            Method: post
+        MarkAsRead:
+          Type: Api
+          Properties:
+            Path: /messages/{conversationId}/read
+            Method: put
+        # Profile
         GetProfile:
           Type: Api
           Properties:
@@ -179,28 +342,17 @@ Resources:
           Properties:
             Path: /profile/{userId}/comments
             Method: get
-        UploadPhotoUrl:
+        ProfilePhotoUploadUrl:
           Type: Api
           Properties:
             Path: /profile/photo/upload-url
             Method: post
-
-  ReactionsApiFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: lambdas/reactions-api/
-      Handler: index.handler
-      Description: Reactions API - comment reactions (likes, etc)
-      Environment:
-        Variables:
-          COMMENT_REACTIONS_TABLE: !Ref ReactionsTable
-          COMMENTS_TABLE: !Ref CommentsTable
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ReactionsTable
-        - DynamoDBCrudPolicy:
-            TableName: !Ref CommentsTable
-      Events:
+        ListUsers:
+          Type: Api
+          Properties:
+            Path: /users
+            Method: get
+        # Reactions
         GetReactions:
           Type: Api
           Properties:
@@ -216,64 +368,62 @@ Resources:
           Properties:
             Path: /reactions/{commentId}
             Method: delete
-
-  MediaUploadFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: lambdas/media-upload-lambda/
-      Handler: index.handler
-      Description: Media upload - generate presigned URLs for S3 uploads
-      Environment:
-        Variables:
-          BUCKET_NAME: !Ref MediaBucket
-      Policies:
-        - S3CrudPolicy:
-            BucketName: !Ref MediaBucket
-      Events:
-        GetUploadUrl:
+        # Media
+        MediaUploadUrl:
           Type: Api
           Properties:
             Path: /media/upload-url
             Method: post
-
-  PdfDownloadFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: lambdas/pdf-download-lambda/
-      Handler: index.handler
-      Description: PDF download - generate presigned URLs for PDF downloads
-      Environment:
-        Variables:
-          BUCKET_NAME: !Ref MediaBucket
-      Policies:
-        - S3ReadPolicy:
-            BucketName: !Ref MediaBucket
-      Events:
-        GetDownloadUrl:
+        ListMedia:
+          Type: Api
+          Properties:
+            Path: /media/list
+            Method: post
+        PdfDownloadUrl:
           Type: Api
           Properties:
             Path: /pdf/download-url
             Method: get
-
-  DownloadPresignedUrlFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: lambdas/download-presigned-url-lambda/
-      Handler: index.handler
-      Description: Download presigned URL - generate presigned URLs for file downloads
-      Environment:
-        Variables:
-          BUCKET_NAME: !Ref MediaBucket
-      Policies:
-        - S3ReadPolicy:
-            BucketName: !Ref MediaBucket
-      Events:
-        GetPresignedUrl:
+        DownloadPresignedUrl:
           Type: Api
           Properties:
             Path: /download/presigned-url
             Method: get
+        # Letters
+        ListLetters:
+          Type: Api
+          Properties:
+            Path: /letters
+            Method: get
+        GetLetter:
+          Type: Api
+          Properties:
+            Path: /letters/{date}
+            Method: get
+        UpdateLetter:
+          Type: Api
+          Properties:
+            Path: /letters/{date}
+            Method: put
+        GetLetterVersions:
+          Type: Api
+          Properties:
+            Path: /letters/{date}/versions
+            Method: get
+        RevertLetterVersion:
+          Type: Api
+          Properties:
+            Path: /letters/{date}/revert
+            Method: post
+        GetLetterPdf:
+          Type: Api
+          Properties:
+            Path: /letters/{date}/pdf
+            Method: get
 
+  # =============================================================================
+  # Background Processors (keep separate - different triggers)
+  # =============================================================================
   ActivityAggregatorFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -282,10 +432,10 @@ Resources:
       Description: Activity aggregator - update user stats from DynamoDB streams
       Environment:
         Variables:
-          USER_PROFILES_TABLE: !Ref UserProfilesTable
+          TABLE_NAME: !Ref TableName
       Policies:
         - DynamoDBCrudPolicy:
-            TableName: !Ref UserProfilesTable
+            TableName: !Ref TableName
 
   NotificationProcessorFunction:
     Type: AWS::Serverless::Function
@@ -295,35 +445,57 @@ Resources:
       Description: Notification processor - send emails from DynamoDB streams
       Environment:
         Variables:
-          USER_PROFILES_TABLE: !Ref UserProfilesTable
-          SES_FROM_EMAIL: noreply@holdthatthought.family
+          TABLE_NAME: !Ref TableName
+          SES_FROM_EMAIL: !Ref SesFromEmail
           BASE_URL: https://holdthatthought.family
       Policies:
         - DynamoDBReadPolicy:
-            TableName: !Ref UserProfilesTable
+            TableName: !Ref TableName
         - Statement:
             - Effect: Allow
               Action:
                 - ses:SendEmail
               Resource: '*'
+      Events:
+        DynamoDBStream:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt DynamoDBTable.StreamArn
+            StartingPosition: LATEST
+            BatchSize: 10
+            FilterCriteria:
+              Filters:
+                - Pattern: '{"eventName": ["INSERT"]}'
 
 Outputs:
   ApiUrl:
     Description: API Gateway endpoint URL
     Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/'
 
-  CommentsApiFunctionArn:
-    Description: Comments API Lambda Function ARN
-    Value: !GetAtt CommentsApiFunction.Arn
+  TableName:
+    Description: DynamoDB Table Name
+    Value: !Ref DynamoDBTable
 
-  MessagesApiFunctionArn:
-    Description: Messages API Lambda Function ARN
-    Value: !GetAtt MessagesApiFunction.Arn
+  UserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref UserPool
 
-  ProfileApiFunctionArn:
-    Description: Profile API Lambda Function ARN
-    Value: !GetAtt ProfileApiFunction.Arn
+  UserPoolClientId:
+    Description: Cognito User Pool Client ID
+    Value: !If [HasGoogleOAuth, !Ref UserPoolClientWithGoogle, !Ref UserPoolClient]
 
-  ReactionsApiFunctionArn:
-    Description: Reactions API Lambda Function ARN
-    Value: !GetAtt ReactionsApiFunction.Arn
+  IdentityPoolId:
+    Description: Cognito Identity Pool ID
+    Value: !Ref IdentityPool
+
+  CognitoHostedUIUrl:
+    Description: Cognito Hosted UI URL
+    Value: !Sub 'https://${AWS::StackName}-${AWS::AccountId}.auth.${AWS::Region}.amazoncognito.com'
+
+  CognitoHostedUIDomain:
+    Description: Cognito Hosted UI Domain
+    Value: !Sub '${AWS::StackName}-${AWS::AccountId}'
+
+  ApiFunctionArn:
+    Description: API Lambda Function ARN
+    Value: !GetAtt ApiFunction.Arn

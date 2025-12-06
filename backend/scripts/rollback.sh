@@ -50,7 +50,7 @@ export FEATURE_PROFILES_ENABLED=false
 
 # Build frontend
 echo "  - Building frontend..."
-pnpm build > /dev/null 2>&1
+npm run build > /dev/null 2>&1
 
 # Deploy based on hosting provider
 if command -v netlify &> /dev/null; then

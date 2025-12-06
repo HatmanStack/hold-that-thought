@@ -70,10 +70,10 @@
         {/if}
       </div>
 
-      <div class='flex-grow overflow-auto'>
+      <div class='overflow-auto flex-grow'>
         <textarea
           bind:value={editableContent}
-          class='w-full p-2 border rounded text-sm h-[60vh] font-mono'
+          class='w-full p-2 border rounded text-sm font-mono h-[60vh]'
           spellcheck='false'
         ></textarea>
       </div>

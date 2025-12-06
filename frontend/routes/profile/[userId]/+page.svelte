@@ -11,7 +11,7 @@
   let loading = true
   let error = ''
 
-  $: userId = $page.params.userId
+  $: userId = $page.params.userId ?? ''
   $: isOwner = $currentUser?.sub === userId
   $: isAdmin = $currentUser?.['cognito:groups']?.includes('Admins') || false
 

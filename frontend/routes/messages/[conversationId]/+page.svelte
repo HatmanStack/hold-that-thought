@@ -8,7 +8,7 @@
   import { getMessages } from '$lib/services/messageService'
   import { onDestroy, onMount } from 'svelte'
 
-  $: conversationId = $page.params.conversationId
+  $: conversationId = $page.params.conversationId ?? ''
   $: currentUserId = $currentUser?.sub || ''
 
   let messageThreadComponent: MessageThread
@@ -83,9 +83,9 @@
   <title>Conversation - Hold That Thought</title>
 </svelte:head>
 
-<div class='flex flex-col h-screen'>
+<div class='flex flex-col h-[calc(100vh-4.125rem)] mt-[4.125rem]'>
   <!-- Header -->
-  <div class='navbar bg-base-100 border-base-300 border-b'>
+  <div class='navbar bg-base-100 border-base-300 flex-shrink-0 border-b'>
     <div class='navbar-start'>
       <button class='btn btn-ghost btn-circle' on:click={() => goto('/messages')}>
         <svg
@@ -114,7 +114,7 @@
 
   {#if $currentUser}
     <!-- Message thread container -->
-    <div class='flex-1 flex flex-col overflow-hidden'>
+    <div class='flex-1 flex flex-col min-h-0'>
       <MessageThread
         bind:this={messageThreadComponent}
         {conversationId}
@@ -131,10 +131,3 @@
     </div>
   {/if}
 </div>
-
-<style>
-  /* Ensure the page takes full viewport height */
-  :global(body) {
-    overflow: hidden;
-  }
-</style>

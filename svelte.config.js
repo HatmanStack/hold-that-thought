@@ -38,12 +38,15 @@ export default {
         : Object.keys(process.env).some(key => ['NETLIFY', 'VERCEL'].includes(key))
           ? adapter.auto
           : adapter.static,
-    csp: {
-      directives: {
-        'style-src': ['self', 'unsafe-inline', 'https://giscus.app'],
-      },
-      mode: 'auto',
-    },
+    // CSP disabled for development - re-enable for production with proper domains
+    // csp: {
+    //   directives: {
+    //     'style-src': ['self', 'unsafe-inline'],
+    //     'img-src': ['self', 'data:', 'blob:', 'https:'],
+    //     'connect-src': ['self', 'https:'],
+    //   },
+    //   mode: 'auto',
+    // },
     prerender: {
       handleMissingId: 'warn',
       handleHttpError: ({ path, referrer, message }) => {
@@ -56,6 +59,12 @@ export default {
         // Ignore 401 errors for protected routes like /admin
         if (message.includes('401') && (path.includes('/admin') || path.includes('/login'))) {
           console.warn(`Ignoring protected route during prerender: ${path}`)
+          return
+        }
+
+        // Ignore favicon 404 during prerender (known issue)
+        if (path === '/favicon.png') {
+          console.warn(`Ignoring missing favicon during prerender: ${path}`)
           return
         }
 

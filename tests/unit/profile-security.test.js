@@ -1,7 +1,7 @@
-// Import SDK from the SAME location as the Lambda handler uses
+// Import SDK from root node_modules
 const { mockClient } = require('aws-sdk-client-mock')
-const { S3Client, PutObjectCommand } = require('../../backend/lambdas/profile-api/node_modules/@aws-sdk/client-s3')
-const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } = require('../../backend/lambdas/profile-api/node_modules/@aws-sdk/lib-dynamodb')
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3')
+const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb')
 
 // Create mocks BEFORE setting env vars or importing handler
 const ddbMock = mockClient(DynamoDBDocumentClient)
@@ -9,16 +9,14 @@ const s3Mock = mockClient(S3Client)
 
 // Mock the s3-request-presigner module
 const mockGetSignedUrl = async () => 'https://s3.amazonaws.com/test-bucket/presigned-url'
-require.cache[require.resolve('../../backend/lambdas/profile-api/node_modules/@aws-sdk/s3-request-presigner')] = {
+require.cache[require.resolve('@aws-sdk/s3-request-presigner')] = {
   exports: { getSignedUrl: mockGetSignedUrl },
 }
 
-process.env.USER_PROFILES_TABLE = 'test-profiles-table'
-process.env.COMMENTS_TABLE = 'test-comments-table'
-process.env.PROFILE_PHOTOS_BUCKET = 'test-photos-bucket'
-process.env.RATE_LIMIT_TABLE = 'test-rate-limit-table'
+process.env.TABLE_NAME = 'test-table'
+process.env.S3_BUCKET = 'test-bucket'
 
-const { handler } = require('../../backend/lambdas/profile-api/index')
+const { handler } = require('../../backend/lambdas/api/index')
 
 describe('profile API Security Tests', () => {
   beforeEach(() => {

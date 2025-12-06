@@ -17,25 +17,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Get pnpm store directory
-        shell: bash
-        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+          node-version: 24
+          cache: npm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: Setup environment
         run: cp .env.example .env
@@ -44,16 +30,19 @@ jobs:
         run: npx svelte-kit sync
 
       - name: Run lint
-        run: pnpm lint
+        run: npm run check:lint
 
       - name: Run type check
-        run: pnpm check
+        run: npm run check:types
 
   tests:
     name: Unit Tests
     runs-on: ubuntu-latest
     env:
+      AWS_REGION: us-east-1
       AWS_DEFAULT_REGION: us-east-1
+      TABLE_NAME: test-table
+      ARCHIVE_BUCKET: test-archive-bucket
       USER_PROFILES_TABLE: test-profiles
       COMMENTS_TABLE: test-comments
       MESSAGES_TABLE: test-messages
@@ -65,37 +54,23 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Get pnpm store directory
-        shell: bash
-        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+          node-version: 24
+          cache: npm
 
       - name: Install root dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
-      - name: Install Lambda dependencies
+      - name: Install Lambda test dependencies
         run: |
-          for dir in backend/lambdas/*/; do
+          for dir in backend/lambdas/activity-aggregator backend/lambdas/notification-processor; do
             if [ -f "$dir/package.json" ]; then
-              echo "Installing dependencies in $dir"
-              (cd "$dir" && npm install)
+              echo "Installing aws-sdk-client-mock in $dir"
+              (cd "$dir" && npm install --save-dev aws-sdk-client-mock)
             fi
           done
 
       - name: Run unit tests
-        run: pnpm test -- tests/unit backend/ --reporter=verbose
+        run: npm run check:test -- tests/unit backend/ --reporter=verbose
 
   status-check:
     name: All Checks Passed

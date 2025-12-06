@@ -131,7 +131,7 @@ echo "Step 5: Deploying frontend..."
 
 # Build frontend
 echo "  - Building frontend..."
-pnpm build
+npm run build
 
 # Deploy based on hosting provider
 if command -v netlify &> /dev/null; then

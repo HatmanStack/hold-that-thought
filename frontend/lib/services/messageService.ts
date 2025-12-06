@@ -9,7 +9,7 @@ import { PUBLIC_API_GATEWAY_URL } from '$env/static/public'
 import { authTokens } from '$lib/auth/auth-store'
 import { get } from 'svelte/store'
 
-const API_BASE = PUBLIC_API_GATEWAY_URL
+const API_BASE = PUBLIC_API_GATEWAY_URL?.replace(/\/+$/, '') || ''
 
 /**
  * Get authorization header with JWT token
@@ -54,7 +54,7 @@ export async function getConversations(
     const data = await response.json()
     return {
       success: true,
-      data: data.items || data,
+      data: data.conversations || data.items || data,
       lastEvaluatedKey: data.lastEvaluatedKey,
     }
   }
@@ -82,7 +82,7 @@ export async function getMessages(
     }
 
     const response = await fetch(
-      `${API_BASE}/messages/conversations/${encodeURIComponent(conversationId)}?${params}`,
+      `${API_BASE}/messages/${encodeURIComponent(conversationId)}?${params}`,
       {
         headers: getAuthHeader(),
       },
@@ -99,7 +99,7 @@ export async function getMessages(
     const data = await response.json()
     return {
       success: true,
-      data: data.items || data,
+      data: data.messages || data.items || data,
       lastEvaluatedKey: data.lastEvaluatedKey,
     }
   }
@@ -171,7 +171,7 @@ export async function sendMessage(
     }
 
     const response = await fetch(
-      `${API_BASE}/messages/conversations/${encodeURIComponent(conversationId)}`,
+      `${API_BASE}/messages/${encodeURIComponent(conversationId)}`,
       {
         method: 'POST',
         headers: getAuthHeader(),
@@ -208,7 +208,7 @@ export async function sendMessage(
 export async function markAsRead(conversationId: string): Promise<ConversationApiResponse> {
   try {
     const response = await fetch(
-      `${API_BASE}/messages/conversations/${encodeURIComponent(conversationId)}/read`,
+      `${API_BASE}/messages/${encodeURIComponent(conversationId)}/read`,
       {
         method: 'PUT',
         headers: getAuthHeader(),

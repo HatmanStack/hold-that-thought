@@ -20,7 +20,7 @@ export class GoogleOAuthService {
       redirect_uri: redirect,
       response_type: 'code',
       client_id: cognitoConfig.userPoolWebClientId,
-      scope: 'email openid profile aws.cognito.signin.user.admin',
+      scope: 'email openid profile',
     })
 
     return `${baseUrl}/oauth2/authorize?${params.toString()}`

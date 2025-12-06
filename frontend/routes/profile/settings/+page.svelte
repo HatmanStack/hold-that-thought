@@ -19,6 +19,11 @@
   let familyBranch = ''
   let isProfilePrivate = false
 
+  // Notification settings
+  let contactEmail = ''
+  let notifyOnMessage = true
+  let notifyOnComment = true
+
   // Photo upload
   let photoFile: File | null = null
   let previewUrl = ''
@@ -26,8 +31,6 @@
   let uploadError = ''
 
   $: bioLength = bio.length
-  $: bioRemaining = 500 - bioLength
-  $: bioExceeded = bioLength > 500
 
   /**
    * Load current user's profile
@@ -54,6 +57,11 @@
       familyBranch = profile.familyBranch || ''
       isProfilePrivate = profile.isProfilePrivate || false
       previewUrl = profile.profilePhotoUrl || ''
+
+      // Notification settings
+      contactEmail = profile.contactEmail || ''
+      notifyOnMessage = profile.notifyOnMessage !== false
+      notifyOnComment = profile.notifyOnComment !== false
     }
     else {
       error = result.error || 'Failed to load profile'
@@ -126,11 +134,6 @@
       return
     }
 
-    if (bioLength > 500) {
-      error = 'Bio must be 500 characters or less'
-      return
-    }
-
     saving = true
     error = ''
     successMessage = ''
@@ -163,6 +166,9 @@
         generation: generation.trim() || undefined,
         familyBranch: familyBranch.trim() || undefined,
         isProfilePrivate,
+        contactEmail: contactEmail.trim() || undefined,
+        notifyOnMessage,
+        notifyOnComment,
         ...(photoUrl && { profilePhotoUrl: photoUrl }),
       })
 
@@ -364,19 +370,15 @@
           <!-- Bio -->
           <div class='form-control'>
             <label class='label' for='bio'>
-              <span class='label-text font-semibold'>Bio</span>
-              <span class='label-text-alt' class:text-error={bioExceeded}>
-                {bioRemaining} characters remaining
-              </span>
+              <span class='label-text font-semibold'>About</span>
+              <span class='label-text-alt'>{bioLength.toLocaleString()} characters</span>
             </label>
             <textarea
               id='bio'
-              class='textarea textarea-bordered h-24'
-              class:textarea-error={bioExceeded}
+              class='textarea textarea-bordered min-h-48'
               bind:value={bio}
               disabled={saving}
-              maxlength='500'
-              placeholder='Tell your family about yourself...'
+              placeholder='Tell your family about yourself... Write as much as you want!'
             />
           </div>
 
@@ -430,6 +432,64 @@
             />
           </div>
 
+          <div class='divider'>Notifications</div>
+
+          <!-- Contact Email -->
+          <div class='form-control'>
+            <label class='label' for='contactEmail'>
+              <span class='label-text font-semibold'>Contact Email (optional)</span>
+            </label>
+            <input
+              id='contactEmail'
+              type='email'
+              class='input input-bordered'
+              bind:value={contactEmail}
+              disabled={saving}
+              placeholder={profile?.email || 'Use your account email'}
+            />
+            <label class='label'>
+              <span class='label-text-alt text-base-content/60'>
+                Leave blank to use your account email for notifications
+              </span>
+            </label>
+          </div>
+
+          <!-- Message Notifications Toggle -->
+          <div class='form-control'>
+            <label class='label cursor-pointer gap-4 justify-start'>
+              <input
+                type='checkbox'
+                class='toggle toggle-primary'
+                bind:checked={notifyOnMessage}
+                disabled={saving}
+              />
+              <div>
+                <span class='label-text font-semibold'>Message notifications</span>
+                <p class='text-xs text-base-content/60 mt-1'>
+                  Get notified when someone sends you a message
+                </p>
+              </div>
+            </label>
+          </div>
+
+          <!-- Comment Notifications Toggle -->
+          <div class='form-control'>
+            <label class='label cursor-pointer gap-4 justify-start'>
+              <input
+                type='checkbox'
+                class='toggle toggle-primary'
+                bind:checked={notifyOnComment}
+                disabled={saving}
+              />
+              <div>
+                <span class='label-text font-semibold'>Comment notifications</span>
+                <p class='text-xs text-base-content/60 mt-1'>
+                  Get notified when someone comments on your items or replies to your comments
+                </p>
+              </div>
+            </label>
+          </div>
+
           <div class='divider'>Privacy</div>
 
           <!-- Privacy Toggle -->
@@ -466,7 +526,7 @@
           type='submit'
           class='btn btn-primary'
           class:loading={saving || uploading}
-          disabled={saving || uploading || bioExceeded || !displayName.trim()}
+          disabled={saving || uploading || !displayName.trim()}
         >
           {#if uploading}
             Uploading...

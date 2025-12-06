@@ -58,7 +58,10 @@
     if (conversation.conversationTitle) {
       return conversation.conversationTitle
     }
-    return conversation.participantNames.join(', ')
+    if (conversation.participantNames && conversation.participantNames.length > 0) {
+      return conversation.participantNames.join(', ')
+    }
+    return 'Conversation'
   }
 
   /**
@@ -148,8 +151,8 @@
       <!-- Loading skeleton -->
       <div class='space-y-3'>
         {#each Array.from({ length: 5 }) as _}
-          <div class='flex gap-3 animate-pulse p-3'>
-            <div class='w-12 h-12 bg-base-300 rounded-full'></div>
+          <div class='flex gap-3 p-3 animate-pulse'>
+            <div class='w-12 h-12 rounded-full bg-base-300'></div>
             <div class='flex-1'>
               <div class='h-4 bg-base-300 mb-2 rounded w-1/3'></div>
               <div class='bg-base-300 rounded w-full mb-1 h-3'></div>

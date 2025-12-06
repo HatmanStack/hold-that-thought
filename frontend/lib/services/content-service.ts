@@ -60,9 +60,9 @@ export class ContentService {
         s3Key = s3Key.substring(1)
       }
 
-      // Add urara/ prefix and +page.svelte.md suffix for S3 storage format
-      if (!s3Key.startsWith('urara/')) {
-        s3Key = `urara/${s3Key}`
+      // Add letters/ prefix and +page.svelte.md suffix for S3 storage format
+      if (!s3Key.startsWith('letters/')) {
+        s3Key = `letters/${s3Key}`
       }
       if (!s3Key.endsWith('/+page.svelte.md')) {
         s3Key = `${s3Key}/+page.svelte.md`
@@ -120,9 +120,9 @@ export class ContentService {
         s3Key = s3Key.substring(1)
       }
 
-      // Add urara/ prefix and +page.svelte.md suffix for S3 storage format
-      if (!s3Key.startsWith('urara/')) {
-        s3Key = `urara/${s3Key}`
+      // Add letters/ prefix and +page.svelte.md suffix for S3 storage format
+      if (!s3Key.startsWith('letters/')) {
+        s3Key = `letters/${s3Key}`
       }
       if (!s3Key.endsWith('/+page.svelte.md')) {
         s3Key = `${s3Key}/+page.svelte.md`

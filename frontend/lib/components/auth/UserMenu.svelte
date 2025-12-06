@@ -3,11 +3,13 @@
   import { authService } from '$lib/auth/auth-service'
   import { currentUser, isAuthenticated } from '$lib/auth/auth-store'
   import { googleOAuth } from '$lib/auth/google-oauth'
+  import { getProfile } from '$lib/services/profileService'
   import { unreadCount, updateUnreadCount } from '$lib/stores/messages'
   import { onDestroy, onMount } from 'svelte'
 
   let showDropdown = false
   let updateInterval: number | null = null
+  let userProfilePhotoUrl: string | null = null
 
   async function handleSignOut() {
     try {
@@ -40,10 +42,26 @@
     showDropdown = false
   }
 
-  onMount(() => {
+  onMount(async () => {
     // Update unread count immediately
     if ($isAuthenticated) {
       updateUnreadCount()
+
+      // Fetch user's profile to get their profile photo
+      if ($currentUser?.sub) {
+        try {
+          const result = await getProfile($currentUser.sub)
+          if (result.success && result.data) {
+            const profile = Array.isArray(result.data) ? result.data[0] : result.data
+            if (profile?.profilePhotoUrl) {
+              userProfilePhotoUrl = profile.profilePhotoUrl
+            }
+          }
+        }
+ catch (e) {
+          // Silently fail - will fall back to OAuth picture or initials
+        }
+      }
 
       // Update every 60 seconds
       updateInterval = window.setInterval(() => {
@@ -65,7 +83,9 @@
   <div class='dropdown dropdown-end'>
     <div tabindex='0' role='button' class='btn btn-ghost btn-circle avatar' on:click={toggleDropdown}>
       <div class='w-10 rounded-full overflow-hidden'>
-        {#if $currentUser.picture}
+        {#if userProfilePhotoUrl}
+          <img src={userProfilePhotoUrl} alt='Profile' class='w-full h-full object-cover' />
+        {:else if $currentUser.picture}
           <img src={$currentUser.picture} alt='Profile' class='w-full h-full object-cover' />
         {:else}
           <div class='w-full h-full flex items-center justify-center bg-primary text-primary-content'>

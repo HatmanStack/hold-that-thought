@@ -3,7 +3,7 @@
 </script>
 
 <div
-  class='flex flex-col gap-4 card card-body p-4 border-base-content/10 h-card sticky top-24 items-right xl:border-2 xl:py-8 xl:ml-auto xl:mr-8 xl:max-w-xs'>
+  class='flex flex-col gap-4 p-4 border-base-content/10 card card-body h-card sticky top-24 items-right xl:border-2 xl:py-8 xl:ml-auto xl:mr-8 xl:max-w-xs'>
   <a class='hidden u-url u-uid' href={site.protocol + site.domain}>{site.author.name}</a>
   <figure class='relative mx-auto group'>
     {#if site.author.avatar}

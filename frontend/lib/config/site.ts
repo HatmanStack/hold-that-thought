@@ -8,7 +8,7 @@ export const site: SiteConfig = {
     status: '✨',
   },
   description: 'Sharing letters, one typo at a time ',
-  domain: 'carolfae.fun',
+  domain: 'holdthatthought.family',
   lang: 'en-US',
   protocol: 'https://',
   subtitle: 'Letters',

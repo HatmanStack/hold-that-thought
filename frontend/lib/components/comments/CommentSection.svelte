@@ -122,7 +122,7 @@
       <CommentForm {itemId} {itemType} {itemTitle} on:commentCreated={handleCommentCreated} />
     </div>
   {:else}
-    <div class='alert alert-info mb-8'>
+    <div class='alert mb-8 alert-info'>
       <svg
         xmlns='http://www.w3.org/2000/svg'
         fill='none'
@@ -168,7 +168,7 @@
       <button class='btn btn-sm' on:click={() => loadComments()}>Retry</button>
     </div>
   {:else if comments.length === 0}
-    <div class='text-center py-12'>
+    <div class='py-12 text-center'>
       <div class='mb-4 text-4xl'>💬</div>
       <h3 class='text-lg font-semibold mb-2'>No comments yet</h3>
       <p class='text-base-content/60'>Be the first to share your thoughts!</p>

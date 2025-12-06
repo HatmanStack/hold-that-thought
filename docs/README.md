@@ -63,23 +63,48 @@ A family letter-sharing platform built with SvelteKit and AWS serverless infrast
 ## Testing
 
 ```bash
-pnpm test                    # Run all tests (91 tests)
-pnpm test tests/unit         # Frontend unit tests only
-pnpm test backend/           # Backend tests only
-pnpm lint                    # ESLint
-pnpm check                   # Svelte type check
+npm run check:test           # Run all tests
+npm run check:lint           # ESLint
+npm run check:types          # Svelte type check
+npm run check                # Run all checks
+```
+
+## Quick Start
+
+```bash
+# Install dependencies
+npm install
+
+# Copy environment template
+cp .env.example .env
+
+# Deploy backend (creates S3 bucket, deploys Lambdas, updates .env)
+npm run deploy
+
+# Start dev server
+npm start
 ```
 
 ## Environment Variables
 
-Frontend (`.env`):
+Copy `.env.example` to `.env`. The deploy script auto-populates API Gateway URLs.
+
+**Required for authentication** (Cognito):
+```bash
+PUBLIC_AWS_REGION=us-west-2
+PUBLIC_COGNITO_USER_POOL_ID=us-west-2_ABC123xyz
+PUBLIC_COGNITO_USER_POOL_CLIENT_ID=1abc2def3ghi4jkl5mno
+PUBLIC_COGNITO_IDENTITY_POOL_ID=us-west-2:12345678-1234-1234-1234-123456789012
+PUBLIC_COGNITO_HOSTED_UI_URL=https://your-app.auth.us-west-2.amazoncognito.com
+PUBLIC_COGNITO_HOSTED_UI_DOMAIN=your-app
 ```
-PUBLIC_AWS_REGION=us-east-1
-PUBLIC_API_ENDPOINT=https://api.example.com
-PUBLIC_COGNITO_USER_POOL_ID=us-east-1_xxxxx
-PUBLIC_COGNITO_USER_POOL_CLIENT_ID=xxxxxxxxx
-PUBLIC_S3_BUCKET=hold-that-thought-media
+
+**Auto-populated by deploy script**:
+```bash
+PUBLIC_API_GATEWAY_URL=https://abc123.execute-api.us-west-2.amazonaws.com/Prod/
 ```
+
+> **Note**: Without valid Cognito configuration, the app runs in read-only mode (gallery browsing only). See [DEPLOYMENT.md](./DEPLOYMENT.md) for Cognito setup instructions.
 
 ## License
 

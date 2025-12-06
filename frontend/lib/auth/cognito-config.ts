@@ -19,12 +19,19 @@ export const cognitoConfig = {
   hostedUIDomain: PUBLIC_COGNITO_HOSTED_UI_DOMAIN || '',
 }
 
-// Check if Cognito is properly configured
+// Check if Cognito is properly configured (not placeholder values)
 export function isCognitoConfigured(): boolean {
+  const { userPoolId, userPoolWebClientId, region, hostedUIUrl } = cognitoConfig
+
+  // Check for empty or placeholder values
+  const isPlaceholder = (val: string) =>
+    !val || val.includes('xxxxxxxxx') || val.includes('your-') || val === ''
+
   return !!(
-    cognitoConfig.userPoolId
-    && cognitoConfig.userPoolWebClientId
-    && cognitoConfig.region
+    !isPlaceholder(userPoolId)
+    && !isPlaceholder(userPoolWebClientId)
+    && region
+    && !isPlaceholder(hostedUIUrl)
   )
 }
 

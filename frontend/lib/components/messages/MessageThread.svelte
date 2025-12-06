@@ -1,6 +1,7 @@
 <script lang='ts'>
   import type { Message } from '$lib/types/message'
   import { getMessages, markAsRead } from '$lib/services/messageService'
+  import { getCachedProfile, prefetchProfiles, profileCache } from '$lib/stores/profiles'
   import { afterUpdate, onMount, tick } from 'svelte'
 
   export let conversationId: string
@@ -14,6 +15,9 @@
   let hasMore = false
   let messagesContainer: HTMLDivElement
   let shouldScroll = true
+
+  // Reactive profile photo lookup from cache
+  $: profilePhotos = $profileCache
 
   /**
    * Format timestamp
@@ -61,6 +65,13 @@
   }
 
   /**
+   * Get profile photo URL for a user from cache
+   */
+  function getPhotoUrl(userId: string): string | null {
+    return profilePhotos[userId]?.profile?.profilePhotoUrl || null
+  }
+
+  /**
    * Load initial messages
    */
   async function loadMessages() {
@@ -75,6 +86,10 @@
       messages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
       lastEvaluatedKey = result.lastEvaluatedKey
       hasMore = !!result.lastEvaluatedKey
+
+      // Prefetch profiles for all unique senders
+      const senderIds = [...new Set(messages.map(m => m.senderId))]
+      prefetchProfiles(senderIds)
     }
     else {
       error = result.error || 'Failed to load messages'
@@ -127,6 +142,10 @@
   }
 
   onMount(() => {
+    // Prefetch current user's profile for their avatar
+    if (currentUserId) {
+      getCachedProfile(currentUserId)
+    }
     loadMessages()
   })
 
@@ -209,23 +228,34 @@
         <!-- Messages list -->
         {#each messages as message}
           {@const isOwnMessage = message.senderId === currentUserId}
+          {@const photoUrl = message.senderPhotoUrl || getPhotoUrl(message.senderId)}
           <div class='flex gap-2 sm:gap-3' class:flex-row-reverse={isOwnMessage} class:justify-end={isOwnMessage}>
             <!-- Avatar -->
-            <div class='avatar placeholder flex-shrink-0 hidden sm:block'>
-              <div class='bg-neutral text-neutral-content rounded-full w-8 h-8 sm:w-10 sm:h-10'>
-                <span class='text-sm'>
-                  {message.senderName.charAt(0).toUpperCase()}
-                </span>
-              </div>
-            </div>
+            <a href='/profile/{message.senderId}' class='flex-shrink-0 hidden sm:block'>
+              {#if photoUrl}
+                <div class='avatar'>
+                  <div class='rounded-full w-8 h-8 sm:w-10 sm:h-10'>
+                    <img src={photoUrl} alt={message.senderName} />
+                  </div>
+                </div>
+              {:else}
+                <div class='avatar placeholder'>
+                  <div class='bg-neutral text-neutral-content rounded-full w-8 h-8 sm:w-10 sm:h-10'>
+                    <span class='text-sm'>
+                      {(message.senderName || '?').charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+              {/if}
+            </a>
 
             <!-- Message content -->
             <div class='flex flex-col w-full sm:max-w-xs md:max-w-md'>
               <!-- Sender name -->
               {#if !isOwnMessage}
-                <span class='text-xs text-base-content/60 mb-1 px-2'>
-                  {message.senderName}
-                </span>
+                <a href='/profile/{message.senderId}' class='text-xs text-base-content/60 mb-1 hover:text-primary hover:underline px-2'>
+                  {message.senderName || 'Unknown'}
+                </a>
               {/if}
 
               <!-- Message bubble -->
