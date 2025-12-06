@@ -5,7 +5,7 @@ const { mockClient } = require('aws-sdk-client-mock')
 const ddbMock = mockClient(DynamoDBDocumentClient)
 const sesMock = mockClient(SESClient)
 
-process.env.USER_PROFILES_TABLE = 'test-user-profiles'
+process.env.TABLE_NAME = 'test-table'
 process.env.SES_FROM_EMAIL = 'test@holdthatthought.family'
 process.env.BASE_URL = 'https://test.holdthatthought.family'
 

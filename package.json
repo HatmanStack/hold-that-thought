@@ -10,7 +10,10 @@
   "bugs": "https://github.com/importantimport/urara/issues",
   "scripts": {
     "build": "run-s tsc urara:build kit:build clean",
-    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "check": "run-s check:types check:lint check:test",
+    "check:types": "svelte-check --tsconfig ./tsconfig.json",
+    "check:lint": "eslint --flag unstable_ts_config .",
+    "check:test": "vitest run",
     "check:watch": "svelte-check --tsconfig ./tsconfig.json --watch",
     "clean": "node urara.js clean",
     "deploy": "bash backend/scripts/deploy.sh",

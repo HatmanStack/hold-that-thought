@@ -295,4 +295,5 @@ async function sendEmail(toEmail, subject, bodyHtml) {
   }
 }
 
-module.exports = { sendEmail }
+// Also export sendEmail for testing
+exports.sendEmail = sendEmail

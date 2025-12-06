@@ -5,6 +5,7 @@ export interface Message {
   messageId: string
   senderId: string
   senderName: string
+  senderPhotoUrl?: string
   messageText: string
   attachments?: Attachment[]
   createdAt: string

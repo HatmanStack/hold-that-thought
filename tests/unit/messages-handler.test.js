@@ -1,13 +1,11 @@
 // Set environment variables BEFORE importing handler
-process.env.USER_PROFILES_TABLE = 'test-user-profiles'
-process.env.MESSAGES_TABLE = 'test-messages'
-process.env.CONVERSATION_MEMBERS_TABLE = 'test-conversation-members'
-process.env.BUCKET_NAME = 'test-bucket'
+process.env.TABLE_NAME = 'test-table'
+process.env.S3_BUCKET = 'test-bucket'
 process.env.AWS_REGION = 'us-east-1'
 
-// Import SDK from the SAME location as the Lambda handler uses
-const { S3Client } = require('../../backend/lambdas/messages-api/node_modules/@aws-sdk/client-s3')
-const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand, BatchWriteCommand, BatchGetCommand } = require('../../backend/lambdas/messages-api/node_modules/@aws-sdk/lib-dynamodb')
+// Import SDK from root node_modules
+const { S3Client } = require('@aws-sdk/client-s3')
+const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand, BatchWriteCommand, BatchGetCommand } = require('@aws-sdk/lib-dynamodb')
 const { mockClient } = require('aws-sdk-client-mock')
 
 // Create mocks BEFORE importing handler (handler creates clients at module load)
@@ -15,7 +13,7 @@ const ddbMock = mockClient(DynamoDBDocumentClient)
 const s3Mock = mockClient(S3Client)
 
 // NOW import handler (will use the mocked clients)
-const { handler } = require('../../backend/lambdas/messages-api/index')
+const { handler } = require('../../backend/lambdas/api/index')
 
 beforeEach(() => {
   ddbMock.reset()

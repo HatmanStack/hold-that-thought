@@ -1,17 +1,17 @@
 // Set environment variables BEFORE importing handler
-process.env.COMMENT_REACTIONS_TABLE = 'test-comment-reactions'
-process.env.COMMENTS_TABLE = 'test-comments'
+process.env.TABLE_NAME = 'test-table'
+process.env.S3_BUCKET = 'test-bucket'
 process.env.AWS_REGION = 'us-east-1'
 
-// Import SDK from the SAME location as the Lambda handler uses
-const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, DeleteCommand, UpdateCommand } = require('../../backend/lambdas/reactions-api/node_modules/@aws-sdk/lib-dynamodb')
+// Import SDK from root node_modules
+const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, DeleteCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb')
 const { mockClient } = require('aws-sdk-client-mock')
 
 // Create mock BEFORE importing handler (handler creates client at module load)
 const ddbMock = mockClient(DynamoDBDocumentClient)
 
 // NOW import handler (will use the mocked client)
-const { handler } = require('../../backend/lambdas/reactions-api/index')
+const { handler } = require('../../backend/lambdas/api/index')
 
 beforeEach(() => {
   ddbMock.reset()
