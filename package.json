@@ -2,9 +2,9 @@
   "name": "hold-that-thought",
   "type": "module",
   "version": "1.0.0",
+  "private": true,
   "author": "Galliart Family",
   "license": "UNLICENSED",
-  "private": true,
   "scripts": {
     "build": "cross-env NODE_OPTIONS=--max_old_space_size=7680 vite build",
     "check": "npm run check:types && npm run check:lint && npm run check:test",
