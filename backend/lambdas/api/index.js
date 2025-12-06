@@ -24,7 +24,12 @@ exports.handler = async (event) => {
 
   // Auto-create profile for approved users on first request
   if (requesterId) {
-    await ensureProfile(requesterId, requesterEmail, requesterGroups)
+    try {
+      await ensureProfile(requesterId, requesterEmail, requesterGroups)
+    } catch (err) {
+      console.error('Failed to ensure profile:', { requesterId, error: err.message })
+      return errorResponse(500, 'Failed to initialize user profile')
+    }
   }
 
   const context = { requesterId, requesterEmail, isAdmin }

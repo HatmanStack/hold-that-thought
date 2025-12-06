@@ -53,6 +53,11 @@ async function getUploadUrl(event, requesterId, requesterEmail) {
     return errorResponse(400, 'Filename and contentType are required')
   }
 
+  const safeFilename = sanitizeFilename(filename)
+  if (!safeFilename) {
+    return errorResponse(400, 'Invalid filename')
+  }
+
   if (!ALLOWED_TYPES.includes(contentType)) {
     return errorResponse(400, 'File type not allowed')
   }
@@ -64,7 +69,7 @@ async function getUploadUrl(event, requesterId, requesterEmail) {
 
   try {
     const category = determineCategory(contentType)
-    const key = `media/${category}/${Date.now()}-${filename}`
+    const key = `media/${category}/${Date.now()}-${safeFilename}`
 
     const command = new PutObjectCommand({
       Bucket: BUCKETS.media,
@@ -193,6 +198,12 @@ async function getDownloadUrl(event, requesterId) {
     return errorResponse(400, 'Invalid key')
   }
 
+  // Restrict to allowed prefixes
+  const allowedPrefixes = ['media/', 'letters/']
+  if (!allowedPrefixes.some(prefix => key.startsWith(prefix))) {
+    return errorResponse(403, 'Access denied to this resource')
+  }
+
   try {
     const downloadUrl = await getSignedUrl(
       s3Client,
@@ -229,4 +240,36 @@ function getContentTypeFromKey(key) {
   return map[ext] || 'application/octet-stream'
 }
 
-module.exports = { handle }
+/**
+ * Sanitize filename to prevent path injection
+ * - Extracts basename (removes directory components)
+ * - Removes path traversal attempts
+ * - Restricts to safe characters
+ * - Limits length
+ */
+function sanitizeFilename(filename) {
+  if (!filename) return null
+
+  // Extract basename (last component after any slashes)
+  let safe = filename.split(/[/\\]/).pop() || ''
+
+  // Remove any remaining path traversal
+  safe = safe.replace(/\.\./g, '')
+
+  // Remove leading dots (hidden files)
+  safe = safe.replace(/^\.+/, '')
+
+  // Keep only safe characters: alphanumeric, dots, hyphens, underscores
+  safe = safe.replace(/[^a-zA-Z0-9._-]/g, '_')
+
+  // Limit length (max 200 chars)
+  if (safe.length > 200) {
+    const ext = safe.split('.').pop() || ''
+    const base = safe.slice(0, 190 - ext.length)
+    safe = ext ? `${base}.${ext}` : base
+  }
+
+  return safe || null
+}
+
+module.exports = { handle, sanitizeFilename }

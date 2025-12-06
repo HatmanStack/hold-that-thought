@@ -3,6 +3,7 @@
   import VersionHistory from '$lib/components/VersionHistory.svelte'
   import { getLetter, getPdfUrl, getVersions, type Letter, type LetterVersion, revertToVersion } from '$lib/services/letters-service'
   import { marked } from 'marked'
+  import sanitizeHtml from 'sanitize-html'
   import { onMount } from 'svelte'
 
   export let data: { date: string }
@@ -101,7 +102,17 @@
     loadLetter()
   }
 
-  $: htmlContent = letter ? marked(letter.content) : ''
+  // Sanitize HTML to prevent XSS
+  $: htmlContent = letter
+    ? sanitizeHtml(marked(letter.content) as string, {
+        allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2']),
+        allowedAttributes: {
+          ...sanitizeHtml.defaults.allowedAttributes,
+          img: ['src', 'alt', 'title'],
+          a: ['href', 'target', 'rel'],
+        },
+      })
+    : ''
 </script>
 
 {#if loading}

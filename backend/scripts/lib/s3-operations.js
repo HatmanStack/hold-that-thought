@@ -128,8 +128,10 @@ export async function getLetterFiles(bucket, folderPath) {
  * @param {string} destKey - Destination object key
  */
 export async function copyFile(sourceBucket, sourceKey, destBucket, destKey) {
+  // URL-encode the source key to handle special characters (spaces, etc.)
+  const encodedSourceKey = encodeURIComponent(sourceKey)
   const command = new CopyObjectCommand({
-    CopySource: `${sourceBucket}/${sourceKey}`,
+    CopySource: `${sourceBucket}/${encodedSourceKey}`,
     Bucket: destBucket,
     Key: destKey
   })

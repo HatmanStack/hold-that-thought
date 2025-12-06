@@ -135,7 +135,7 @@ describe('s3 operations', () => {
       const calls = s3Mock.commandCalls(CopyObjectCommand)
       expect(calls).toHaveLength(1)
       expect(calls[0].args[0].input).toEqual({
-        CopySource: 'source-bucket/source/key.pdf',
+        CopySource: 'source-bucket/source%2Fkey.pdf', // URL-encoded for special chars
         Bucket: 'dest-bucket',
         Key: 'dest/key.pdf'
       })

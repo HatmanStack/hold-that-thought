@@ -1,4 +1,4 @@
-const { GetCommand, PutCommand, QueryCommand, DeleteCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb')
+const { GetCommand, PutCommand, QueryCommand, DeleteCommand, UpdateCommand, TransactWriteCommand } = require('@aws-sdk/lib-dynamodb')
 const { docClient, TABLE_NAME, PREFIX, keys, successResponse, errorResponse } = require('../utils')
 
 async function handle(event, context) {
@@ -48,61 +48,79 @@ async function toggleReaction(event, userId) {
       Key: reactionKey,
     }))
 
+    const commentKey = keys.comment(itemId, commentId)
+
     if (existingReaction.Item) {
-      // Remove reaction
-      await docClient.send(new DeleteCommand({
-        TableName: TABLE_NAME,
-        Key: reactionKey,
-      }))
-
-      // Decrement comment reaction count
+      // Remove reaction atomically with count decrement
       try {
-        await docClient.send(new UpdateCommand({
-          TableName: TABLE_NAME,
-          Key: keys.comment(itemId, commentId),
-          UpdateExpression: 'ADD reactionCount :decrement',
-          ConditionExpression: 'attribute_exists(PK)',
-          ExpressionAttributeValues: { ':decrement': -1 },
+        await docClient.send(new TransactWriteCommand({
+          TransactItems: [
+            {
+              Delete: {
+                TableName: TABLE_NAME,
+                Key: reactionKey,
+              },
+            },
+            {
+              Update: {
+                TableName: TABLE_NAME,
+                Key: commentKey,
+                UpdateExpression: 'ADD reactionCount :decrement',
+                ConditionExpression: 'attribute_exists(PK)',
+                ExpressionAttributeValues: { ':decrement': -1 },
+              },
+            },
+          ],
         }))
       } catch (error) {
-        if (error.name !== 'ConditionalCheckFailedException') throw error
-      }
-
-      return successResponse({ liked: false, message: 'Reaction removed' })
-    } else {
-      // Add reaction
-      await docClient.send(new PutCommand({
-        TableName: TABLE_NAME,
-        Item: {
-          ...reactionKey,
-          entityType: 'REACTION',
-          commentId,
-          itemId,
-          userId,
-          reactionType,
-          createdAt: new Date().toISOString(),
-          // GSI1 for user's reaction history
-          GSI1PK: `${PREFIX.USER}${userId}`,
-          GSI1SK: `${PREFIX.REACTION}${new Date().toISOString()}`,
-        },
-      }))
-
-      // Increment comment reaction count
-      try {
-        await docClient.send(new UpdateCommand({
-          TableName: TABLE_NAME,
-          Key: keys.comment(itemId, commentId),
-          UpdateExpression: 'ADD reactionCount :increment',
-          ConditionExpression: 'attribute_exists(PK)',
-          ExpressionAttributeValues: { ':increment': 1 },
-        }))
-      } catch (error) {
-        if (error.name === 'ConditionalCheckFailedException') {
-          // Rollback reaction
+        // If comment doesn't exist, still allow reaction deletion
+        if (error.name === 'TransactionCanceledException') {
           await docClient.send(new DeleteCommand({
             TableName: TABLE_NAME,
             Key: reactionKey,
           }))
+        } else {
+          throw error
+        }
+      }
+
+      return successResponse({ liked: false, message: 'Reaction removed' })
+    } else {
+      // Add reaction atomically with count increment
+      const now = new Date().toISOString()
+
+      try {
+        await docClient.send(new TransactWriteCommand({
+          TransactItems: [
+            {
+              Put: {
+                TableName: TABLE_NAME,
+                Item: {
+                  ...reactionKey,
+                  entityType: 'REACTION',
+                  commentId,
+                  itemId,
+                  userId,
+                  reactionType,
+                  createdAt: now,
+                  GSI1PK: `${PREFIX.USER}${userId}`,
+                  GSI1SK: `${PREFIX.REACTION}${now}`,
+                },
+              },
+            },
+            {
+              Update: {
+                TableName: TABLE_NAME,
+                Key: commentKey,
+                UpdateExpression: 'ADD reactionCount :increment',
+                ConditionExpression: 'attribute_exists(PK)',
+                ExpressionAttributeValues: { ':increment': 1 },
+              },
+            },
+          ],
+        }))
+      } catch (error) {
+        if (error.name === 'TransactionCanceledException') {
           return errorResponse(404, 'Comment not found')
         }
         throw error

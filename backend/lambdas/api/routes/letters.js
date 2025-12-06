@@ -118,7 +118,13 @@ async function getLetter(event) {
 
 async function updateLetter(event, requesterId) {
   const date = event.pathParameters?.date
-  const body = JSON.parse(event.body || '{}')
+
+  let body
+  try {
+    body = JSON.parse(event.body || '{}')
+  } catch {
+    return errorResponse(400, 'Invalid JSON body')
+  }
   const { content, title } = body
 
   if (!date || !isValidDate(date)) {
@@ -218,7 +224,13 @@ async function getVersions(event) {
 
 async function revertToVersion(event, requesterId) {
   const date = event.pathParameters?.date
-  const body = JSON.parse(event.body || '{}')
+
+  let body
+  try {
+    body = JSON.parse(event.body || '{}')
+  } catch {
+    return errorResponse(400, 'Invalid JSON body')
+  }
   const { versionTimestamp } = body
 
   if (!date || !isValidDate(date)) {

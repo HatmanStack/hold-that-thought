@@ -48,9 +48,12 @@ async function listComments(event) {
     const queryParams = {
       TableName: TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
+      FilterExpression: 'entityType = :entityType AND (attribute_not_exists(isDeleted) OR isDeleted = :false)',
       ExpressionAttributeValues: {
         ':pk': `${PREFIX.COMMENT}${itemId}`,
         ':skPrefix': '20', // Comments start with timestamp (20xx-...)
+        ':entityType': 'COMMENT',
+        ':false': false,
       },
       Limit: limit,
       ScanIndexForward: true,
@@ -62,9 +65,7 @@ async function listComments(event) {
 
     const result = await docClient.send(new QueryCommand(queryParams))
 
-    // Filter out deleted and non-comment items (reactions have different SK prefix)
     const comments = (result.Items || [])
-      .filter(item => item.entityType === 'COMMENT' && !item.isDeleted)
       .map(item => ({
         itemId: item.itemId,
         commentId: item.SK,
@@ -287,9 +288,21 @@ async function adminDeleteComment(event, isAdmin) {
   }
 
   try {
+    const key = keys.comment(itemId, commentId)
+
+    // Verify comment exists before updating
+    const result = await docClient.send(new GetCommand({
+      TableName: TABLE_NAME,
+      Key: key,
+    }))
+
+    if (!result.Item || result.Item.entityType !== 'COMMENT') {
+      return errorResponse(404, 'Comment not found')
+    }
+
     await docClient.send(new UpdateCommand({
       TableName: TABLE_NAME,
-      Key: keys.comment(itemId, commentId),
+      Key: key,
       UpdateExpression: 'SET isDeleted = :true, updatedAt = :now',
       ExpressionAttributeValues: {
         ':true': true,

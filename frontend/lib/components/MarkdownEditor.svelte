@@ -1,5 +1,6 @@
 <script lang='ts'>
   import { marked } from 'marked'
+  import sanitizeHtml from 'sanitize-html'
   import { createEventDispatcher } from 'svelte'
 
   export let content: string = ''
@@ -11,7 +12,15 @@
     cancel: void
   }>()
 
-  $: preview = marked(content)
+  // Sanitize HTML to prevent XSS
+  $: preview = sanitizeHtml(marked(content) as string, {
+    allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2']),
+    allowedAttributes: {
+      ...sanitizeHtml.defaults.allowedAttributes,
+      img: ['src', 'alt', 'title'],
+      a: ['href', 'target', 'rel'],
+    },
+  })
 
   function handleSave() {
     dispatch('save', { content, title })
