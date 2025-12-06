@@ -11,6 +11,11 @@ const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3')
 const ddbMock = mockClient(DynamoDBDocumentClient)
 const s3Mock = mockClient(S3Client)
 
+// Mock getSignedUrl to avoid needing real credentials
+vi.mock('@aws-sdk/s3-request-presigner', () => ({
+  getSignedUrl: vi.fn().mockResolvedValue('https://test-presigned-url.example.com/test.pdf'),
+}))
+
 // Import handler after mock is created
 const { handle } = require('../../backend/lambdas/api/routes/letters')
 

@@ -60,6 +60,15 @@ jobs:
       - name: Install root dependencies
         run: npm ci
 
+      - name: Install Lambda test dependencies
+        run: |
+          for dir in backend/lambdas/activity-aggregator backend/lambdas/notification-processor; do
+            if [ -f "$dir/package.json" ]; then
+              echo "Installing aws-sdk-client-mock in $dir"
+              (cd "$dir" && npm install --save-dev aws-sdk-client-mock)
+            fi
+          done
+
       - name: Run unit tests
         run: npm run check:test -- tests/unit backend/ --reporter=verbose
 
