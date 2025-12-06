@@ -8,7 +8,7 @@
   import { getMessages } from '$lib/services/messageService'
   import { onDestroy, onMount } from 'svelte'
 
-  $: conversationId = $page.params.conversationId
+  $: conversationId = $page.params.conversationId ?? ''
   $: currentUserId = $currentUser?.sub || ''
 
   let messageThreadComponent: MessageThread
