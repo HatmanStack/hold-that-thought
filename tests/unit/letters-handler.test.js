@@ -1,14 +1,15 @@
+// Set env vars BEFORE any imports to ensure AWS SDK has region
+process.env.AWS_REGION = 'us-east-1'
+process.env.TABLE_NAME = 'test-table'
+process.env.ARCHIVE_BUCKET = 'test-archive-bucket'
+
 const { mockClient } = require('aws-sdk-client-mock')
 const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb')
 const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3')
 
-// Create mocks BEFORE setting env vars or importing handler
+// Create mocks BEFORE importing handler
 const ddbMock = mockClient(DynamoDBDocumentClient)
 const s3Mock = mockClient(S3Client)
-
-// Set env vars BEFORE importing handler
-process.env.TABLE_NAME = 'test-table'
-process.env.ARCHIVE_BUCKET = 'test-archive-bucket'
 
 // Import handler after mock is created
 const { handle } = require('../../backend/lambdas/api/routes/letters')
