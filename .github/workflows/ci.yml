@@ -60,15 +60,6 @@ jobs:
       - name: Install root dependencies
         run: npm ci
 
-      - name: Install Lambda dependencies
-        run: |
-          for dir in backend/lambdas/*/; do
-            if [ -f "$dir/package.json" ]; then
-              echo "Installing dependencies in $dir"
-              (cd "$dir" && npm install)
-            fi
-          done
-
       - name: Run unit tests
         run: npm run check:test -- tests/unit backend/ --reporter=verbose
 
