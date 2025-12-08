@@ -1,6 +1,6 @@
 <script lang='ts'>
   import type { Message } from '$lib/types/message'
-  import { getMessages, markAsRead } from '$lib/services/messageService'
+  import { deleteMessage, getMessages, markAsRead } from '$lib/services/messageService'
   import { getCachedProfile, prefetchProfiles, profileCache } from '$lib/stores/profiles'
   import { afterUpdate, onMount, tick } from 'svelte'
 
@@ -75,6 +75,8 @@
    * Load initial messages
    */
   async function loadMessages() {
+    if (!conversationId) return
+
     loading = true
     error = ''
 
@@ -102,7 +104,9 @@
     scrollToBottom()
 
     // Mark conversation as read
-    markAsRead(conversationId)
+    if (conversationId) {
+      markAsRead(conversationId)
+    }
   }
 
   /**
@@ -139,6 +143,31 @@
   export function addMessage(message: Message) {
     messages = [...messages, message]
     shouldScroll = true
+  }
+
+  /**
+   * Handle message deletion
+   */
+  async function handleDeleteMessage(messageId: string) {
+    console.log('[MessageThread] handleDeleteMessage called')
+    console.log('[MessageThread] conversationId:', conversationId)
+    console.log('[MessageThread] messageId:', messageId)
+
+    if (!confirm('Delete this message? This cannot be undone.'))
+      return
+
+    console.log('[MessageThread] Calling deleteMessage service...')
+    const result = await deleteMessage(conversationId, messageId)
+    console.log('[MessageThread] deleteMessage result:', JSON.stringify(result, null, 2))
+
+    if (result.success) {
+      messages = messages.filter(m => m.messageId !== messageId)
+      console.log('[MessageThread] Message deleted from local state')
+    }
+    else {
+      console.error('[MessageThread] Delete failed:', result.error)
+      alert(result.error || 'Failed to delete message')
+    }
   }
 
   onMount(() => {
@@ -311,13 +340,27 @@
                 {/if}
               </div>
 
-              <!-- Timestamp -->
-              <span
-                class='text-xs text-base-content/60 mt-1 px-2'
-                class:text-right={isOwnMessage}
+              <!-- Timestamp and actions -->
+              <div
+                class='flex items-baseline gap-2 mt-1 px-2'
+                class:justify-end={isOwnMessage}
               >
-                {formatTime(message.createdAt)}
-              </span>
+                <span class='text-xs text-base-content/60'>
+                  {formatTime(message.createdAt)}
+                </span>
+                {#if isOwnMessage}
+                  <button
+                    type='button'
+                    class='text-error/50 hover:text-error transition-colors translate-y-px'
+                    title='Delete message'
+                    on:click={() => handleDeleteMessage(message.messageId)}
+                  >
+                    <svg xmlns='http://www.w3.org/2000/svg' class='h-3 w-3' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='3'>
+                      <path stroke-linecap='round' stroke-linejoin='round' d='M6 18L18 6M6 6l12 12' />
+                    </svg>
+                  </button>
+                {/if}
+              </div>
             </div>
           </div>
         {/each}

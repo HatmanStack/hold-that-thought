@@ -239,6 +239,57 @@ export async function markAsRead(conversationId: string): Promise<ConversationAp
 }
 
 /**
+ * Delete a message
+ */
+export async function deleteMessage(
+  conversationId: string,
+  messageId: string,
+): Promise<MessageApiResponse> {
+  const url = `${API_BASE}/messages/${encodeURIComponent(conversationId)}/${encodeURIComponent(messageId)}`
+  console.log('[messageService] deleteMessage called')
+  console.log('[messageService] API_BASE:', API_BASE)
+  console.log('[messageService] conversationId:', conversationId)
+  console.log('[messageService] messageId:', messageId)
+  console.log('[messageService] Full URL:', url)
+
+  try {
+    const headers = getAuthHeader()
+    console.log('[messageService] Headers:', { ...headers, Authorization: headers.Authorization?.substring(0, 50) + '...' })
+
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers,
+    })
+
+    console.log('[messageService] Response status:', response.status)
+    console.log('[messageService] Response statusText:', response.statusText)
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Failed to delete message' }))
+      console.log('[messageService] Error response data:', errorData)
+      return {
+        success: false,
+        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
+      }
+    }
+
+    const data = await response.json()
+    console.log('[messageService] Success response data:', data)
+    return {
+      success: true,
+      data,
+    }
+  }
+  catch (error) {
+    console.error('[messageService] Exception in deleteMessage:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to delete message',
+    }
+  }
+}
+
+/**
  * Upload an attachment and get presigned URL
  */
 export async function uploadAttachment(file: File): Promise<UploadAttachmentResponse> {

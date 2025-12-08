@@ -10,6 +10,37 @@
   let showDropdown = false
   let updateInterval: number | null = null
   let userProfilePhotoUrl: string | null = null
+  let profileFetched = false
+
+  // Reactively fetch profile photo when currentUser becomes available
+  $: if ($isAuthenticated && $currentUser?.sub && !profileFetched) {
+    profileFetched = true
+    fetchProfilePhoto($currentUser.sub)
+  }
+
+  async function fetchProfilePhoto(userId: string) {
+    console.log('[UserMenu] fetchProfilePhoto called with userId:', userId)
+    try {
+      const result = await getProfile(userId)
+      console.log('[UserMenu] getProfile result:', JSON.stringify(result, null, 2))
+      if (result.success && result.data) {
+        const profile = Array.isArray(result.data) ? result.data[0] : result.data
+        console.log('[UserMenu] Extracted profile:', profile)
+        console.log('[UserMenu] profilePhotoUrl:', profile?.profilePhotoUrl)
+        if (profile?.profilePhotoUrl) {
+          userProfilePhotoUrl = profile.profilePhotoUrl
+          console.log('[UserMenu] Set userProfilePhotoUrl to:', userProfilePhotoUrl)
+        } else {
+          console.log('[UserMenu] No profilePhotoUrl in profile data')
+        }
+      } else {
+        console.log('[UserMenu] getProfile failed or no data:', result.error)
+      }
+    }
+    catch (e) {
+      console.error('[UserMenu] Error fetching profile:', e)
+    }
+  }
 
   async function handleSignOut() {
     try {
@@ -42,26 +73,10 @@
     showDropdown = false
   }
 
-  onMount(async () => {
+  onMount(() => {
     // Update unread count immediately
     if ($isAuthenticated) {
       updateUnreadCount()
-
-      // Fetch user's profile to get their profile photo
-      if ($currentUser?.sub) {
-        try {
-          const result = await getProfile($currentUser.sub)
-          if (result.success && result.data) {
-            const profile = Array.isArray(result.data) ? result.data[0] : result.data
-            if (profile?.profilePhotoUrl) {
-              userProfilePhotoUrl = profile.profilePhotoUrl
-            }
-          }
-        }
- catch (e) {
-          // Silently fail - will fall back to OAuth picture or initials
-        }
-      }
 
       // Update every 60 seconds
       updateInterval = window.setInterval(() => {

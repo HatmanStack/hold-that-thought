@@ -12,6 +12,12 @@ const TABLE_NAME = process.env.TABLE_NAME || process.env.DYNAMODB_TABLE
 // S3 archive bucket (single bucket for all storage)
 const ARCHIVE_BUCKET = process.env.ARCHIVE_BUCKET
 
+// S3 buckets for media and profile photos
+const BUCKETS = {
+  media: process.env.MEDIA_BUCKET || 'hold-test-media',
+  profilePhotos: process.env.PHOTO_BUCKET || 'hold-test-photo',
+}
+
 // S3 prefixes within archive bucket
 const S3_PREFIXES = {
   letters: 'letters/',
@@ -323,6 +329,7 @@ module.exports = {
   docClient,
   TABLE_NAME,
   ARCHIVE_BUCKET,
+  BUCKETS,
   S3_PREFIXES,
   PREFIX,
   keys,

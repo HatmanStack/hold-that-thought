@@ -33,6 +33,16 @@ Parameters:
     Type: String
     Description: S3 bucket for letters, media, and profile photos (single bucket architecture)
 
+  PhotoBucket:
+    Type: String
+    Description: S3 bucket for profile photos
+    Default: hold-test-photo
+
+  MediaBucket:
+    Type: String
+    Description: S3 bucket for media attachments
+    Default: hold-test-media
+
   SesFromEmail:
     Type: String
     Description: Email address to send notifications from (domain must be verified in SES)
@@ -263,6 +273,10 @@ Resources:
             TableName: !Ref TableName
         - S3CrudPolicy:
             BucketName: !Ref ArchiveBucket
+        - S3CrudPolicy:
+            BucketName: !Ref PhotoBucket
+        - S3CrudPolicy:
+            BucketName: !Ref MediaBucket
       Events:
         # Comments
         GetComments:
@@ -326,6 +340,11 @@ Resources:
           Properties:
             Path: /messages/{conversationId}/read
             Method: put
+        DeleteMessage:
+          Type: Api
+          Properties:
+            Path: /messages/{conversationId}/{messageId}
+            Method: delete
         # Profile
         GetProfile:
           Type: Api

@@ -1,10 +1,11 @@
-const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3')
-const { GetCommand, PutCommand, QueryCommand, UpdateCommand, BatchWriteCommand, BatchGetCommand } = require('@aws-sdk/lib-dynamodb')
+const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3')
+const { GetCommand, PutCommand, QueryCommand, UpdateCommand, DeleteCommand, BatchWriteCommand, BatchGetCommand } = require('@aws-sdk/lib-dynamodb')
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner')
 const { v4: uuidv4 } = require('uuid')
 const { docClient, TABLE_NAME, PREFIX, keys, BUCKETS, successResponse, errorResponse } = require('../utils')
 
 const s3Client = new S3Client({
+  region: process.env.AWS_REGION || 'us-west-2',
   requestChecksumCalculation: 'WHEN_REQUIRED',
   responseChecksumValidation: 'WHEN_REQUIRED',
 })
@@ -26,6 +27,14 @@ async function signPhotoUrl(photoUrl) {
 
 async function handle(event, context) {
   const { requesterId } = context
+
+  console.log('[messages] handle called:', {
+    method: event.httpMethod,
+    resource: event.resource,
+    path: event.path,
+    pathParameters: event.pathParameters,
+    requesterId
+  })
 
   if (!requesterId) {
     return errorResponse(401, 'Unauthorized: Missing user context')
@@ -62,6 +71,12 @@ async function handle(event, context) {
     return await markAsRead(event, requesterId)
   }
 
+  if (method === 'DELETE' && resource === '/messages/{conversationId}/{messageId}') {
+    console.log('[messages] DELETE route matched, calling deleteMessage')
+    return await deleteMessage(event, requesterId)
+  }
+
+  console.log('[messages] No route matched, returning 404')
   return errorResponse(404, 'Route not found')
 }
 
@@ -336,6 +351,77 @@ async function markAsRead(event, userId) {
       return errorResponse(403, 'You are not a member of this conversation')
     }
     console.error('Error marking conversation as read:', { conversationId, userId, error })
+    throw error
+  }
+}
+
+async function deleteMessage(event, userId) {
+  console.log('[deleteMessage] Function called')
+  console.log('[deleteMessage] pathParameters:', event.pathParameters)
+
+  // URL decode path parameters - API Gateway may pass them encoded
+  const conversationId = decodeURIComponent(event.pathParameters?.conversationId || '')
+  const messageId = decodeURIComponent(event.pathParameters?.messageId || '')
+
+  console.log('[deleteMessage] conversationId (decoded):', conversationId)
+  console.log('[deleteMessage] messageId (decoded):', messageId)
+  console.log('[deleteMessage] userId:', userId)
+
+  if (!conversationId || !messageId) {
+    console.log('[deleteMessage] Missing parameters, returning 400')
+    return errorResponse(400, 'Missing conversationId or messageId parameter')
+  }
+
+  try {
+    const messageKey = keys.message(conversationId, messageId)
+    console.log('[deleteMessage] Looking up message with key:', messageKey)
+
+    // Get the message to verify ownership and get attachment info
+    const messageResult = await docClient.send(new GetCommand({
+      TableName: TABLE_NAME,
+      Key: messageKey,
+    }))
+
+    console.log('[deleteMessage] DynamoDB GetCommand result:', messageResult.Item ? 'Found' : 'Not found')
+
+    if (!messageResult.Item) {
+      return errorResponse(404, 'Message not found')
+    }
+
+    const message = messageResult.Item
+
+    // Only the sender can delete their own message
+    if (message.senderId !== userId) {
+      return errorResponse(403, 'You can only delete your own messages')
+    }
+
+    // Delete attachments from S3 if any
+    if (message.attachments && message.attachments.length > 0) {
+      await Promise.all(
+        message.attachments.map(async attachment => {
+          if (attachment.s3Key) {
+            try {
+              await s3Client.send(new DeleteObjectCommand({
+                Bucket: BUCKETS.media,
+                Key: attachment.s3Key,
+              }))
+            } catch (e) {
+              console.warn('Failed to delete attachment from S3:', attachment.s3Key, e)
+            }
+          }
+        })
+      )
+    }
+
+    // Delete the message from DynamoDB
+    await docClient.send(new DeleteCommand({
+      TableName: TABLE_NAME,
+      Key: keys.message(conversationId, messageId),
+    }))
+
+    return successResponse({ message: 'Message deleted' })
+  } catch (error) {
+    console.error('Error deleting message:', { conversationId, messageId, userId, error })
     throw error
   }
 }

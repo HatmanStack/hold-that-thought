@@ -4,6 +4,7 @@ const { getSignedUrl } = require('@aws-sdk/s3-request-presigner')
 const { docClient, TABLE_NAME, PREFIX, keys, BUCKETS, checkRateLimit, validateUserId, validateLimit, sanitizeText, successResponse, errorResponse, rateLimitResponse } = require('../utils')
 
 const s3Client = new S3Client({
+  region: process.env.AWS_REGION || 'us-west-2',
   // Disable checksums for presigned URLs - browsers can't compute them
   requestChecksumCalculation: 'WHEN_REQUIRED',
   responseChecksumValidation: 'WHEN_REQUIRED',
@@ -18,12 +19,24 @@ async function signPhotoUrl(photoUrl) {
   // Extract bucket and key from S3 URL
   // Format: https://bucket.s3.region.amazonaws.com/key
   const match = photoUrl.match(/https:\/\/([^.]+)\.s3\.[^/]+\.amazonaws\.com\/(.+)/)
-  if (!match) return photoUrl // Return as-is if not S3 URL
+  if (!match) {
+    console.log('[signPhotoUrl] URL does not match S3 pattern, returning as-is:', photoUrl)
+    return photoUrl // Return as-is if not S3 URL
+  }
 
   const [, bucket, key] = match
+  console.log('[signPhotoUrl] Extracted bucket:', bucket, 'key:', key)
 
-  const command = new GetObjectCommand({ Bucket: bucket, Key: key })
-  return getSignedUrl(s3Client, command, { expiresIn: 3600 }) // 1 hour
+  try {
+    const command = new GetObjectCommand({ Bucket: bucket, Key: key })
+    const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 }) // 1 hour
+    console.log('[signPhotoUrl] Generated signed URL length:', signedUrl?.length)
+    console.log('[signPhotoUrl] Signed URL has query params:', signedUrl?.includes('?'))
+    return signedUrl
+  } catch (error) {
+    console.error('[signPhotoUrl] Error generating signed URL:', error)
+    return photoUrl // Fall back to original URL
+  }
 }
 
 async function handle(event, context) {
@@ -61,6 +74,7 @@ async function handle(event, context) {
 
 async function getProfile(event, requesterId, isAdmin) {
   const userId = event.pathParameters?.userId
+  console.log('[getProfile] Called for userId:', userId, 'by requesterId:', requesterId)
 
   if (!userId) {
     return errorResponse(400, 'Missing userId parameter')
@@ -77,11 +91,14 @@ async function getProfile(event, requesterId, isAdmin) {
       Key: keys.userProfile(userId),
     }))
 
+    console.log('[getProfile] DynamoDB result:', result.Item ? 'Found' : 'Not found')
+
     if (!result.Item || result.Item.entityType !== 'USER_PROFILE') {
       return errorResponse(404, 'Profile not found')
     }
 
     const profile = result.Item
+    console.log('[getProfile] Profile profilePhotoUrl from DB:', profile.profilePhotoUrl)
 
     if (profile.isProfilePrivate && userId !== requesterId && !isAdmin) {
       return errorResponse(403, 'This profile is private')
@@ -90,6 +107,7 @@ async function getProfile(event, requesterId, isAdmin) {
     // Return clean profile object (strip PK/SK)
     // Sign photo URL for private bucket access
     const signedPhotoUrl = await signPhotoUrl(profile.profilePhotoUrl)
+    console.log('[getProfile] Signed photo URL:', signedPhotoUrl ? signedPhotoUrl.substring(0, 100) + '...' : null)
 
     return successResponse({
       userId: profile.userId,
@@ -110,7 +128,7 @@ async function getProfile(event, requesterId, isAdmin) {
       notifyOnComment: profile.notifyOnComment !== false,
     })
   } catch (error) {
-    console.error('Error fetching profile:', { userId, error })
+    console.error('[getProfile] Error fetching profile:', { userId, error })
     throw error
   }
 }
