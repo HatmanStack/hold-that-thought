@@ -12,8 +12,8 @@ const BASE_URL = process.env.BASE_URL || 'https://holdthatthought.family'
 
 const PREFIX = {
   USER: 'USER#',
-  ITEM: 'ITEM#',
 }
+const SK_PROFILE = 'PROFILE'
 
 exports.handler = async (event) => {
   for (const record of event.Records) {
@@ -51,7 +51,7 @@ async function getUserProfile(userId) {
       TableName: TABLE_NAME,
       Key: {
         PK: `${PREFIX.USER}${userId}`,
-        SK: `${PREFIX.USER}${userId}`,
+        SK: SK_PROFILE,
       },
     }))
     return result.Item
@@ -144,113 +144,95 @@ async function processMessageNotification(newImage) {
 
 /**
  * Process comment notification
- * Two cases:
- * 1. Notify item owner when someone comments on their item
- * 2. Notify parent comment author when someone replies
+ * Notify all users who have previously commented on this item
  */
 async function processCommentNotification(newImage) {
   const itemId = newImage.itemId?.S
+  const itemType = newImage.itemType?.S || 'letter'
   const commenterId = newImage.userId?.S
   const commenterName = newImage.userName?.S || 'Someone'
   const commentText = newImage.commentText?.S || ''
   const itemTitle = newImage.itemTitle?.S || 'an item'
-  const parentCommentId = newImage.parentCommentId?.S
-  const parentCommentUserId = newImage.parentCommentUserId?.S
-  const itemOwnerId = newImage.itemOwnerId?.S
+
+  // Get list of previous commenters from the comment record
+  const previousCommenters = newImage.previousCommenters?.L?.map(item => item.S) || []
 
   if (!commenterId) {
     console.log('Missing commenterId, skipping notification')
     return
   }
 
+  if (previousCommenters.length === 0) {
+    console.log('No previous commenters to notify')
+    return
+  }
+
   const notifiedUsers = new Set()
 
-  // Case 1: Notify item owner (if not the commenter)
-  if (itemOwnerId && itemOwnerId !== commenterId && !notifiedUsers.has(itemOwnerId)) {
+  // Build the item URL based on type
+  const itemUrl = itemType === 'media'
+    ? `${BASE_URL}/gallery`
+    : `${BASE_URL}/letters/${itemId}`
+
+  // Notify all previous commenters
+  for (const previousUserId of previousCommenters) {
+    // Skip if already notified or if it's the commenter themselves
+    if (previousUserId === commenterId || notifiedUsers.has(previousUserId)) {
+      continue
+    }
+
     try {
-      const ownerProfile = await getUserProfile(itemOwnerId)
+      const profile = await getUserProfile(previousUserId)
 
-      if (ownerProfile && ownerProfile.notifyOnComment !== false) {
-        const email = getNotificationEmail(ownerProfile)
-
-        if (email) {
-          const subject = `${commenterName} commented on ${itemTitle}`
-          const preview = commentText.length > 100 ? commentText.substring(0, 100) + '...' : commentText
-          const itemUrl = `${BASE_URL}/letters/${itemId}`
-
-          const bodyHtml = `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #333;">${escapeHtml(commenterName)} commented on "${escapeHtml(itemTitle)}"</h2>
-              <div style="background: #f5f5f5; padding: 16px; border-radius: 8px; margin: 16px 0;">
-                <p style="margin: 0; color: #555;">${escapeHtml(preview)}</p>
-              </div>
-              <p>
-                <a href="${itemUrl}" style="display: inline-block; background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
-                  View Comment
-                </a>
-              </p>
-              <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-              <p style="color: #888; font-size: 12px;">
-                You received this email because you have comment notifications enabled.
-                <a href="${BASE_URL}/profile/settings" style="color: #888;">Manage notification settings</a>
-              </p>
-            </div>
-          `
-
-          await sendEmail(email, subject, bodyHtml)
-          notifiedUsers.add(itemOwnerId)
-          console.log(`Comment notification sent to item owner ${maskEmail(email)}`)
-        }
+      if (!profile) {
+        console.log(`No profile found for user ${previousUserId}, skipping`)
+        continue
       }
+
+      if (profile.notifyOnComment === false) {
+        console.log(`User ${previousUserId} has comment notifications disabled`)
+        continue
+      }
+
+      const email = getNotificationEmail(profile)
+      if (!email) {
+        console.log(`No email for user ${previousUserId}, skipping`)
+        continue
+      }
+
+      const subject = `New comment on "${itemTitle}"`
+      const preview = commentText.length > 100 ? commentText.substring(0, 100) + '...' : commentText
+
+      const bodyHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #333;">${escapeHtml(commenterName)} commented on "${escapeHtml(itemTitle)}"</h2>
+          <p style="color: #666;">An item you've also commented on</p>
+          <div style="background: #f5f5f5; padding: 16px; border-radius: 8px; margin: 16px 0;">
+            <p style="margin: 0; color: #555;">${escapeHtml(preview)}</p>
+          </div>
+          <p>
+            <a href="${itemUrl}" style="display: inline-block; background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
+              View Comment
+            </a>
+          </p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+          <p style="color: #888; font-size: 12px;">
+            You received this email because you commented on this item and have notifications enabled.
+            <a href="${BASE_URL}/profile/settings" style="color: #888;">Manage notification settings</a>
+          </p>
+        </div>
+      `
+
+      await sendEmail(email, subject, bodyHtml)
+      notifiedUsers.add(previousUserId)
+      console.log(`Comment notification sent to previous commenter ${maskEmail(email)}`)
     }
     catch (err) {
-      console.error(`Error sending notification to item owner ${itemOwnerId}: ${err.message}`)
+      console.error(`Error sending notification to ${previousUserId}: ${err.message}`)
     }
   }
 
-  // Case 2: Notify parent comment author (if this is a reply)
-  if (parentCommentUserId && parentCommentUserId !== commenterId && !notifiedUsers.has(parentCommentUserId)) {
-    try {
-      const parentProfile = await getUserProfile(parentCommentUserId)
-
-      if (parentProfile && parentProfile.notifyOnComment !== false) {
-        const email = getNotificationEmail(parentProfile)
-
-        if (email) {
-          const subject = `${commenterName} replied to your comment`
-          const preview = commentText.length > 100 ? commentText.substring(0, 100) + '...' : commentText
-          const itemUrl = `${BASE_URL}/letters/${itemId}`
-
-          const bodyHtml = `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #333;">${escapeHtml(commenterName)} replied to your comment</h2>
-              <p style="color: #666;">On "${escapeHtml(itemTitle)}"</p>
-              <div style="background: #f5f5f5; padding: 16px; border-radius: 8px; margin: 16px 0;">
-                <p style="margin: 0; color: #555;">${escapeHtml(preview)}</p>
-              </div>
-              <p>
-                <a href="${itemUrl}" style="display: inline-block; background: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
-                  View Reply
-                </a>
-              </p>
-              <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-              <p style="color: #888; font-size: 12px;">
-                You received this email because you have comment notifications enabled.
-                <a href="${BASE_URL}/profile/settings" style="color: #888;">Manage notification settings</a>
-              </p>
-            </div>
-          `
-
-          await sendEmail(email, subject, bodyHtml)
-          notifiedUsers.add(parentCommentUserId)
-          console.log(`Reply notification sent to ${maskEmail(email)}`)
-        }
-      }
-    }
-    catch (err) {
-      console.error(`Error sending reply notification to ${parentCommentUserId}: ${err.message}`)
-    }
-  }
+  console.log(`Notified ${notifiedUsers.size} previous commenters`)
 }
 
 /**

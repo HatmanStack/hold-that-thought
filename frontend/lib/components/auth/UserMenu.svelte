@@ -10,6 +10,38 @@
   let showDropdown = false
   let updateInterval: number | null = null
   let userProfilePhotoUrl: string | null = null
+  let lastFetchUserId: string | null = null
+
+  // Reset state when user logs out
+  $: if (!$isAuthenticated) {
+    lastFetchUserId = null
+    userProfilePhotoUrl = null
+  }
+
+  // Reactively fetch profile photo when currentUser becomes available or changes
+  $: if ($isAuthenticated && $currentUser?.sub && lastFetchUserId !== $currentUser.sub) {
+    lastFetchUserId = $currentUser.sub
+    userProfilePhotoUrl = null // Clear old photo to prevent stale display
+    fetchProfilePhoto($currentUser.sub)
+  }
+
+  async function fetchProfilePhoto(userId: string) {
+    try {
+      const result = await getProfile(userId)
+      // Only update if the current user matches the one we fetched for
+      if ($currentUser?.sub === userId) {
+        if (result.success && result.data) {
+          const profile = Array.isArray(result.data) ? result.data[0] : result.data
+          if (profile?.profilePhotoUrl) {
+            userProfilePhotoUrl = profile.profilePhotoUrl
+          }
+        }
+      }
+    }
+    catch (e) {
+      console.error('Error fetching profile photo:', e)
+    }
+  }
 
   async function handleSignOut() {
     try {
@@ -42,26 +74,10 @@
     showDropdown = false
   }
 
-  onMount(async () => {
+  onMount(() => {
     // Update unread count immediately
     if ($isAuthenticated) {
       updateUnreadCount()
-
-      // Fetch user's profile to get their profile photo
-      if ($currentUser?.sub) {
-        try {
-          const result = await getProfile($currentUser.sub)
-          if (result.success && result.data) {
-            const profile = Array.isArray(result.data) ? result.data[0] : result.data
-            if (profile?.profilePhotoUrl) {
-              userProfilePhotoUrl = profile.profilePhotoUrl
-            }
-          }
-        }
- catch (e) {
-          // Silently fail - will fall back to OAuth picture or initials
-        }
-      }
 
       // Update every 60 seconds
       updateInterval = window.setInterval(() => {
@@ -81,7 +97,7 @@
 
 {#if $isAuthenticated && $currentUser}
   <div class='dropdown dropdown-end'>
-    <div tabindex='0' role='button' class='btn btn-ghost btn-circle avatar' on:click={toggleDropdown}>
+    <button type='button' tabindex='0' class='btn btn-ghost btn-circle avatar' on:click={toggleDropdown}>
       <div class='w-10 rounded-full overflow-hidden'>
         {#if userProfilePhotoUrl}
           <img src={userProfilePhotoUrl} alt='Profile' class='w-full h-full object-cover' />
@@ -95,7 +111,7 @@
           </div>
         {/if}
       </div>
-    </div>
+    </button>
 
     {#if showDropdown}
       <!-- svelte-ignore a11y-no-noninteractive-tabindex -->

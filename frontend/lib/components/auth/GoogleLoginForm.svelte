@@ -21,9 +21,9 @@
   }
 </script>
 
-<div class='card w-full mx-auto bg-base-100 shadow-xl max-w-md'>
+<div class='w-full bg-base-100 card mx-auto shadow-xl max-w-md'>
   <div class='card-body'>
-    <h2 class='justify-center card-title mb-4'>Sign In</h2>
+    <h2 class='justify-center mb-4 card-title'>Sign In</h2>
 
     <!-- Google OAuth Only -->
     <div class='space-y-4'>
@@ -43,14 +43,14 @@
     </div>
 
     {#if error}
-      <div class='alert alert-error mt-4'>
+      <div class='mt-4 alert alert-error'>
         <span>{error}</span>
       </div>
     {/if}
 
     <div class='divider'>Access Information</div>
 
-    <div class='text-center space-y-2'>
+    <div class='space-y-2 text-center'>
       <div class='alert alert-info'>
         <svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' class='w-6 h-6 stroke-current shrink-0'>
           <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'></path>

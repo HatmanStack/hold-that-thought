@@ -1,6 +1,7 @@
 <script lang='ts'>
   import type { Conversation } from '$lib/types/message'
-  import { getConversations } from '$lib/services/messageService'
+  import { currentUser } from '$lib/auth/auth-store'
+  import { deleteConversation, getConversations } from '$lib/services/messageService'
   import { createEventDispatcher, onMount } from 'svelte'
 
   const dispatch = createEventDispatcher()
@@ -11,6 +12,7 @@
   let lastEvaluatedKey: string | undefined
   let loadingMore = false
   let hasMore = false
+  let deletingId: string | null = null
 
   /**
    * Format timestamp as relative time (e.g., "2 hours ago")
@@ -69,6 +71,34 @@
    */
   function handleConversationClick(conversation: Conversation) {
     dispatch('conversationSelected', { conversationId: conversation.conversationId })
+  }
+
+  /**
+   * Handle conversation delete
+   */
+  async function handleDeleteConversation(event: MouseEvent, conversationId: string) {
+    event.stopPropagation() // Prevent opening the conversation
+
+    if (!confirm('Are you sure you want to delete this entire conversation? This cannot be undone.')) {
+      return
+    }
+
+    deletingId = conversationId
+    try {
+      const result = await deleteConversation(conversationId)
+      if (result.success) {
+        conversations = conversations.filter(c => c.conversationId !== conversationId)
+      }
+      else {
+        alert(result.error || 'Failed to delete conversation')
+      }
+    }
+    catch (error) {
+      alert('Failed to delete conversation')
+    }
+    finally {
+      deletingId = null
+    }
   }
 
   /**
@@ -152,7 +182,7 @@
       <div class='space-y-3'>
         {#each Array.from({ length: 5 }) as _}
           <div class='flex gap-3 p-3 animate-pulse'>
-            <div class='w-12 h-12 rounded-full bg-base-300'></div>
+            <div class='h-12 rounded-full w-12 bg-base-300'></div>
             <div class='flex-1'>
               <div class='h-4 bg-base-300 mb-2 rounded w-1/3'></div>
               <div class='bg-base-300 rounded w-full mb-1 h-3'></div>
@@ -206,7 +236,7 @@
       <div class='space-y-2'>
         {#each conversations as conversation}
           <button
-            class='w-full text-left p-3 rounded-lg flex gap-2 relative sm:p-4 hover:bg-base-200 active:bg-base-300 transition-colors sm:gap-3 items-start min-h-[3.5rem]'
+            class='w-full text-left p-3 rounded-lg flex gap-2 relative group sm:p-4 hover:bg-base-200 active:bg-base-300 transition-colors sm:gap-3 items-start min-h-[3.5rem]'
             on:click={() => handleConversationClick(conversation)}
           >
             <!-- Avatar placeholder -->
@@ -246,6 +276,25 @@
               <div class='badge badge-primary badge-xs absolute sm:badge-sm top-3 right-3'>
                 {conversation.unreadCount}
               </div>
+            {/if}
+
+            <!-- Delete button (for creator) -->
+            {#if $currentUser && conversation.creatorId === $currentUser.sub}
+              <button
+                class='btn btn-ghost btn-xs btn-circle absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity'
+                class:opacity-100={deletingId === conversation.conversationId}
+                title='Delete Conversation'
+                disabled={deletingId === conversation.conversationId}
+                on:click={e => handleDeleteConversation(e, conversation.conversationId)}
+              >
+                {#if deletingId === conversation.conversationId}
+                  <span class='loading loading-spinner loading-xs'></span>
+                {:else}
+                  <svg xmlns='http://www.w3.org/2000/svg' class='h-4 w-4 text-error' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                    <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16' />
+                  </svg>
+                {/if}
+              </button>
             {/if}
           </button>
         {/each}

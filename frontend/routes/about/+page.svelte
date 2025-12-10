@@ -91,38 +91,38 @@
         <h2 class='text-2xl font-semibold mb-6 text-center'>Family Memories</h2>
 
         <div class='grid gap-4 md:grid-cols-2 lg:grid-cols-2'>
-          <div class='bg-base-100 rounded-lg overflow-hidden cursor-pointer aspect-square' on:click={() => openImage('https://lh3.googleusercontent.com/d/1fukAZoTgC7tUhEMXvak2H9KsY5OLLKrY', 'Family memory 1')}>
+          <button type='button' class='bg-base-100 rounded-lg overflow-hidden cursor-pointer text-left p-0 aspect-square border-0' on:click={() => openImage('https://lh3.googleusercontent.com/d/1fukAZoTgC7tUhEMXvak2H9KsY5OLLKrY', 'Family memory 1')}>
             <img
               src='https://lh3.googleusercontent.com/d/1fukAZoTgC7tUhEMXvak2H9KsY5OLLKrY'
               alt='Family memory 1'
               class='w-full h-full object-cover transition-transform duration-300 hover:scale-105'
               loading='lazy'
             />
-          </div>
-          <div class='aspect-square bg-base-100 rounded-lg overflow-hidden cursor-pointer' on:click={() => openImage('https://lh3.googleusercontent.com/d/1S6nR4utenCA14w6Q6K3uJUtkuZZppUfB', 'Family memory 2')}>
+          </button>
+          <button type='button' class='aspect-square bg-base-100 rounded-lg overflow-hidden cursor-pointer text-left p-0 border-0' on:click={() => openImage('https://lh3.googleusercontent.com/d/1S6nR4utenCA14w6Q6K3uJUtkuZZppUfB', 'Family memory 2')}>
             <img
               src='https://lh3.googleusercontent.com/d/1S6nR4utenCA14w6Q6K3uJUtkuZZppUfB'
               alt='Family memory 2'
               class='w-full h-full object-cover hover:scale-105 transition-transform duration-300'
               loading='lazy'
             />
-          </div>
-          <div class='aspect-square bg-base-100 rounded-lg overflow-hidden cursor-pointer' on:click={() => openImage('https://lh3.googleusercontent.com/d/19JL_tiCKAjCoj-m73WEdTFyGWK2NduLT', 'Family memory 3')}>
+          </button>
+          <button type='button' class='aspect-square bg-base-100 rounded-lg overflow-hidden cursor-pointer text-left p-0 border-0' on:click={() => openImage('https://lh3.googleusercontent.com/d/19JL_tiCKAjCoj-m73WEdTFyGWK2NduLT', 'Family memory 3')}>
             <img
               src='https://lh3.googleusercontent.com/d/19JL_tiCKAjCoj-m73WEdTFyGWK2NduLT'
               alt='Family memory 3'
               class='w-full h-full object-cover hover:scale-105 transition-transform duration-300'
               loading='lazy'
             />
-          </div>
-          <div class='aspect-square bg-base-100 rounded-lg overflow-hidden cursor-pointer' on:click={() => openImage('https://lh3.googleusercontent.com/d/1J_9F0Yk9YkBBSKSkVsc9e-oWlEMgCaC1', 'Family memory 4')}>
+          </button>
+          <button type='button' class='aspect-square bg-base-100 rounded-lg overflow-hidden cursor-pointer text-left p-0 border-0' on:click={() => openImage('https://lh3.googleusercontent.com/d/1J_9F0Yk9YkBBSKSkVsc9e-oWlEMgCaC1', 'Family memory 4')}>
             <img
               src='https://lh3.googleusercontent.com/d/1J_9F0Yk9YkBBSKSkVsc9e-oWlEMgCaC1'
               alt='Family memory 4'
               class='w-full h-full object-cover hover:scale-105 transition-transform duration-300'
               loading='lazy'
             />
-          </div>
+          </button>
         </div>
       </section>
 
@@ -145,16 +145,19 @@
 
 <!-- Image Modal -->
 {#if selectedImage}
-  <div
-    class='fixed inset-0 bg-black flex items-center justify-center z-50 p-4 bg-opacity-75'
+  <button
+    type='button'
+    class='fixed inset-0 bg-black flex items-center justify-center z-50 p-4 w-full h-full border-none bg-opacity-75 cursor-default'
     on:click={closeImage}
     on:keydown={handleKeydown}
-    tabindex='0'
-    role='dialog'
-    aria-modal='true'
-    aria-label='Expanded family photo'
+    aria-label='Close expanded family photo'
   >
-    <div class='relative max-w-4xl max-h-full'>
+    <div
+      class='relative max-w-4xl max-h-full'
+      role='presentation'
+      on:click|stopPropagation={() => {}}
+      on:keydown|stopPropagation={() => {}}
+    >
       <!-- Close button -->
       <button
         class='absolute btn btn-circle btn-sm bg-black bg-opacity-50 border-none z-10 top-4 right-4 text-white hover:bg-opacity-75'
@@ -171,10 +174,9 @@
         src={selectedImage}
         alt={selectedImageAlt || 'Family memory'}
         class='max-w-full max-h-full rounded-lg shadow-2xl object-contain'
-        on:click|stopPropagation
       />
     </div>
-  </div>
+  </button>
 {/if}
 
 <!-- Add keyboard event listener to window -->

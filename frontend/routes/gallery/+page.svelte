@@ -278,7 +278,11 @@
     <!-- Media Grid -->
     <div class='grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'>
       {#each mediaItems as item (item.id)}
-        <div class='card bg-base-100 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer' on:click={() => openMediaItem(item)}>
+        <button
+          type='button'
+          class='card bg-base-100 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer text-left p-0 border-0 w-full'
+          on:click={() => openMediaItem(item)}
+        >
           <figure class='aspect-square bg-base-200 relative overflow-hidden'>
             {#if selectedSection === 'pictures'}
               {#if item.thumbnailUrl}
@@ -321,7 +325,7 @@
             {/if}
 
             <!-- File size badge -->
-            <div class='absolute badge badge-sm text-white border-none top-2 right-2 bg-black/50'>
+            <div class='absolute badge badge-sm text-white border-none right-2 top-2 bg-black/50'>
               {formatFileSize(item.fileSize)}
             </div>
           </figure>
@@ -335,7 +339,7 @@
               {formatDate(item.uploadDate)}
             </div>
           </div>
-        </div>
+        </button>
       {/each}
     </div>
   {/if}

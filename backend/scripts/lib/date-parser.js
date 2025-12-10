@@ -19,7 +19,7 @@ const MONTHS = {
 }
 
 // Valid year range for letters
-const MIN_YEAR = 1990
+const MIN_YEAR = 1950
 const MAX_YEAR = 2025
 
 /**
@@ -89,10 +89,38 @@ function parseMonth(monthStr) {
 }
 
 /**
+ * Extract date from frontmatter 'created' field
+ * @param {string} content - Full markdown content
+ * @returns {string|null} ISO date string or null
+ */
+function extractDateFromFrontmatter(content) {
+  if (!content || !content.startsWith('---')) return null
+
+  const secondDelimiter = content.indexOf('---', 3)
+  if (secondDelimiter === -1) return null
+
+  const frontmatter = content.slice(3, secondDelimiter)
+
+  // Look for created: 'YYYY-MM-DD' or created: "YYYY-MM-DD" (allows single digit month/day)
+  const match = frontmatter.match(/created:\s*['"]?(\d{4})-(\d{1,2})-(\d{1,2})['"]?/)
+  if (match) {
+    const year = parseInt(match[1])
+    const month = parseInt(match[2])
+    const day = parseInt(match[3])
+    const normalized = normalizeDate(year, month, day)
+    if (normalized) return normalized
+  }
+
+  return null
+}
+
+/**
  * Extract date from markdown content
- * Searches the first 10 lines of body content (after frontmatter) for date patterns.
+ * First checks frontmatter 'created' field, then searches the first 10 lines
+ * of body content for date patterns.
  *
  * Supported formats:
+ * - Frontmatter: created: '2001-09-14'
  * - "Feb. 10. 2016" (abbreviated month with periods)
  * - "February 10, 2016" (full month name)
  * - "Feb 10, 2016" (abbreviated month without period)
@@ -106,7 +134,11 @@ function parseMonth(monthStr) {
 export function extractDate(content) {
   if (!content) return null
 
-  // Strip frontmatter first
+  // Try frontmatter first
+  const frontmatterDate = extractDateFromFrontmatter(content)
+  if (frontmatterDate) return frontmatterDate
+
+  // Strip frontmatter and search body
   const body = stripFrontmatterForParsing(content)
 
   // Get first 10 lines only

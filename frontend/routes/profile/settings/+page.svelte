@@ -484,7 +484,7 @@
               <div>
                 <span class='label-text font-semibold'>Comment notifications</span>
                 <p class='text-xs text-base-content/60 mt-1'>
-                  Get notified when someone comments on your items or replies to your comments
+                  Get notified when someone comments on items you've commented on
                 </p>
               </div>
             </label>

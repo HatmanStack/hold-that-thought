@@ -6,6 +6,7 @@
   "author": "Galliart Family",
   "license": "UNLICENSED",
   "scripts": {
+    "start": "npm run dev",
     "build": "cross-env NODE_OPTIONS=--max_old_space_size=7680 vite build",
     "check": "npm run check:types && npm run check:lint && npm run check:test",
     "check:types": "svelte-check --tsconfig ./tsconfig.json",

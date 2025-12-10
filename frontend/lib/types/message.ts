@@ -22,6 +22,7 @@ export interface Conversation {
   unreadCount: number
   conversationTitle?: string // For groups
   lastMessagePreview?: string // For display in conversation list
+  creatorId?: string
 }
 
 export interface Attachment {
@@ -35,9 +36,11 @@ export interface Attachment {
 
 export interface MessageApiResponse {
   success: boolean
-  data?: Message | Message[]
+  data?: Message[] | any
   error?: string
   lastEvaluatedKey?: string
+  creatorId?: string
+  conversationTitle?: string
 }
 
 export interface ConversationApiResponse {

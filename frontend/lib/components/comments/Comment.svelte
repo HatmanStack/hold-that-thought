@@ -127,9 +127,9 @@
     const previousCount = reactionCount
     const previousHasReacted = hasReacted
     hasReacted = !hasReacted
-    reactionCount += hasReacted ? 1 : -1
+    reactionCount = Math.max(0, reactionCount + (hasReacted ? 1 : -1))
 
-    const result = await toggleReaction(comment.commentId)
+    const result = await toggleReaction(comment.commentId, comment.itemId)
 
     if (!result.success) {
       // Revert on error
@@ -148,7 +148,7 @@
   }
 </script>
 
-<div class='py-4 comment-item' on:keydown={handleKeydown}>
+<div class='py-4 comment-item' on:keydown={handleKeydown} role='group'>
   <div class='flex gap-3'>
     <!-- Avatar -->
     <div class='flex-shrink-0'>

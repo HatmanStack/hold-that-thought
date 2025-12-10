@@ -1,10 +1,11 @@
-const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3')
-const { GetCommand, PutCommand, QueryCommand, UpdateCommand, BatchWriteCommand, BatchGetCommand } = require('@aws-sdk/lib-dynamodb')
+const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3')
+const { GetCommand, PutCommand, QueryCommand, UpdateCommand, DeleteCommand, BatchWriteCommand, BatchGetCommand } = require('@aws-sdk/lib-dynamodb')
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner')
 const { v4: uuidv4 } = require('uuid')
-const { docClient, TABLE_NAME, PREFIX, keys, BUCKETS, successResponse, errorResponse } = require('../utils')
+const { docClient, TABLE_NAME, PREFIX, keys, ARCHIVE_BUCKET, successResponse, errorResponse } = require('../utils')
 
 const s3Client = new S3Client({
+  region: process.env.AWS_REGION || 'us-west-2',
   requestChecksumCalculation: 'WHEN_REQUIRED',
   responseChecksumValidation: 'WHEN_REQUIRED',
 })
@@ -26,6 +27,14 @@ async function signPhotoUrl(photoUrl) {
 
 async function handle(event, context) {
   const { requesterId } = context
+
+  console.log('[messages] handle called:', {
+    method: event.httpMethod,
+    resource: event.resource,
+    path: event.path,
+    pathParameters: event.pathParameters,
+    requesterId
+  })
 
   if (!requesterId) {
     return errorResponse(401, 'Unauthorized: Missing user context')
@@ -62,6 +71,16 @@ async function handle(event, context) {
     return await markAsRead(event, requesterId)
   }
 
+  if (method === 'DELETE' && resource === '/messages/{conversationId}') {
+    return await deleteConversation(event, requesterId)
+  }
+
+  if (method === 'DELETE' && resource === '/messages/{conversationId}/{messageId}') {
+    console.log('[messages] DELETE route matched, calling deleteMessage')
+    return await deleteMessage(event, requesterId)
+  }
+
+  console.log('[messages] No route matched, returning 404')
   return errorResponse(404, 'Route not found')
 }
 
@@ -89,6 +108,7 @@ async function listConversations(userId) {
         lastMessageAt: item.lastMessageAt,
         unreadCount: item.unreadCount || 0,
         conversationTitle: item.conversationTitle,
+        creatorId: item.creatorId,
       }))
 
     return successResponse({ conversations })
@@ -145,7 +165,7 @@ async function getMessages(event, userId) {
             (item.attachments || []).map(async attachment => {
               if (attachment.s3Key) {
                 const command = new GetObjectCommand({
-                  Bucket: BUCKETS.media,
+                  Bucket: ARCHIVE_BUCKET,
                   Key: attachment.s3Key,
                 })
                 const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 })
@@ -170,6 +190,8 @@ async function getMessages(event, userId) {
 
     return successResponse({
       messages,
+      creatorId: memberCheck.Item.creatorId,
+      conversationTitle: memberCheck.Item.conversationTitle,
       lastEvaluatedKey: result.LastEvaluatedKey
         ? Buffer.from(JSON.stringify(result.LastEvaluatedKey)).toString('base64')
         : null,
@@ -211,6 +233,7 @@ async function createConversation(event, userId) {
           entityType: 'CONVERSATION_MEMBER',
           conversationId,
           conversationType,
+          creatorId: userId,
           participantIds: new Set(participantIds),
           participantNames: new Set(participantNames),
           lastMessageAt: now,
@@ -220,7 +243,22 @@ async function createConversation(event, userId) {
       },
     }))
 
-    // Batch write memberships
+    // Add Conversation Meta record
+    memberRecords.push({
+      PutRequest: {
+        Item: {
+          ...keys.conversationMeta(conversationId),
+          entityType: 'CONVERSATION_META',
+          creatorId: userId,
+          createdAt: now,
+          conversationType,
+          participantIds: new Set(participantIds),
+          conversationTitle: conversationTitle || null,
+        }
+      }
+    })
+
+    // Batch write memberships and meta
     for (let i = 0; i < memberRecords.length; i += 25) {
       await docClient.send(new BatchWriteCommand({
         RequestItems: { [TABLE_NAME]: memberRecords.slice(i, i + 25) },
@@ -300,7 +338,7 @@ async function generateUploadUrl(event, userId) {
     const key = `messages/attachments/${userId}/${uuidv4()}_${fileName}`
 
     const command = new PutObjectCommand({
-      Bucket: BUCKETS.media,
+      Bucket: ARCHIVE_BUCKET,
       Key: key,
       ContentType: contentType,
     })
@@ -336,6 +374,216 @@ async function markAsRead(event, userId) {
       return errorResponse(403, 'You are not a member of this conversation')
     }
     console.error('Error marking conversation as read:', { conversationId, userId, error })
+    throw error
+  }
+}
+
+async function deleteConversation(event, userId) {
+  const conversationId = decodeURIComponent(event.pathParameters?.conversationId || '')
+
+  if (!conversationId) {
+    return errorResponse(400, 'Missing conversationId parameter')
+  }
+
+  try {
+    // 1. Check if user is the creator
+    // We can check the META record or the user's membership record
+    // Using META record is more reliable for the source of truth
+    const metaKey = keys.conversationMeta(conversationId)
+    const metaResult = await docClient.send(new GetCommand({
+      TableName: TABLE_NAME,
+      Key: metaKey,
+    }))
+
+    // If no meta record (legacy conversation), check the user's membership to see if they are a participant
+    // For legacy, we might restrict deletion or allow if they are the "first" participant?
+    // For now, strict check: must have creatorId matching requester
+    
+    let isCreator = false
+    let participantIds = []
+
+    if (metaResult.Item) {
+      if (metaResult.Item.creatorId !== userId) {
+        return errorResponse(403, 'Only the conversation creator can delete it')
+      }
+      isCreator = true
+      participantIds = Array.from(metaResult.Item.participantIds || [])
+    } else {
+      // Fallback: Check user membership. If they created it recently (after we added creatorId to member), it might be there.
+      const memberResult = await docClient.send(new GetCommand({
+        TableName: TABLE_NAME,
+        Key: keys.userConversation(userId, conversationId),
+      }))
+      
+      if (!memberResult.Item) {
+        return errorResponse(404, 'Conversation not found')
+      }
+
+      if (memberResult.Item.creatorId === userId) {
+        isCreator = true
+        participantIds = Array.from(memberResult.Item.participantIds || [])
+      } else {
+        // If it's a legacy conversation without creatorId, we block deletion for safety
+        // unless we want to allow participants to "leave" (delete for themselves)?
+        // The requirement is "delete the entire message", implying deletion for everyone.
+        return errorResponse(403, 'Cannot delete legacy conversation or not the creator')
+      }
+    }
+
+    // 2. Delete all items
+    const deleteOps = []
+
+    // A. Delete User Memberships
+    if (participantIds.length > 0) {
+      participantIds.forEach(pid => {
+        deleteOps.push({
+          DeleteRequest: {
+            Key: keys.userConversation(pid, conversationId)
+          }
+        })
+      })
+    }
+
+    // B. Delete Conversation Meta
+    deleteOps.push({
+      DeleteRequest: {
+        Key: metaKey
+      }
+    })
+
+    // C. Delete All Messages
+    // We need to query all messages first
+    let messageItems = []
+    let lastEvaluatedKey = undefined
+
+    do {
+      const msgs = await docClient.send(new QueryCommand({
+        TableName: TABLE_NAME,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
+        ExpressionAttributeValues: {
+          ':pk': `${PREFIX.CONV}${conversationId}`,
+          ':skPrefix': PREFIX.MSG,
+        },
+        ExclusiveStartKey: lastEvaluatedKey,
+      }))
+      
+      if (msgs.Items) {
+        messageItems = [...messageItems, ...msgs.Items]
+      }
+      lastEvaluatedKey = msgs.LastEvaluatedKey
+    } while (lastEvaluatedKey)
+
+    // Add messages to delete ops
+    messageItems.forEach(msg => {
+      deleteOps.push({
+        DeleteRequest: {
+          Key: { PK: msg.PK, SK: msg.SK }
+        }
+      })
+      
+      // Also delete attachments from S3 if any
+      if (msg.attachments && msg.attachments.length > 0) {
+        msg.attachments.forEach(att => {
+          if (att.s3Key) {
+             // Fire and forget S3 delete
+             s3Client.send(new DeleteObjectCommand({
+               Bucket: ARCHIVE_BUCKET,
+               Key: att.s3Key
+             })).catch(e => console.warn('Failed to delete attachment', att.s3Key, e))
+          }
+        })
+      }
+    })
+
+    // Execute Batch Writes (max 25 items per batch) with retry for UnprocessedItems
+    for (let i = 0; i < deleteOps.length; i += 25) {
+      let unprocessed = deleteOps.slice(i, i + 25)
+      let retries = 0
+
+      while (unprocessed.length > 0 && retries < 3) {
+        const result = await docClient.send(new BatchWriteCommand({
+          RequestItems: {
+            [TABLE_NAME]: unprocessed
+          }
+        }))
+
+        unprocessed = result.UnprocessedItems?.[TABLE_NAME] || []
+        if (unprocessed.length > 0) {
+          retries++
+          // Exponential backoff
+          await new Promise(r => setTimeout(r, 100 * Math.pow(2, retries)))
+        }
+      }
+
+      if (unprocessed.length > 0) {
+        console.error('Failed to delete items after retries:', unprocessed.length, 'items remaining')
+      }
+    }
+
+    return successResponse({ message: 'Conversation deleted' })
+
+  } catch (error) {
+    console.error('Error deleting conversation:', { conversationId, userId, error })
+    throw error
+  }
+}
+
+async function deleteMessage(event, userId) {
+  // URL decode path parameters - API Gateway may pass them encoded
+  const conversationId = decodeURIComponent(event.pathParameters?.conversationId || '')
+  const messageId = decodeURIComponent(event.pathParameters?.messageId || '')
+
+  if (!conversationId || !messageId) {
+    return errorResponse(400, 'Missing conversationId or messageId parameter')
+  }
+
+  try {
+    const messageKey = keys.message(conversationId, messageId)
+
+    // Get the message to verify ownership and get attachment info
+    const messageResult = await docClient.send(new GetCommand({
+      TableName: TABLE_NAME,
+      Key: messageKey,
+    }))
+
+    if (!messageResult.Item) {
+      return errorResponse(404, 'Message not found')
+    }
+
+    const message = messageResult.Item
+
+    // Only the sender can delete their own message
+    if (message.senderId !== userId) {
+      return errorResponse(403, 'You can only delete your own messages')
+    }
+
+    // Delete attachments from S3 if any
+    if (message.attachments && message.attachments.length > 0) {
+      await Promise.all(
+        message.attachments.map(async attachment => {
+          if (attachment.s3Key) {
+            try {
+              await s3Client.send(new DeleteObjectCommand({
+                Bucket: ARCHIVE_BUCKET,
+                Key: attachment.s3Key,
+              }))
+            } catch (e) {
+              console.warn('Failed to delete attachment from S3:', attachment.s3Key, e)
+            }
+          }
+        })
+      )
+    }
+
+    // Delete the message from DynamoDB
+    await docClient.send(new DeleteCommand({
+      TableName: TABLE_NAME,
+      Key: keys.message(conversationId, messageId),
+    }))
+
+    return successResponse({ message: 'Message deleted' })
+  } catch (error) {
+    console.error('Error deleting message:', { conversationId, messageId, userId, error })
     throw error
   }
 }
@@ -377,7 +625,7 @@ async function createMessage(conversationId, senderId, messageText, participantI
     attachments.map(async attachment => {
       if (attachment.s3Key) {
         const command = new GetObjectCommand({
-          Bucket: BUCKETS.media,
+          Bucket: ARCHIVE_BUCKET,
           Key: attachment.s3Key,
         })
         const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 })

@@ -101,6 +101,8 @@ export async function getMessages(
       success: true,
       data: data.messages || data.items || data,
       lastEvaluatedKey: data.lastEvaluatedKey,
+      creatorId: data.creatorId,
+      conversationTitle: data.conversationTitle,
     }
   }
   catch (error) {
@@ -234,6 +236,82 @@ export async function markAsRead(conversationId: string): Promise<ConversationAp
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to mark as read',
+    }
+  }
+}
+
+/**
+ * Delete a message
+ */
+export async function deleteMessage(
+  conversationId: string,
+  messageId: string,
+): Promise<MessageApiResponse> {
+  const url = `${API_BASE}/messages/${encodeURIComponent(conversationId)}/${encodeURIComponent(messageId)}`
+
+  try {
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: getAuthHeader(),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Failed to delete message' }))
+      return {
+        success: false,
+        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
+      }
+    }
+
+    const data = await response.json()
+    return {
+      success: true,
+      data,
+    }
+  }
+  catch (error) {
+    console.error('Error deleting message:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to delete message',
+    }
+  }
+}
+
+/**
+ * Delete an entire conversation (Creator only)
+ */
+export async function deleteConversation(
+  conversationId: string,
+): Promise<ConversationApiResponse> {
+  try {
+    const response = await fetch(
+      `${API_BASE}/messages/${encodeURIComponent(conversationId)}`,
+      {
+        method: 'DELETE',
+        headers: getAuthHeader(),
+      },
+    )
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Failed to delete conversation' }))
+      return {
+        success: false,
+        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
+      }
+    }
+
+    const data = await response.json()
+    return {
+      success: true,
+      data,
+    }
+  }
+  catch (error) {
+    console.error('Error deleting conversation:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to delete conversation',
     }
   }
 }

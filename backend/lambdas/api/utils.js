@@ -14,7 +14,7 @@ const ARCHIVE_BUCKET = process.env.ARCHIVE_BUCKET
 
 // S3 prefixes within archive bucket
 const S3_PREFIXES = {
-  letters: 'letters/',
+  letters: 'letters-v2/',
   media: 'media/',
   profilePhotos: 'profile-photos/',
 }

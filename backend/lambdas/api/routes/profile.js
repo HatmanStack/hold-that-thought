@@ -1,9 +1,10 @@
 const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3')
 const { GetCommand, PutCommand, QueryCommand, UpdateCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb')
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner')
-const { docClient, TABLE_NAME, PREFIX, keys, BUCKETS, checkRateLimit, validateUserId, validateLimit, sanitizeText, successResponse, errorResponse, rateLimitResponse } = require('../utils')
+const { docClient, TABLE_NAME, PREFIX, keys, ARCHIVE_BUCKET, checkRateLimit, validateUserId, validateLimit, sanitizeText, successResponse, errorResponse, rateLimitResponse } = require('../utils')
 
 const s3Client = new S3Client({
+  region: process.env.AWS_REGION || 'us-west-2',
   // Disable checksums for presigned URLs - browsers can't compute them
   requestChecksumCalculation: 'WHEN_REQUIRED',
   responseChecksumValidation: 'WHEN_REQUIRED',
@@ -18,12 +19,24 @@ async function signPhotoUrl(photoUrl) {
   // Extract bucket and key from S3 URL
   // Format: https://bucket.s3.region.amazonaws.com/key
   const match = photoUrl.match(/https:\/\/([^.]+)\.s3\.[^/]+\.amazonaws\.com\/(.+)/)
-  if (!match) return photoUrl // Return as-is if not S3 URL
+  if (!match) {
+    console.log('[signPhotoUrl] URL does not match S3 pattern, returning as-is:', photoUrl)
+    return photoUrl // Return as-is if not S3 URL
+  }
 
   const [, bucket, key] = match
+  console.log('[signPhotoUrl] Extracted bucket:', bucket, 'key:', key)
 
-  const command = new GetObjectCommand({ Bucket: bucket, Key: key })
-  return getSignedUrl(s3Client, command, { expiresIn: 3600 }) // 1 hour
+  try {
+    const command = new GetObjectCommand({ Bucket: bucket, Key: key })
+    const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 }) // 1 hour
+    console.log('[signPhotoUrl] Generated signed URL length:', signedUrl?.length)
+    console.log('[signPhotoUrl] Signed URL has query params:', signedUrl?.includes('?'))
+    return signedUrl
+  } catch (error) {
+    console.error('[signPhotoUrl] Error generating signed URL:', error)
+    return photoUrl // Fall back to original URL
+  }
 }
 
 async function handle(event, context) {
@@ -61,6 +74,7 @@ async function handle(event, context) {
 
 async function getProfile(event, requesterId, isAdmin) {
   const userId = event.pathParameters?.userId
+  console.log('[getProfile] Called for userId:', userId, 'by requesterId:', requesterId)
 
   if (!userId) {
     return errorResponse(400, 'Missing userId parameter')
@@ -77,11 +91,14 @@ async function getProfile(event, requesterId, isAdmin) {
       Key: keys.userProfile(userId),
     }))
 
+    console.log('[getProfile] DynamoDB result:', result.Item ? 'Found' : 'Not found')
+
     if (!result.Item || result.Item.entityType !== 'USER_PROFILE') {
       return errorResponse(404, 'Profile not found')
     }
 
     const profile = result.Item
+    console.log('[getProfile] Profile profilePhotoUrl from DB:', profile.profilePhotoUrl)
 
     if (profile.isProfilePrivate && userId !== requesterId && !isAdmin) {
       return errorResponse(403, 'This profile is private')
@@ -90,6 +107,7 @@ async function getProfile(event, requesterId, isAdmin) {
     // Return clean profile object (strip PK/SK)
     // Sign photo URL for private bucket access
     const signedPhotoUrl = await signPhotoUrl(profile.profilePhotoUrl)
+    console.log('[getProfile] Signed photo URL:', signedPhotoUrl ? signedPhotoUrl.substring(0, 100) + '...' : null)
 
     return successResponse({
       userId: profile.userId,
@@ -108,9 +126,10 @@ async function getProfile(event, requesterId, isAdmin) {
       contactEmail: profile.contactEmail,
       notifyOnMessage: profile.notifyOnMessage !== false,
       notifyOnComment: profile.notifyOnComment !== false,
+      theme: profile.theme || null,
     })
   } catch (error) {
-    console.error('Error fetching profile:', { userId, error })
+    console.error('[getProfile] Error fetching profile:', { userId, error })
     throw error
   }
 }
@@ -127,6 +146,13 @@ async function updateProfile(event, requesterId, requesterEmail) {
   if (body.bio) body.bio = sanitizeText(body.bio)
   if (body.displayName) body.displayName = sanitizeText(body.displayName, 100)
   if (body.familyRelationship) body.familyRelationship = sanitizeText(body.familyRelationship, 100)
+
+  // Validate theme if provided (must be a non-empty string, max 50 chars, alphanumeric/hyphen only)
+  if (body.theme !== undefined) {
+    if (typeof body.theme !== 'string' || body.theme.length > 50 || !/^[a-z0-9-]+$/.test(body.theme)) {
+      return errorResponse(400, 'Invalid theme value')
+    }
+  }
 
   const errors = []
   if (body.displayName && body.displayName.length > 100) errors.push('Display name must be 100 characters or less')
@@ -162,6 +188,7 @@ async function updateProfile(event, requesterId, requesterEmail) {
         contactEmail: body.contactEmail || null,
         notifyOnMessage: body.notifyOnMessage !== false,
         notifyOnComment: body.notifyOnComment !== false,
+        theme: body.theme || null,
         joinedDate: now,
         createdAt: now,
         updatedAt: now,
@@ -184,6 +211,7 @@ async function updateProfile(event, requesterId, requesterEmail) {
         bio: newProfile.bio,
         familyRelationship: newProfile.familyRelationship,
         joinedDate: newProfile.joinedDate,
+        theme: newProfile.theme,
       })
     }
 
@@ -192,7 +220,7 @@ async function updateProfile(event, requesterId, requesterEmail) {
     const expressionAttributeNames = {}
     const expressionAttributeValues = {}
 
-    const allowedFields = ['displayName', 'profilePhotoUrl', 'bio', 'familyRelationship', 'generation', 'familyBranch', 'isProfilePrivate', 'contactEmail', 'notifyOnMessage', 'notifyOnComment']
+    const allowedFields = ['displayName', 'profilePhotoUrl', 'bio', 'familyRelationship', 'generation', 'familyBranch', 'isProfilePrivate', 'contactEmail', 'notifyOnMessage', 'notifyOnComment', 'theme']
 
     allowedFields.forEach(field => {
       if (body[field] !== undefined) {
@@ -315,7 +343,7 @@ async function getUserComments(event, requesterId, isAdmin) {
 }
 
 async function getPhotoUploadUrl(event, requesterId) {
-  console.log('getPhotoUploadUrl called', { requesterId, body: event.body, bucket: BUCKETS.profilePhotos })
+  console.log('getPhotoUploadUrl called', { requesterId, body: event.body, bucket: ARCHIVE_BUCKET })
 
   const rateLimitCheck = await checkRateLimit(requesterId, 'photoUpload')
   if (!rateLimitCheck.allowed) {
@@ -350,10 +378,10 @@ async function getPhotoUploadUrl(event, requesterId) {
     const sanitizedFilename = filename.replace(/[^\w.-]/g, '_')
     const key = `profile-photos/${requesterId}/${timestamp}-${sanitizedFilename}`
 
-    console.log('Generating presigned URL', { bucket: BUCKETS.profilePhotos, key, contentType })
+    console.log('Generating presigned URL', { bucket: ARCHIVE_BUCKET, key, contentType })
 
     const command = new PutObjectCommand({
-      Bucket: BUCKETS.profilePhotos,
+      Bucket: ARCHIVE_BUCKET,
       Key: key,
       ContentType: contentType,
     })
@@ -363,7 +391,7 @@ async function getPhotoUploadUrl(event, requesterId) {
       expiresIn: 300,
       unhoistableHeaders: new Set(['x-amz-checksum-crc32']),
     })
-    const photoUrl = `https://${BUCKETS.profilePhotos}.s3.${process.env.AWS_REGION || 'us-west-2'}.amazonaws.com/${key}`
+    const photoUrl = `https://${ARCHIVE_BUCKET}.s3.${process.env.AWS_REGION || 'us-west-2'}.amazonaws.com/${key}`
 
     console.log('Presigned URL generated successfully', { photoUrl })
     return successResponse({ uploadUrl, photoUrl, expiresIn: 300 })

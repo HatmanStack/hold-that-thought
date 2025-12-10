@@ -1,5 +1,5 @@
 const { GetCommand, PutCommand, QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb')
-const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3')
+const { S3Client, GetObjectCommand, PutObjectCommand } = require('@aws-sdk/client-s3')
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner')
 const { docClient, TABLE_NAME, ARCHIVE_BUCKET, PREFIX, keys, successResponse, errorResponse } = require('../utils')
 
@@ -46,6 +46,7 @@ async function handle(event, context) {
 }
 
 async function listLetters(event) {
+  console.log('[letters] listLetters called')
   const limit = parseInt(event.queryStringParameters?.limit) || 50
   const cursor = event.queryStringParameters?.cursor
 
@@ -64,12 +65,14 @@ async function listLetters(event) {
     }
 
     const result = await docClient.send(new QueryCommand(params))
+    console.log('[letters] Query returned', result.Items?.length || 0, 'items')
 
     return successResponse({
       items: (result.Items || []).map(item => ({
         date: item.GSI1SK,
         title: item.title,
-        originalTitle: item.originalTitle,
+        description: item.description,
+        author: item.author,
         updatedAt: item.updatedAt,
       })),
       nextCursor: result.LastEvaluatedKey
@@ -102,7 +105,9 @@ async function getLetter(event) {
     return successResponse({
       date,
       title: result.Item.title,
-      originalTitle: result.Item.originalTitle,
+      description: result.Item.description,
+      author: result.Item.author,
+      tags: result.Item.tags,
       content: result.Item.content,
       pdfKey: result.Item.pdfKey,
       createdAt: result.Item.createdAt,
@@ -163,23 +168,42 @@ async function updateLetter(event, requesterId) {
       },
     }))
 
-    // Update current letter
+    const updatedTitle = title || current.Item.title
+
+    // Update current letter in DynamoDB
     await docClient.send(new UpdateCommand({
       TableName: TABLE_NAME,
       Key: keys.letter(date),
       UpdateExpression: 'SET content = :content, title = :title, updatedAt = :now, lastEditedBy = :editor, versionCount = :vc',
       ExpressionAttributeValues: {
         ':content': content,
-        ':title': title || current.Item.title,
+        ':title': updatedTitle,
         ':now': now,
         ':editor': requesterId,
         ':vc': versionNumber,
       },
     }))
 
+    // Update S3 archive
+    const letterJson = {
+      date,
+      title: updatedTitle,
+      author: current.Item.author || null,
+      description: current.Item.description || null,
+      content,
+      pdfKey: current.Item.pdfKey || null,
+    }
+
+    await s3Client.send(new PutObjectCommand({
+      Bucket: ARCHIVE_BUCKET,
+      Key: `letters-v2/${updatedTitle}/letter.json`,
+      Body: JSON.stringify(letterJson, null, 2),
+      ContentType: 'application/json',
+    }))
+
     return successResponse({
       date,
-      title: title || current.Item.title,
+      title: updatedTitle,
       content,
       updatedAt: now,
       versionCount: versionNumber,

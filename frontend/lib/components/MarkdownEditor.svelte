@@ -1,6 +1,4 @@
 <script lang='ts'>
-  import { marked } from 'marked'
-  import sanitizeHtml from 'sanitize-html'
   import { createEventDispatcher } from 'svelte'
 
   export let content: string = ''
@@ -11,16 +9,6 @@
     save: { content: string, title: string }
     cancel: void
   }>()
-
-  // Sanitize HTML to prevent XSS
-  $: preview = sanitizeHtml(marked(content) as string, {
-    allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2']),
-    allowedAttributes: {
-      ...sanitizeHtml.defaults.allowedAttributes,
-      img: ['src', 'alt', 'title'],
-      a: ['href', 'target', 'rel'],
-    },
-  })
 
   function handleSave() {
     dispatch('save', { content, title })
@@ -47,35 +35,18 @@
     />
   </div>
 
-  <!-- Split view -->
-  <div class='flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-[500px]'>
-    <!-- Editor pane -->
-    <div class='flex flex-col'>
-      <label class='label' for='content-editor'>
-        <span class='label-text font-medium'>Markdown</span>
-      </label>
-      <textarea
-        id='content-editor'
-        class='textarea textarea-bordered flex-1 font-mono text-sm resize-none'
-        bind:value={content}
-        placeholder='Write your content in markdown...'
-        disabled={saving}
-      />
-    </div>
-
-    <!-- Preview pane -->
-    <div class='flex flex-col'>
-      <div class='label'>
-        <span class='label-text font-medium'>Preview</span>
-      </div>
-      <div class='border rounded-lg p-4 flex-1 overflow-auto prose max-w-none bg-base-100'>
-        {#if content}
-          {@html preview}
-        {:else}
-          <p class='text-gray-400 italic'>Preview will appear here...</p>
-        {/if}
-      </div>
-    </div>
+  <!-- Editor -->
+  <div class='flex-1 flex flex-col min-h-[500px]'>
+    <label class='label' for='content-editor'>
+      <span class='label-text font-medium'>Content</span>
+    </label>
+    <textarea
+      id='content-editor'
+      class='flex-1 textarea textarea-bordered font-mono text-sm resize-none'
+      bind:value={content}
+      placeholder='Write your content...'
+      disabled={saving}
+    />
   </div>
 
   <!-- Actions -->

@@ -133,10 +133,10 @@
   {#if selectedFiles.length > 0}
     <div class='mb-2 space-y-1'>
       {#each selectedFiles as file, index}
-        <div class='flex items-center gap-2 p-2 bg-base-200 rounded text-sm'>
+        <div class='flex items-center gap-2 p-2 bg-base-200 text-sm rounded'>
           <svg
             xmlns='http://www.w3.org/2000/svg'
-            class='h-5 w-5 text-base-content/60'
+            class='text-base-content/60 h-5 w-5'
             fill='none'
             viewBox='0 0 24 24'
             stroke='currentColor'

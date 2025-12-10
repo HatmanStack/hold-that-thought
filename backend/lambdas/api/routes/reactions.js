@@ -27,28 +27,57 @@ async function handle(event, context) {
 }
 
 async function toggleReaction(event, userId) {
-  const commentId = event.pathParameters?.commentId
+  const rawCommentId = event.pathParameters?.commentId
+  const commentId = decodeURIComponent(rawCommentId)
   const body = JSON.parse(event.body || '{}')
-  const { itemId, reactionType = 'like' } = body
+  const { itemId: rawItemId, reactionType = 'like' } = body
 
   if (!commentId) {
     return errorResponse(400, 'Missing commentId parameter')
   }
 
-  if (!itemId) {
+  if (!rawItemId) {
     return errorResponse(400, 'Missing itemId in request body')
   }
 
+  // Decode itemId in case it's URL-encoded from comment object
+  const itemId = decodeURIComponent(rawItemId)
+
+  console.log('[toggleReaction] commentId:', commentId, 'itemId:', itemId)
+
+  // Try both plain and URL-encoded itemId for backwards compat
+  const itemIdVariants = [itemId, encodeURIComponent(itemId)]
+
   try {
-    const reactionKey = keys.reaction(itemId, commentId, userId)
+    let foundCommentKey = null
+
+    // Find the comment first
+    for (const tryItemId of itemIdVariants) {
+      const tryKey = keys.comment(tryItemId, commentId)
+      const result = await docClient.send(new GetCommand({
+        TableName: TABLE_NAME,
+        Key: tryKey,
+      }))
+      if (result.Item && result.Item.entityType === 'COMMENT') {
+        foundCommentKey = tryKey
+        console.log('[toggleReaction] found comment with itemId:', tryItemId)
+        break
+      }
+    }
+
+    if (!foundCommentKey) {
+      return errorResponse(404, 'Comment not found')
+    }
+
+    // Use the itemId that matched
+    const actualItemId = foundCommentKey.PK.replace(PREFIX.COMMENT, '')
+    const reactionKey = keys.reaction(actualItemId, commentId, userId)
 
     // Check if reaction exists
     const existingReaction = await docClient.send(new GetCommand({
       TableName: TABLE_NAME,
       Key: reactionKey,
     }))
-
-    const commentKey = keys.comment(itemId, commentId)
 
     if (existingReaction.Item) {
       // Remove reaction atomically with count decrement
@@ -64,7 +93,7 @@ async function toggleReaction(event, userId) {
             {
               Update: {
                 TableName: TABLE_NAME,
-                Key: commentKey,
+                Key: foundCommentKey,
                 UpdateExpression: 'ADD reactionCount :decrement',
                 ConditionExpression: 'attribute_exists(PK)',
                 ExpressionAttributeValues: { ':decrement': -1 },
@@ -99,7 +128,7 @@ async function toggleReaction(event, userId) {
                   ...reactionKey,
                   entityType: 'REACTION',
                   commentId,
-                  itemId,
+                  itemId: actualItemId,
                   userId,
                   reactionType,
                   createdAt: now,
@@ -111,7 +140,7 @@ async function toggleReaction(event, userId) {
             {
               Update: {
                 TableName: TABLE_NAME,
-                Key: commentKey,
+                Key: foundCommentKey,
                 UpdateExpression: 'ADD reactionCount :increment',
                 ConditionExpression: 'attribute_exists(PK)',
                 ExpressionAttributeValues: { ':increment': 1 },

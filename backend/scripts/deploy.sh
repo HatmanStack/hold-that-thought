@@ -128,25 +128,11 @@ DEFAULT_ARCHIVE="${ARCHIVE_BUCKET:-hold-that-thought-archive}"
 read -p "Archive Bucket [$DEFAULT_ARCHIVE]: " input_bucket
 ARCHIVE_BUCKET="${input_bucket:-$DEFAULT_ARCHIVE}"
 
-# Letters migration setup (only if not already migrated)
+# Letters archive check
 echo ""
-echo "--- Letter Migration ---"
-if [ "$LETTERS_MIGRATED" = "true" ] && [ "$FORCE_MIGRATE" != "true" ]; then
-    echo "Letters have already been migrated."
-    echo "Use --force-migrate to re-run migration."
-else
-    if [ -n "$LETTERS_SOURCE_URI" ]; then
-        echo "Letters Source URI: [${LETTERS_SOURCE_URI} - press Enter to keep, or enter new]"
-    else
-        echo "Enter the S3 URI where existing letters are stored."
-        echo "Example: s3://hold-that-thought-bucket/letters/"
-        echo "Leave empty to skip letter migration."
-    fi
-    read -p "Letters Source URI: " input_letters_uri
-    if [ -n "$input_letters_uri" ]; then
-        LETTERS_SOURCE_URI="$input_letters_uri"
-    fi
-fi
+echo "--- Letter Archive ---"
+echo "Letters are stored in s3://$ARCHIVE_BUCKET/letters-v2/"
+echo "DynamoDB will be populated from this archive on first deploy."
 
 # Save configuration
 cat > "$ENV_DEPLOY_FILE" << EOF
@@ -160,8 +146,6 @@ GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET
 TABLE_NAME=$TABLE_NAME
 SES_FROM_EMAIL=$SES_FROM_EMAIL
 ARCHIVE_BUCKET=$ARCHIVE_BUCKET
-LETTERS_SOURCE_URI=$LETTERS_SOURCE_URI
-LETTERS_MIGRATED=$LETTERS_MIGRATED
 LETTERS_DB_POPULATED=$LETTERS_DB_POPULATED
 EOF
 echo ""
@@ -247,52 +231,18 @@ else
     echo "Archive bucket exists: ${ARCHIVE_BUCKET}"
 fi
 
-# Run letter migration if source provided and not already migrated
+# Check letter archive exists
 echo ""
 echo "==================================="
-echo "Step 2: Letter Migration"
+echo "Step 2: Verify Letter Archive"
 echo "==================================="
 
-if [ "$LETTERS_MIGRATED" != "true" ] || [ "$FORCE_MIGRATE" = "true" ]; then
-    if [ -n "$LETTERS_SOURCE_URI" ]; then
-        # Parse S3 URI to extract bucket and prefix
-        SOURCE_BUCKET=$(echo "$LETTERS_SOURCE_URI" | sed 's|s3://||' | cut -d'/' -f1)
-        SOURCE_PREFIX=$(echo "$LETTERS_SOURCE_URI" | sed 's|s3://||' | cut -d'/' -f2-)
+LETTER_COUNT=$(aws s3 ls "s3://$ARCHIVE_BUCKET/letters-v2/" --recursive 2>/dev/null | grep "letter.json" | wc -l || echo "0")
+echo "Found $LETTER_COUNT letters in archive (s3://$ARCHIVE_BUCKET/letters-v2/)"
 
-        echo "Running letter migration..."
-        echo "  Source: $SOURCE_BUCKET/$SOURCE_PREFIX"
-        echo "  Destination: $ARCHIVE_BUCKET/letters/"
-
-        # Run migration script
-        if node scripts/migrate-letters.js \
-            --source-bucket "$SOURCE_BUCKET" \
-            --source-prefix "$SOURCE_PREFIX" \
-            --dest-bucket "$ARCHIVE_BUCKET" \
-            --dest-prefix "letters/" \
-            --verbose \
-            --output "migration-report.json"; then
-
-            echo "Letter migration complete!"
-            echo "  Report saved to migration-report.json"
-
-            # Mark as migrated
-            sed -i "s/^LETTERS_MIGRATED=.*/LETTERS_MIGRATED=true/" "$ENV_DEPLOY_FILE"
-            LETTERS_MIGRATED=true
-        else
-            echo "ERROR: Letter migration failed!"
-            echo "Check migration-report.json for details."
-            echo ""
-            read -p "Continue with deployment anyway? [y/N] " continue_deploy
-            if [ "$continue_deploy" != "y" ] && [ "$continue_deploy" != "Y" ]; then
-                exit 1
-            fi
-        fi
-    else
-        echo "No letters source URI provided, skipping migration."
-    fi
-else
-    echo "Letters already migrated. Skipping."
-    echo "Use --force-migrate to re-run migration."
+if [ "$LETTER_COUNT" = "0" ]; then
+    echo "WARNING: No letters found in archive bucket."
+    echo "Letters should be stored in s3://$ARCHIVE_BUCKET/letters-v2/{Title}/letter.json"
 fi
 
 echo ""
@@ -337,26 +287,18 @@ echo "Step 5: DynamoDB Letter Population"
 echo "==================================="
 
 if [ "$LETTERS_DB_POPULATED" != "true" ] || [ "$FORCE_POPULATE" = "true" ]; then
-    if [ "$LETTERS_MIGRATED" = "true" ]; then
-        echo "Populating DynamoDB with letter data..."
-        echo "  Source: s3://$ARCHIVE_BUCKET/letters/"
+    if [ "$LETTER_COUNT" != "0" ]; then
+        echo "Populating DynamoDB from letter archive..."
+        echo "  Source: s3://$ARCHIVE_BUCKET/letters-v2/"
         echo "  Table: $TABLE_NAME"
 
-        POPULATE_FLAGS="--verbose"
-        if [ "$FORCE_POPULATE" = "true" ]; then
-            POPULATE_FLAGS="$POPULATE_FLAGS --force-all"
-        fi
-
-        if node scripts/populate-letters-db.js \
+        if node scripts/populate-from-archive.js \
             --bucket "$ARCHIVE_BUCKET" \
-            --prefix "letters/" \
+            --prefix "letters-v2/" \
             --table "$TABLE_NAME" \
-            --region "$AWS_REGION" \
-            $POPULATE_FLAGS \
-            --output "populate-report.json"; then
+            --verbose; then
 
             echo "DynamoDB population complete!"
-            echo "  Report saved to populate-report.json"
 
             # Mark as populated
             sed -i "s/^LETTERS_DB_POPULATED=.*/LETTERS_DB_POPULATED=true/" "$ENV_DEPLOY_FILE"
@@ -365,12 +307,10 @@ if [ "$LETTERS_DB_POPULATED" != "true" ] || [ "$FORCE_POPULATE" = "true" ]; then
             fi
         else
             echo "WARNING: DynamoDB population failed!"
-            echo "Check populate-report.json for details."
             echo "You can re-run with --force-populate to try again."
         fi
     else
-        echo "Letters not migrated to S3 yet. Skipping DynamoDB population."
-        echo "Run migration first, then use --force-populate."
+        echo "No letters in archive. Skipping DynamoDB population."
     fi
 else
     echo "DynamoDB already populated. Skipping."

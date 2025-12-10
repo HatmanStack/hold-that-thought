@@ -5,7 +5,7 @@
   import { currentUser } from '$lib/auth/auth-store'
   import MessageInput from '$lib/components/messages/MessageInput.svelte'
   import MessageThread from '$lib/components/messages/MessageThread.svelte'
-  import { getMessages } from '$lib/services/messageService'
+  import { deleteConversation, getMessages } from '$lib/services/messageService'
   import { onDestroy, onMount } from 'svelte'
 
   $: conversationId = $page.params.conversationId ?? ''
@@ -14,6 +14,8 @@
   let messageThreadComponent: MessageThread
   let pollingInterval: number | null = null
   let lastMessageId: string | undefined
+  let isCreator = false
+  let isDeleting = false
 
   /**
    * Handle message sent
@@ -24,6 +26,34 @@
       messageThreadComponent.addMessage(message)
     }
     lastMessageId = message.messageId
+  }
+
+  function handleConversationLoaded(event: CustomEvent<{ creatorId: string, title?: string }>) {
+    const { creatorId } = event.detail
+    isCreator = creatorId === currentUserId
+  }
+
+  async function handleDeleteConversation() {
+    if (!confirm('Are you sure you want to delete this entire conversation? This action cannot be undone and will remove it for all participants.')) {
+      return
+    }
+
+    isDeleting = true
+    try {
+      const result = await deleteConversation(conversationId)
+      if (result.success) {
+        goto('/messages')
+      }
+      else {
+        alert(result.error || 'Failed to delete conversation')
+      }
+    }
+    catch (error) {
+      alert('Failed to delete conversation')
+    }
+    finally {
+      isDeleting = false
+    }
   }
 
   /**
@@ -108,7 +138,22 @@
       <h1 class='text-xl font-semibold'>Conversation</h1>
     </div>
     <div class='navbar-end'>
-      <!-- Placeholder for future actions (group info, etc.) -->
+      {#if isCreator}
+        <button
+          class='btn btn-ghost btn-circle text-error'
+          title='Delete Conversation'
+          disabled={isDeleting}
+          on:click={handleDeleteConversation}
+        >
+          {#if isDeleting}
+            <span class='loading loading-spinner loading-sm'></span>
+          {:else}
+            <svg xmlns='http://www.w3.org/2000/svg' class='h-6 w-6' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+              <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16' />
+            </svg>
+          {/if}
+        </button>
+      {/if}
     </div>
   </div>
 
@@ -119,6 +164,7 @@
         bind:this={messageThreadComponent}
         {conversationId}
         {currentUserId}
+        on:conversationLoaded={handleConversationLoaded}
       />
       <MessageInput
         {conversationId}

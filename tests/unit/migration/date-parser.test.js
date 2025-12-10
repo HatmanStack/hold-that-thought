@@ -91,14 +91,14 @@ describe('date parser', () => {
   })
 
   describe('isValidDate', () => {
-    it('should accept dates in valid range (1990-2025)', () => {
+    it('should accept dates in valid range (1950-2025)', () => {
       expect(isValidDate('2016-02-10')).toBe(true)
-      expect(isValidDate('1990-01-01')).toBe(true)
+      expect(isValidDate('1950-01-01')).toBe(true)
       expect(isValidDate('2025-12-31')).toBe(true)
     })
 
     it('should reject dates outside valid range', () => {
-      expect(isValidDate('1989-12-31')).toBe(false)
+      expect(isValidDate('1949-12-31')).toBe(false)
       expect(isValidDate('2026-01-01')).toBe(false)
     })
 
