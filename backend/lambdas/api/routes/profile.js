@@ -1,7 +1,7 @@
 const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3')
 const { GetCommand, PutCommand, QueryCommand, UpdateCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb')
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner')
-const { docClient, TABLE_NAME, PREFIX, keys, BUCKETS, checkRateLimit, validateUserId, validateLimit, sanitizeText, successResponse, errorResponse, rateLimitResponse } = require('../utils')
+const { docClient, TABLE_NAME, PREFIX, keys, ARCHIVE_BUCKET, checkRateLimit, validateUserId, validateLimit, sanitizeText, successResponse, errorResponse, rateLimitResponse } = require('../utils')
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || 'us-west-2',
@@ -333,7 +333,7 @@ async function getUserComments(event, requesterId, isAdmin) {
 }
 
 async function getPhotoUploadUrl(event, requesterId) {
-  console.log('getPhotoUploadUrl called', { requesterId, body: event.body, bucket: BUCKETS.profilePhotos })
+  console.log('getPhotoUploadUrl called', { requesterId, body: event.body, bucket: ARCHIVE_BUCKET })
 
   const rateLimitCheck = await checkRateLimit(requesterId, 'photoUpload')
   if (!rateLimitCheck.allowed) {
@@ -368,10 +368,10 @@ async function getPhotoUploadUrl(event, requesterId) {
     const sanitizedFilename = filename.replace(/[^\w.-]/g, '_')
     const key = `profile-photos/${requesterId}/${timestamp}-${sanitizedFilename}`
 
-    console.log('Generating presigned URL', { bucket: BUCKETS.profilePhotos, key, contentType })
+    console.log('Generating presigned URL', { bucket: ARCHIVE_BUCKET, key, contentType })
 
     const command = new PutObjectCommand({
-      Bucket: BUCKETS.profilePhotos,
+      Bucket: ARCHIVE_BUCKET,
       Key: key,
       ContentType: contentType,
     })
@@ -381,7 +381,7 @@ async function getPhotoUploadUrl(event, requesterId) {
       expiresIn: 300,
       unhoistableHeaders: new Set(['x-amz-checksum-crc32']),
     })
-    const photoUrl = `https://${BUCKETS.profilePhotos}.s3.${process.env.AWS_REGION || 'us-west-2'}.amazonaws.com/${key}`
+    const photoUrl = `https://${ARCHIVE_BUCKET}.s3.${process.env.AWS_REGION || 'us-west-2'}.amazonaws.com/${key}`
 
     console.log('Presigned URL generated successfully', { photoUrl })
     return successResponse({ uploadUrl, photoUrl, expiresIn: 300 })

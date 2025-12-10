@@ -30,10 +30,12 @@
         if (profile?.profilePhotoUrl) {
           userProfilePhotoUrl = profile.profilePhotoUrl
           console.log('[UserMenu] Set userProfilePhotoUrl to:', userProfilePhotoUrl)
-        } else {
+        }
+ else {
           console.log('[UserMenu] No profilePhotoUrl in profile data')
         }
-      } else {
+      }
+ else {
         console.log('[UserMenu] getProfile failed or no data:', result.error)
       }
     }
@@ -96,7 +98,7 @@
 
 {#if $isAuthenticated && $currentUser}
   <div class='dropdown dropdown-end'>
-    <div tabindex='0' role='button' class='btn btn-ghost btn-circle avatar' on:click={toggleDropdown}>
+    <button type='button' tabindex='0' class='btn btn-ghost btn-circle avatar' on:click={toggleDropdown}>
       <div class='w-10 rounded-full overflow-hidden'>
         {#if userProfilePhotoUrl}
           <img src={userProfilePhotoUrl} alt='Profile' class='w-full h-full object-cover' />
@@ -110,7 +112,7 @@
           </div>
         {/if}
       </div>
-    </div>
+    </button>
 
     {#if showDropdown}
       <!-- svelte-ignore a11y-no-noninteractive-tabindex -->

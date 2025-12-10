@@ -101,6 +101,8 @@ export async function getMessages(
       success: true,
       data: data.messages || data.items || data,
       lastEvaluatedKey: data.lastEvaluatedKey,
+      creatorId: data.creatorId,
+      conversationTitle: data.conversationTitle,
     }
   }
   catch (error) {
@@ -254,7 +256,7 @@ export async function deleteMessage(
 
   try {
     const headers = getAuthHeader()
-    console.log('[messageService] Headers:', { ...headers, Authorization: headers.Authorization?.substring(0, 50) + '...' })
+    console.log('[messageService] Headers:', { ...headers, Authorization: `${headers.Authorization?.substring(0, 50)}...` })
 
     const response = await fetch(url, {
       method: 'DELETE',
@@ -285,6 +287,44 @@ export async function deleteMessage(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to delete message',
+    }
+  }
+}
+
+/**
+ * Delete an entire conversation (Creator only)
+ */
+export async function deleteConversation(
+  conversationId: string,
+): Promise<ConversationApiResponse> {
+  try {
+    const response = await fetch(
+      `${API_BASE}/messages/${encodeURIComponent(conversationId)}`,
+      {
+        method: 'DELETE',
+        headers: getAuthHeader(),
+      },
+    )
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Failed to delete conversation' }))
+      return {
+        success: false,
+        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
+      }
+    }
+
+    const data = await response.json()
+    return {
+      success: true,
+      data,
+    }
+  }
+  catch (error) {
+    console.error('Error deleting conversation:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to delete conversation',
     }
   }
 }

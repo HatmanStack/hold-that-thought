@@ -3,7 +3,7 @@ import { PUBLIC_API_GATEWAY_URL } from '$env/static/public'
 import { authTokens } from '$lib/auth/auth-store'
 import { get } from 'svelte/store'
 
-const API_BASE = PUBLIC_API_GATEWAY_URL
+const API_BASE = PUBLIC_API_GATEWAY_URL?.replace(/\/+$/, '')
 
 /**
  * Get authorization header with JWT token
@@ -55,12 +55,12 @@ export async function getReactions(commentId: string): Promise<ReactionApiRespon
 /**
  * Toggle reaction on a comment (add if not exists, remove if exists)
  */
-export async function toggleReaction(commentId: string): Promise<ReactionApiResponse> {
+export async function toggleReaction(commentId: string, itemId: string): Promise<ReactionApiResponse> {
   try {
     const response = await fetch(`${API_BASE}/reactions/${encodeURIComponent(commentId)}`, {
       method: 'POST',
       headers: getAuthHeader(),
-      body: JSON.stringify({ reactionType: 'like' }),
+      body: JSON.stringify({ itemId, reactionType: 'like' }),
     })
 
     if (!response.ok) {

@@ -27,11 +27,11 @@
   }
 </script>
 
-<div class='bg-base-200 rounded-lg p-4'>
-  <h3 class='text-lg font-semibold mb-4'>Version History</h3>
+<div class='rounded-lg p-4 bg-base-200'>
+  <h3 class='mb-4 text-lg font-semibold'>Version History</h3>
 
   {#if loading}
-    <div class='flex items-center gap-2 text-gray-500'>
+    <div class='flex gap-2 items-center text-gray-500'>
       <span class='loading loading-spinner loading-sm'></span>
       <span>Loading versions...</span>
     </div>
@@ -40,7 +40,7 @@
   {:else}
     <ul class='space-y-2'>
       {#each versions as version}
-        <li class='flex justify-between items-center p-3 bg-base-100 rounded-lg'>
+        <li class='flex items-center bg-base-100 rounded-lg justify-between p-3'>
           <div>
             <span class='font-medium'>Version {version.versionNumber}</span>
             <span class='text-sm text-gray-500 ml-2'>

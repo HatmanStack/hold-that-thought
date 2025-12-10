@@ -15,40 +15,40 @@ export interface MediaItem {
   category: 'pictures' | 'videos' | 'documents'
 }
 
+const API_URL = PUBLIC_API_GATEWAY_URL.replace(/\/+$/, '')
+
 export async function uploadMedia(file: File): Promise<MediaItem> {
   const auth = get(authStore)
   if (!auth.isAuthenticated || !auth.tokens) {
     throw new Error('User is not authenticated')
   }
 
-  // Use presigned URL for files larger than 5MB to avoid API Gateway limits
-  const fileSize = file.size
-  const usePresignedUrl = fileSize > 5 * 1024 * 1024 // 5MB threshold
+  console.log('[media-service] uploadMedia called for:', file.name, file.type, file.size)
 
-  let result
-
-  if (usePresignedUrl) {
-    // Get presigned URL
-    const presignedResponse = await fetch(`${PUBLIC_API_GATEWAY_URL}/upload`, {
+  try {
+    // Get presigned URL from backend
+    const presignedResponse = await fetch(`${API_URL}/media/upload-url`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${auth.tokens.idToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        action: 'presigned-url',
         filename: file.name,
         contentType: file.type,
-        fileSize,
+        fileSize: file.size,
       }),
     })
 
+    console.log('[media-service] Presigned URL response status:', presignedResponse.status)
+
     if (!presignedResponse.ok) {
       const error = await presignedResponse.json()
-      throw new Error(error.message || 'Failed to get presigned URL')
+      throw new Error(error.error || error.message || 'Failed to get presigned URL')
     }
 
     const { presignedUrl, key } = await presignedResponse.json()
+    console.log('[media-service] Got presigned URL for key:', key)
 
     // Upload directly to S3 using presigned URL
     const uploadResponse = await fetch(presignedUrl, {
@@ -59,50 +59,27 @@ export async function uploadMedia(file: File): Promise<MediaItem> {
       body: file,
     })
 
+    console.log('[media-service] S3 upload response status:', uploadResponse.status)
+
     if (!uploadResponse.ok) {
       throw new Error('Failed to upload file to S3')
     }
 
-    // Create result object for presigned upload
-    result = {
-      key,
+    // Convert the result to a MediaItem
+    return {
+      id: key,
       filename: file.name,
-      size: fileSize,
+      title: file.name,
+      uploadDate: new Date().toISOString(),
+      fileSize: file.size,
       contentType: file.type,
-      success: true,
+      signedUrl: presignedUrl, // This won't work for viewing, but will be refreshed on list reload
+      category: determineCategory(file.type),
     }
   }
-  else {
-    // Use direct upload for smaller files
-    const formData = new FormData()
-    formData.append('file', file)
-
-    const response = await fetch(`${PUBLIC_API_GATEWAY_URL}/upload`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${auth.tokens.idToken}`,
-      },
-      body: formData,
-    })
-
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || 'Upload failed')
-    }
-
-    result = await response.json()
-  }
-
-  // Convert the Lambda response to a MediaItem
-  return {
-    id: result.key,
-    filename: result.filename,
-    title: result.filename,
-    uploadDate: new Date().toISOString(),
-    fileSize: result.size,
-    contentType: result.contentType,
-    signedUrl: result.url,
-    category: determineCategory(result.contentType),
+  catch (error) {
+    console.error('[media-service] Upload error:', error)
+    throw error
   }
 }
 
@@ -112,24 +89,27 @@ export async function getMediaItems(category: 'pictures' | 'videos' | 'documents
     throw new Error('User is not authenticated')
   }
 
-  const response = await fetch(`${PUBLIC_API_GATEWAY_URL}/upload`, {
+  console.log('[media-service] getMediaItems called for category:', category)
+
+  const response = await fetch(`${API_URL}/media/list`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${auth.tokens.idToken}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      action: 'list',
-      category,
-    }),
+    body: JSON.stringify({ category }),
   })
+
+  console.log('[media-service] List response status:', response.status)
 
   if (!response.ok) {
     const error = await response.json()
-    throw new Error(error.message || `Failed to load ${category}`)
+    throw new Error(error.error || error.message || `Failed to load ${category}`)
   }
 
-  return response.json()
+  const items = await response.json()
+  console.log('[media-service] Got', items.length, 'items for', category)
+  return items
 }
 
 function determineCategory(contentType: string): 'pictures' | 'videos' | 'documents' {

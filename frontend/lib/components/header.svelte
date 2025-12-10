@@ -78,6 +78,7 @@
         <div class='ml-4 hidden lg:flex space-x-2'>
           <a class='btn btn-ghost normal-case' href='/about' class:btn-active={path === '/about'}>About</a>
           {#if isUserApproved}
+            <a class='btn btn-ghost normal-case' href='/letters' class:btn-active={path?.startsWith('/letters')}>Letters</a>
             <a class='btn btn-ghost normal-case' href='/gallery' class:btn-active={path === '/gallery'}>Gallery</a>
           {/if}
         </div>
@@ -114,7 +115,7 @@
                 <p class='flex-1 text-base-content text-left group-hover:text-primary-content transition-color'>
                   {text ?? name}
                 </p>
-                <div class='m-auto grid grid-cols-4 gap-0.5'>
+                <div class='grid m-auto grid-cols-4 gap-0.5'>
                   {#each ['bg-primary', 'bg-secondary', 'bg-accent', 'bg-neutral'] as bg}
                     <div class={`${bg} w-1 h-4 rounded-btn`} />
                   {/each}

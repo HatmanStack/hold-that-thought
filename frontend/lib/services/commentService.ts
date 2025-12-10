@@ -7,7 +7,16 @@ import { PUBLIC_API_GATEWAY_URL } from '$env/static/public'
 import { authTokens } from '$lib/auth/auth-store'
 import { get } from 'svelte/store'
 
-const API_BASE = PUBLIC_API_GATEWAY_URL
+const API_BASE = PUBLIC_API_GATEWAY_URL?.replace(/\/+$/, '')
+
+/**
+ * Encode itemId for URL path - uses base64 to avoid slash issues
+ */
+function encodeItemId(itemId: string): string {
+  // Decode first in case it's already URL-encoded, then base64
+  const decoded = decodeURIComponent(itemId)
+  return btoa(decoded).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
 
 /**
  * Get authorization header with JWT token
@@ -38,7 +47,7 @@ export async function getComments(
       params.set('lastEvaluatedKey', lastKey)
     }
 
-    const response = await fetch(`${API_BASE}/comments/${encodeURIComponent(itemId)}?${params}`, {
+    const response = await fetch(`${API_BASE}/comments/${encodeItemId(itemId)}?${params}`, {
       headers: getAuthHeader(),
     })
 
@@ -82,7 +91,7 @@ export async function createComment(
       itemTitle,
     }
 
-    const response = await fetch(`${API_BASE}/comments/${encodeURIComponent(itemId)}`, {
+    const response = await fetch(`${API_BASE}/comments/${encodeItemId(itemId)}`, {
       method: 'POST',
       headers: getAuthHeader(),
       body: JSON.stringify(body),
@@ -124,17 +133,20 @@ export async function updateComment(
       commentText: text,
     }
 
-    const response = await fetch(
-      `${API_BASE}/comments/${encodeURIComponent(itemId)}/${encodeURIComponent(commentId)}`,
-      {
-        method: 'PUT',
-        headers: getAuthHeader(),
-        body: JSON.stringify(body),
-      },
-    )
+    const url = `${API_BASE}/comments/${encodeItemId(itemId)}/${encodeURIComponent(commentId)}`
+    console.log('[updateComment] PUT', url)
+
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: getAuthHeader(),
+      body: JSON.stringify(body),
+    })
+
+    console.log('[updateComment] response status:', response.status)
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Failed to update comment' }))
+      console.log('[updateComment] error:', errorData)
       return {
         success: false,
         error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
@@ -142,6 +154,7 @@ export async function updateComment(
     }
 
     const data = await response.json()
+    console.log('[updateComment] success data:', data)
     return {
       success: true,
       data,
@@ -165,7 +178,7 @@ export async function deleteComment(
 ): Promise<CommentApiResponse> {
   try {
     const response = await fetch(
-      `${API_BASE}/comments/${encodeURIComponent(itemId)}/${encodeURIComponent(commentId)}`,
+      `${API_BASE}/comments/${encodeItemId(itemId)}/${encodeURIComponent(commentId)}`,
       {
         method: 'DELETE',
         headers: getAuthHeader(),
@@ -200,7 +213,9 @@ export async function deleteComment(
  */
 export async function adminDeleteComment(commentId: string): Promise<CommentApiResponse> {
   try {
-    const response = await fetch(`${API_BASE}/admin/comments/${encodeURIComponent(commentId)}`, {
+    // Ensure commentId is URL-encoded
+    const encodedCommentId = encodeURIComponent(commentId)
+    const response = await fetch(`${API_BASE}/admin/comments/${encodedCommentId}`, {
       method: 'DELETE',
       headers: getAuthHeader(),
     })

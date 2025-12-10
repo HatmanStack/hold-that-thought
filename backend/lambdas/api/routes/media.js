@@ -1,6 +1,6 @@
 const { S3Client, GetObjectCommand, PutObjectCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3')
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner')
-const { BUCKETS, successResponse, errorResponse } = require('../utils')
+const { ARCHIVE_BUCKET, successResponse, errorResponse } = require('../utils')
 
 const s3Client = new S3Client({})
 
@@ -72,7 +72,7 @@ async function getUploadUrl(event, requesterId, requesterEmail) {
     const key = `media/${category}/${Date.now()}-${safeFilename}`
 
     const command = new PutObjectCommand({
-      Bucket: BUCKETS.media,
+      Bucket: ARCHIVE_BUCKET,
       Key: key,
       ContentType: contentType,
       Metadata: {
@@ -106,7 +106,7 @@ async function listMedia(event, requesterId) {
     const prefix = `media/${category}/`
 
     const response = await s3Client.send(new ListObjectsV2Command({
-      Bucket: BUCKETS.media,
+      Bucket: ARCHIVE_BUCKET,
       Prefix: prefix,
       MaxKeys: 100,
     }))
@@ -119,13 +119,17 @@ async function listMedia(event, requesterId) {
       response.Contents.map(async (item) => {
         const signedUrl = await getSignedUrl(
           s3Client,
-          new GetObjectCommand({ Bucket: BUCKETS.media, Key: item.Key }),
+          new GetObjectCommand({ Bucket: ARCHIVE_BUCKET, Key: item.Key }),
           { expiresIn: 3600 }
         )
 
+        const filename = item.Key.split('/').pop()
+        // Remove extension and replace underscores with spaces for display title
+        const title = filename.replace(/\.[^.]+$/, '').replace(/_/g, ' ')
         return {
           id: item.Key,
-          filename: item.Key.split('/').pop(),
+          filename,
+          title,
           uploadDate: item.LastModified.toISOString(),
           fileSize: item.Size,
           contentType: getContentTypeFromKey(item.Key),
@@ -158,7 +162,7 @@ async function getPdfDownloadUrl(event, requesterId) {
     const prefix = `letters/${sanitizedTitle}/`
 
     const response = await s3Client.send(new ListObjectsV2Command({
-      Bucket: BUCKETS.media,
+      Bucket: ARCHIVE_BUCKET,
       Prefix: prefix,
     }))
 
@@ -172,7 +176,7 @@ async function getPdfDownloadUrl(event, requesterId) {
 
     const downloadUrl = await getSignedUrl(
       s3Client,
-      new GetObjectCommand({ Bucket: BUCKETS.media, Key: pdfKeys[0] }),
+      new GetObjectCommand({ Bucket: ARCHIVE_BUCKET, Key: pdfKeys[0] }),
       { expiresIn: 3600 }
     )
 
@@ -207,7 +211,7 @@ async function getDownloadUrl(event, requesterId) {
   try {
     const downloadUrl = await getSignedUrl(
       s3Client,
-      new GetObjectCommand({ Bucket: BUCKETS.media, Key: key }),
+      new GetObjectCommand({ Bucket: ARCHIVE_BUCKET, Key: key }),
       { expiresIn: 3600 }
     )
 

@@ -15,13 +15,13 @@
   let error = ''
 
   async function loadLetter() {
-    if (!$authTokens?.accessToken) {
+    if (!$authTokens?.idToken) {
       loading = false
       return
     }
 
     try {
-      letter = await getLetter(data.date, $authTokens.accessToken)
+      letter = await getLetter(data.date, $authTokens.idToken)
       content = letter.content
       title = letter.title
     }
@@ -32,14 +32,14 @@
   }
 
   async function handleSave(event: CustomEvent<{ content: string, title: string }>) {
-    if (!$authTokens?.accessToken || !letter)
+    if (!$authTokens?.idToken || !letter)
       return
 
     saving = true
     error = ''
 
     try {
-      await updateLetter(letter.date, event.detail.content, event.detail.title, $authTokens.accessToken)
+      await updateLetter(letter.date, event.detail.content, event.detail.title, $authTokens.idToken)
       goto(`/letters/${letter.date}`)
     }
     catch (e) {

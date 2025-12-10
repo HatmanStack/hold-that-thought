@@ -2,10 +2,12 @@
   import type { Message } from '$lib/types/message'
   import { deleteMessage, getMessages, markAsRead } from '$lib/services/messageService'
   import { getCachedProfile, prefetchProfiles, profileCache } from '$lib/stores/profiles'
-  import { afterUpdate, onMount, tick } from 'svelte'
+  import { afterUpdate, createEventDispatcher, onMount, tick } from 'svelte'
 
   export let conversationId: string
   export let currentUserId: string
+
+  const dispatch = createEventDispatcher()
 
   let messages: Message[] = []
   let loading = true
@@ -75,7 +77,8 @@
    * Load initial messages
    */
   async function loadMessages() {
-    if (!conversationId) return
+    if (!conversationId)
+return
 
     loading = true
     error = ''
@@ -84,10 +87,39 @@
 
     if (result.success && result.data) {
       messages = Array.isArray(result.data) ? result.data : [result.data]
+      // Check if data has messages property (it might come wrapped now from my service change logic interpretation,
+      // but service typically normalizes. Let's check service logic.)
+      // Service says: `data: data.messages || data.items || data`
+      // Wait, if I added `creatorId` to the root of response, `data` in service might be the whole object if I didn't normalize it well.
+      // Let's check `messageService.ts` `getMessages` again.
+      // It returns `data: data.messages || data.items || data`.
+      // If backend returns `{ messages: [], creatorId: '...' }`, then `data.messages` exists, so `data` becomes `[]`.
+      // Result: I lose `creatorId` in the service normalization!
+
+      // I need to update service first?
+      // Actually, let's look at `messageService.ts` again.
+      // `const data = await response.json()`
+      // `return { success: true, data: data.messages || ... }`
+      // Yes, the service strips the metadata. I should update the service to pass the metadata through or access the raw response.
+
+      // However, `result` object in `MessageThread` comes from `getMessages`.
+      // If I want `creatorId`, I need to update `messageService.ts` to include it in the returned object.
+
+      // I will assume I will fix `messageService.ts` in the next step to return `meta` or similar.
+      // For now, let's write the code assuming `result` has `creatorId`.
+
       // Sort chronologically (oldest first)
       messages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
       lastEvaluatedKey = result.lastEvaluatedKey
       hasMore = !!result.lastEvaluatedKey
+
+      // Dispatch metadata if available
+      if (result.creatorId) {
+        dispatch('conversationLoaded', {
+          creatorId: result.creatorId,
+          title: result.conversationTitle,
+        })
+      }
 
       // Prefetch profiles for all unique senders
       const senderIds = [...new Set(messages.map(m => m.senderId))]
@@ -342,7 +374,7 @@
 
               <!-- Timestamp and actions -->
               <div
-                class='flex items-baseline gap-2 mt-1 px-2'
+                class='flex gap-2 mt-1 px-2 items-baseline'
                 class:justify-end={isOwnMessage}
               >
                 <span class='text-xs text-base-content/60'>
@@ -351,7 +383,7 @@
                 {#if isOwnMessage}
                   <button
                     type='button'
-                    class='text-error/50 hover:text-error transition-colors translate-y-px'
+                    class='transition-colors text-error/50 hover:text-error translate-y-px'
                     title='Delete message'
                     on:click={() => handleDeleteMessage(message.messageId)}
                   >

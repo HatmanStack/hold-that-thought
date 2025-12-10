@@ -340,6 +340,11 @@ Resources:
           Properties:
             Path: /messages/{conversationId}/read
             Method: put
+        DeleteConversation:
+          Type: Api
+          Properties:
+            Path: /messages/{conversationId}
+            Method: delete
         DeleteMessage:
           Type: Api
           Properties:

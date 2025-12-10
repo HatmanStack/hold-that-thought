@@ -10,7 +10,7 @@
   import { posts as storedPosts, tags as storedTags } from '$lib/stores/posts'
   import { title as storedTitle } from '$lib/stores/title'
   import { addLetterLambda } from '$lib/utils/s3Client'
-  import { onMount } from 'svelte'
+  import { onMount, tick } from 'svelte'
   import { fly } from 'svelte/transition'
 
   let allPosts: Urara.Post[]
@@ -56,29 +56,29 @@
   }
 
   // Load more posts (10 at a time)
-  function loadMorePosts() {
+  async function loadMorePosts() {
     if (isLoadingMore || !hasMorePosts)
       return
 
     isLoadingMore = true
 
-    // Simulate a small delay for better UX
-    setTimeout(() => {
-      const startIndex = currentPage * postsPerPage
-      const endIndex = startIndex + postsPerPage
-      const newPosts = posts.slice(startIndex, endIndex)
+    // Wait for DOM to update so in:fly animations trigger
+    await tick()
 
-      if (newPosts.length === 0) {
-        hasMorePosts = false
-      }
-      else {
-        displayedPosts = [...displayedPosts, ...newPosts]
-        currentPage++
-        hasMorePosts = endIndex < posts.length
-      }
+    const startIndex = currentPage * postsPerPage
+    const endIndex = startIndex + postsPerPage
+    const newPosts = posts.slice(startIndex, endIndex)
 
-      isLoadingMore = false
-    }, 300)
+    if (newPosts.length === 0) {
+      hasMorePosts = false
+    }
+    else {
+      displayedPosts = [...displayedPosts, ...newPosts]
+      currentPage++
+      hasMorePosts = endIndex < posts.length
+    }
+
+    isLoadingMore = false
   }
 
   // Watch for posts changes and reset pagination
@@ -283,7 +283,7 @@
         <!-- {:else} is not used because there is a problem with the transition -->
         {#if loaded && posts.length === 0}
           <div
-            class='bg-base-300 text-base-content shadow-inner text-center md:rounded-box -mb-2 relative z-10 p-10 md:mb-0'
+            class='bg-base-300 text-base-content shadow-inner text-center md:rounded-box relative z-10 -mb-2 p-10 md:mb-0'
             in:fly={{ delay: 500, duration: 300, x: 100 }}
             out:fly={{ duration: 300, x: -100 }}>
             <div class='prose items-center'>
@@ -317,7 +317,9 @@
             <div
               class='rounded-box transition-all duration-500 ease-in-out md:shadow-xl hover:z-30 hover:shadow-lg md:hover:shadow-2xl md:hover:-translate-y-0.5'
               in:fly={{ delay: 500, duration: 300, x: index % 2 ? 100 : -100 }}
-              out:fly={{ duration: 300, x: index % 2 ? -100 : 100 }}>
+              out:fly={{ duration: 300, x: index % 2 ? -100 : 100 }}
+              on:introstart={() => index === 0 && console.log('[Home Page] First post fly animation STARTING')}
+              on:introend={() => index === 0 && console.log('[Home Page] First post fly animation ENDED')}>
               <Post decoding={index < 5 ? 'auto' : 'async'} loading={index < 5 ? 'eager' : 'lazy'} {post} preview={true} />
             </div>
           {/each}

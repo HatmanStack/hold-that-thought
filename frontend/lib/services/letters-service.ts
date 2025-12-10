@@ -1,11 +1,13 @@
 import { PUBLIC_API_GATEWAY_URL } from '$env/static/public'
 
-const API_URL = PUBLIC_API_GATEWAY_URL || ''
+const API_URL = PUBLIC_API_GATEWAY_URL?.replace(/\/+$/, '') || ''
 
 export interface Letter {
   date: string
   title: string
-  originalTitle?: string
+  description?: string
+  author?: string
+  tags?: string[]
   content: string
   pdfKey?: string
   createdAt: string
@@ -17,7 +19,8 @@ export interface Letter {
 export interface LetterListItem {
   date: string
   title: string
-  originalTitle?: string
+  description?: string
+  author?: string
   updatedAt: string
 }
 
@@ -59,7 +62,10 @@ export async function listLetters(
   if (cursor)
     params.set('cursor', cursor)
 
-  const response = await fetch(`${API_URL}/letters?${params}`, {
+  const url = `${API_URL}/letters?${params}`
+  console.log('[letters-service] Fetching:', url)
+
+  const response = await fetch(url, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${authToken}`,
@@ -67,6 +73,7 @@ export async function listLetters(
     },
   })
 
+  console.log('[letters-service] Response status:', response.status)
   return handleResponse<LettersListResponse>(response)
 }
 
@@ -141,4 +148,37 @@ export async function getPdfUrl(date: string, authToken: string): Promise<string
 
   const data = await handleResponse<PdfUrlResponse>(response)
   return data.downloadUrl
+}
+
+export interface AdjacentLetters {
+  prev: LetterListItem | null
+  next: LetterListItem | null
+}
+
+/**
+ * Get adjacent letters (prev/next) for navigation
+ * Letters are sorted newest first, so:
+ * - prev = older letter (next in list)
+ * - next = newer letter (previous in list)
+ */
+export async function getAdjacentLetters(
+  currentDate: string,
+  authToken: string,
+): Promise<AdjacentLetters> {
+  // Fetch all letters to find adjacent ones
+  const { items } = await listLetters(authToken, 100)
+
+  const currentIndex = items.findIndex(item => item.date === currentDate)
+
+  if (currentIndex === -1) {
+    return { prev: null, next: null }
+  }
+
+  // Letters are sorted newest first
+  // prev = older = higher index
+  // next = newer = lower index
+  return {
+    prev: currentIndex < items.length - 1 ? items[currentIndex + 1] : null,
+    next: currentIndex > 0 ? items[currentIndex - 1] : null,
+  }
 }

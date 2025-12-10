@@ -18,8 +18,10 @@
 
   let { path, res } = data
 
-  $: if (data)
+  $: if (data) {
+    console.log('[Layout] data.path changed to:', data.path)
     path = data.path
+  }
 
   posts.set(res)
   tags.set(genTags(res))
