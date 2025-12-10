@@ -10,27 +10,31 @@
   let showDropdown = false
   let updateInterval: number | null = null
   let userProfilePhotoUrl: string | null = null
-  let profileFetched = false
+  let lastFetchUserId: string | null = null
 
   // Reset state when user logs out
   $: if (!$isAuthenticated) {
-    profileFetched = false
+    lastFetchUserId = null
     userProfilePhotoUrl = null
   }
 
-  // Reactively fetch profile photo when currentUser becomes available
-  $: if ($isAuthenticated && $currentUser?.sub && !profileFetched) {
-    profileFetched = true
+  // Reactively fetch profile photo when currentUser becomes available or changes
+  $: if ($isAuthenticated && $currentUser?.sub && lastFetchUserId !== $currentUser.sub) {
+    lastFetchUserId = $currentUser.sub
+    userProfilePhotoUrl = null // Clear old photo to prevent stale display
     fetchProfilePhoto($currentUser.sub)
   }
 
   async function fetchProfilePhoto(userId: string) {
     try {
       const result = await getProfile(userId)
-      if (result.success && result.data) {
-        const profile = Array.isArray(result.data) ? result.data[0] : result.data
-        if (profile?.profilePhotoUrl) {
-          userProfilePhotoUrl = profile.profilePhotoUrl
+      // Only update if the current user matches the one we fetched for
+      if ($currentUser?.sub === userId) {
+        if (result.success && result.data) {
+          const profile = Array.isArray(result.data) ? result.data[0] : result.data
+          if (profile?.profilePhotoUrl) {
+            userProfilePhotoUrl = profile.profilePhotoUrl
+          }
         }
       }
     }

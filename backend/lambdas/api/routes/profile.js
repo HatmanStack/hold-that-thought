@@ -188,6 +188,7 @@ async function updateProfile(event, requesterId, requesterEmail) {
         contactEmail: body.contactEmail || null,
         notifyOnMessage: body.notifyOnMessage !== false,
         notifyOnComment: body.notifyOnComment !== false,
+        theme: body.theme || null,
         joinedDate: now,
         createdAt: now,
         updatedAt: now,
@@ -210,6 +211,7 @@ async function updateProfile(event, requesterId, requesterEmail) {
         bio: newProfile.bio,
         familyRelationship: newProfile.familyRelationship,
         joinedDate: newProfile.joinedDate,
+        theme: newProfile.theme,
       })
     }
 
