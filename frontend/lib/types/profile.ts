@@ -19,6 +19,7 @@ export interface UserProfile {
   contactEmail?: string
   notifyOnMessage?: boolean
   notifyOnComment?: boolean
+  theme?: string
 }
 
 export interface ProfileApiResponse {
@@ -39,6 +40,7 @@ export interface UpdateProfileRequest {
   contactEmail?: string
   notifyOnMessage?: boolean
   notifyOnComment?: boolean
+  theme?: string
 }
 
 export interface CommentHistoryItem {

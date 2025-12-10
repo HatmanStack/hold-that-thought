@@ -317,9 +317,7 @@
             <div
               class='rounded-box transition-all duration-500 ease-in-out md:shadow-xl hover:z-30 hover:shadow-lg md:hover:shadow-2xl md:hover:-translate-y-0.5'
               in:fly={{ delay: 500, duration: 300, x: index % 2 ? 100 : -100 }}
-              out:fly={{ duration: 300, x: index % 2 ? -100 : 100 }}
-              on:introstart={() => index === 0 && console.log('[Home Page] First post fly animation STARTING')}
-              on:introend={() => index === 0 && console.log('[Home Page] First post fly animation ENDED')}>
+              out:fly={{ duration: 300, x: index % 2 ? -100 : 100 }}>
               <Post decoding={index < 5 ? 'auto' : 'async'} loading={index < 5 ? 'eager' : 'lazy'} {post} preview={true} />
             </div>
           {/each}

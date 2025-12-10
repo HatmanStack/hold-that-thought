@@ -1,11 +1,12 @@
 <script lang='ts'>
   import { browser, dev } from '$app/environment'
-  import { currentUser, isAuthenticated } from '$lib/auth/auth-store'
+  import { authTokens, currentUser, isAuthenticated } from '$lib/auth/auth-store'
   import UserMenu from '$lib/components/auth/UserMenu.svelte'
   import Nav from '$lib/components/header_nav.svelte'
   import Search from '$lib/components/header_search.svelte'
   import { header as headerConfig, theme } from '$lib/config/general'
   import { site } from '$lib/config/site'
+  import { getProfile, updateProfile } from '$lib/services/profileService'
   import { title as storedTitle } from '$lib/stores/title'
   import { hslToHex } from '$lib/utils/color'
   import { fly } from 'svelte/transition'
@@ -18,6 +19,7 @@
   let pin: boolean = true
   let percent: number
   let [scrollY, lastY] = [0, 0]
+  let profileThemeLoaded = false
 
   storedTitle.subscribe(storedTitle => (title = storedTitle as string))
 
@@ -27,6 +29,35 @@
 
   // Hide scroll-to-top button on messages pages (they have their own scroll container)
   $: isMessagesPage = path?.startsWith('/messages/')
+
+  // Load theme from profile when user logs in
+  $: if (browser && $isAuthenticated && $currentUser?.sub && $authTokens?.idToken && !profileThemeLoaded) {
+    profileThemeLoaded = true
+    loadThemeFromProfile($currentUser.sub)
+  }
+
+  async function loadThemeFromProfile(userId: string) {
+    try {
+      const result = await getProfile(userId)
+      if (result.success && result.data && !Array.isArray(result.data) && result.data.theme) {
+        currentTheme = result.data.theme
+        localStorage.setItem('theme', result.data.theme)
+      }
+    }
+    catch (e) {
+      console.error('Failed to load theme from profile:', e)
+    }
+  }
+
+  async function saveThemeToProfile(themeName: string) {
+    if (!$isAuthenticated || !$authTokens?.idToken) return
+    try {
+      await updateProfile({ theme: themeName })
+    }
+    catch (e) {
+      console.error('Failed to save theme to profile:', e)
+    }
+  }
 
   $: if (browser && currentTheme) {
     document.documentElement.setAttribute('data-theme', currentTheme)
@@ -111,6 +142,7 @@
                 on:click={() => {
                   currentTheme = name
                   localStorage.setItem('theme', name)
+                  saveThemeToProfile(name)
                 }}>
                 <p class='flex-1 text-base-content text-left group-hover:text-primary-content transition-color'>
                   {text ?? name}

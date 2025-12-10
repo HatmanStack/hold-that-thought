@@ -126,6 +126,7 @@ async function getProfile(event, requesterId, isAdmin) {
       contactEmail: profile.contactEmail,
       notifyOnMessage: profile.notifyOnMessage !== false,
       notifyOnComment: profile.notifyOnComment !== false,
+      theme: profile.theme || null,
     })
   } catch (error) {
     console.error('[getProfile] Error fetching profile:', { userId, error })
@@ -210,7 +211,7 @@ async function updateProfile(event, requesterId, requesterEmail) {
     const expressionAttributeNames = {}
     const expressionAttributeValues = {}
 
-    const allowedFields = ['displayName', 'profilePhotoUrl', 'bio', 'familyRelationship', 'generation', 'familyBranch', 'isProfilePrivate', 'contactEmail', 'notifyOnMessage', 'notifyOnComment']
+    const allowedFields = ['displayName', 'profilePhotoUrl', 'bio', 'familyRelationship', 'generation', 'familyBranch', 'isProfilePrivate', 'contactEmail', 'notifyOnMessage', 'notifyOnComment', 'theme']
 
     allowedFields.forEach(field => {
       if (body[field] !== undefined) {

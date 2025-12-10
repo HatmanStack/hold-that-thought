@@ -2,10 +2,8 @@
   import { authTokens, isAuthenticated } from '$lib/auth/auth-store'
   import { type LetterListItem, listLetters } from '$lib/services/letters-service'
   import { title as storedTitle } from '$lib/stores/title'
-  import { onDestroy, onMount, tick } from 'svelte'
+  import { onMount, tick } from 'svelte'
   import { fly } from 'svelte/transition'
-
-  console.log('[Letters Page] Script executing (component being created)')
 
   storedTitle.set('')
 
@@ -26,26 +24,21 @@
   }
 
   async function loadLetters() {
-    console.log('[Letters Page] loadLetters() called')
     if (!$authTokens?.idToken) {
-      console.log('[Letters Page] No auth token, skipping')
       loading = false
       return
     }
 
     try {
       const result = await listLetters($authTokens.idToken, 15)
-      console.log('[Letters Page] API returned', result.items?.length, 'items')
       nextCursor = result.nextCursor
 
       // Wait for DOM to update, then set letters so in:fly animations trigger
       await tick()
-      console.log('[Letters Page] Setting letters after tick (for animations)')
       letters = result.items
       loading = false
     }
     catch (e) {
-      console.error('[Letters Page] API error:', e)
       error = e instanceof Error ? e.message : 'Failed to load letters'
       loading = false
     }
@@ -68,12 +61,7 @@
   }
 
   onMount(() => {
-    console.log('[Letters Page] onMount')
     loadLetters()
-  })
-
-  onDestroy(() => {
-    console.log('[Letters Page] onDestroy - component being destroyed')
   })
 </script>
 
@@ -96,15 +84,12 @@
         </div>
       </div>
     {:else}
-      {@const _ = console.log('[Letters Page] Template rendering', letters.length, 'letters')}
       <main class='flex flex-col relative bg-base-100 md:bg-transparent md:gap-8 z-10'>
         {#each letters as letter, index (letter.date)}
           <div
             class='rounded-box transition-all duration-500 ease-in-out hover:z-30 hover:shadow-lg md:shadow-xl md:hover:shadow-2xl md:hover:-translate-y-0.5'
             in:fly={{ delay: 500 + (index % 15) * 50, duration: 300, x: index % 2 ? 100 : -100 }}
             out:fly={{ duration: 300, x: index % 2 ? -100 : 100 }}
-            on:introstart={() => index === 0 && console.log('[Letters Page] First letter fly animation STARTING')}
-            on:introend={() => index === 0 && console.log('[Letters Page] First letter fly animation ENDED')}
           >
             <a
               href='/letters/{letter.date}'
