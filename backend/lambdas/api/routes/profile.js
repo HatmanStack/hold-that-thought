@@ -147,6 +147,13 @@ async function updateProfile(event, requesterId, requesterEmail) {
   if (body.displayName) body.displayName = sanitizeText(body.displayName, 100)
   if (body.familyRelationship) body.familyRelationship = sanitizeText(body.familyRelationship, 100)
 
+  // Validate theme if provided (must be a non-empty string, max 50 chars, alphanumeric/hyphen only)
+  if (body.theme !== undefined) {
+    if (typeof body.theme !== 'string' || body.theme.length > 50 || !/^[a-z0-9-]+$/.test(body.theme)) {
+      return errorResponse(400, 'Invalid theme value')
+    }
+  }
+
   const errors = []
   if (body.displayName && body.displayName.length > 100) errors.push('Display name must be 100 characters or less')
   if (body.familyRelationship && body.familyRelationship.length > 100) errors.push('Family relationship must be 100 characters or less')

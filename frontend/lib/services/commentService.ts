@@ -14,7 +14,13 @@ const API_BASE = PUBLIC_API_GATEWAY_URL?.replace(/\/+$/, '')
  */
 function encodeItemId(itemId: string): string {
   // Decode first in case it's already URL-encoded, then base64
-  const decoded = decodeURIComponent(itemId)
+  let decoded: string
+  try {
+    decoded = decodeURIComponent(itemId)
+  }
+  catch {
+    decoded = itemId // Use as-is if not URL-encoded
+  }
   return btoa(decoded).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
@@ -134,7 +140,6 @@ export async function updateComment(
     }
 
     const url = `${API_BASE}/comments/${encodeItemId(itemId)}/${encodeURIComponent(commentId)}`
-    console.log('[updateComment] PUT', url)
 
     const response = await fetch(url, {
       method: 'PUT',
@@ -142,11 +147,8 @@ export async function updateComment(
       body: JSON.stringify(body),
     })
 
-    console.log('[updateComment] response status:', response.status)
-
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Failed to update comment' }))
-      console.log('[updateComment] error:', errorData)
       return {
         success: false,
         error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
@@ -154,7 +156,6 @@ export async function updateComment(
     }
 
     const data = await response.json()
-    console.log('[updateComment] success data:', data)
     return {
       success: true,
       data,

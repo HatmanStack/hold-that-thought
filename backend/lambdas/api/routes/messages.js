@@ -495,16 +495,29 @@ async function deleteConversation(event, userId) {
       }
     })
 
-    // Execute Batch Writes (max 25 items per batch)
+    // Execute Batch Writes (max 25 items per batch) with retry for UnprocessedItems
     for (let i = 0; i < deleteOps.length; i += 25) {
-      const batch = deleteOps.slice(i, i + 25)
-      // BatchWriteItem can fail if items are large, but deletes are small (Keys only)
-      // UnprocessedItems handling is recommended but skipping for brevity in this iteration unless critical
-      await docClient.send(new BatchWriteCommand({
-        RequestItems: {
-          [TABLE_NAME]: batch
+      let unprocessed = deleteOps.slice(i, i + 25)
+      let retries = 0
+
+      while (unprocessed.length > 0 && retries < 3) {
+        const result = await docClient.send(new BatchWriteCommand({
+          RequestItems: {
+            [TABLE_NAME]: unprocessed
+          }
+        }))
+
+        unprocessed = result.UnprocessedItems?.[TABLE_NAME] || []
+        if (unprocessed.length > 0) {
+          retries++
+          // Exponential backoff
+          await new Promise(r => setTimeout(r, 100 * Math.pow(2, retries)))
         }
-      }))
+      }
+
+      if (unprocessed.length > 0) {
+        console.error('Failed to delete items after retries:', unprocessed.length, 'items remaining')
+      }
     }
 
     return successResponse({ message: 'Conversation deleted' })
@@ -516,33 +529,22 @@ async function deleteConversation(event, userId) {
 }
 
 async function deleteMessage(event, userId) {
-  console.log('[deleteMessage] Function called')
-  console.log('[deleteMessage] pathParameters:', event.pathParameters)
-
   // URL decode path parameters - API Gateway may pass them encoded
   const conversationId = decodeURIComponent(event.pathParameters?.conversationId || '')
   const messageId = decodeURIComponent(event.pathParameters?.messageId || '')
 
-  console.log('[deleteMessage] conversationId (decoded):', conversationId)
-  console.log('[deleteMessage] messageId (decoded):', messageId)
-  console.log('[deleteMessage] userId:', userId)
-
   if (!conversationId || !messageId) {
-    console.log('[deleteMessage] Missing parameters, returning 400')
     return errorResponse(400, 'Missing conversationId or messageId parameter')
   }
 
   try {
     const messageKey = keys.message(conversationId, messageId)
-    console.log('[deleteMessage] Looking up message with key:', messageKey)
 
     // Get the message to verify ownership and get attachment info
     const messageResult = await docClient.send(new GetCommand({
       TableName: TABLE_NAME,
       Key: messageKey,
     }))
-
-    console.log('[deleteMessage] DynamoDB GetCommand result:', messageResult.Item ? 'Found' : 'Not found')
 
     if (!messageResult.Item) {
       return errorResponse(404, 'Message not found')

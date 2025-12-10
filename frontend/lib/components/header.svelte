@@ -33,16 +33,13 @@
   // Load theme from profile when user logs in
   $: if (browser && $isAuthenticated && $currentUser?.sub && $authTokens?.idToken && !profileThemeLoaded) {
     profileThemeLoaded = true
-    console.log('[Header] Loading theme from profile for user:', $currentUser.sub)
     loadThemeFromProfile($currentUser.sub)
   }
 
   async function loadThemeFromProfile(userId: string) {
     try {
       const result = await getProfile(userId)
-      console.log('[Header] Profile result:', result.success, 'theme:', result.data && !Array.isArray(result.data) ? result.data.theme : 'N/A')
       if (result.success && result.data && !Array.isArray(result.data) && result.data.theme) {
-        console.log('[Header] Applying theme from profile:', result.data.theme)
         currentTheme = result.data.theme
         localStorage.setItem('theme', result.data.theme)
       }
@@ -53,11 +50,10 @@
   }
 
   async function saveThemeToProfile(themeName: string) {
-    if (!$isAuthenticated || !$authTokens?.idToken) return
+    if (!$isAuthenticated || !$authTokens?.idToken)
+      return
     try {
-      console.log('[Header] Saving theme to profile:', themeName)
-      const result = await updateProfile({ theme: themeName })
-      console.log('[Header] Save theme result:', result)
+      await updateProfile({ theme: themeName })
     }
     catch (e) {
       console.error('Failed to save theme to profile:', e)

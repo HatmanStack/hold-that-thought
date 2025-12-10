@@ -23,8 +23,6 @@ export async function uploadMedia(file: File): Promise<MediaItem> {
     throw new Error('User is not authenticated')
   }
 
-  console.log('[media-service] uploadMedia called for:', file.name, file.type, file.size)
-
   try {
     // Get presigned URL from backend
     const presignedResponse = await fetch(`${API_URL}/media/upload-url`, {
@@ -40,15 +38,12 @@ export async function uploadMedia(file: File): Promise<MediaItem> {
       }),
     })
 
-    console.log('[media-service] Presigned URL response status:', presignedResponse.status)
-
     if (!presignedResponse.ok) {
       const error = await presignedResponse.json()
       throw new Error(error.error || error.message || 'Failed to get presigned URL')
     }
 
     const { presignedUrl, key } = await presignedResponse.json()
-    console.log('[media-service] Got presigned URL for key:', key)
 
     // Upload directly to S3 using presigned URL
     const uploadResponse = await fetch(presignedUrl, {
@@ -58,8 +53,6 @@ export async function uploadMedia(file: File): Promise<MediaItem> {
       },
       body: file,
     })
-
-    console.log('[media-service] S3 upload response status:', uploadResponse.status)
 
     if (!uploadResponse.ok) {
       throw new Error('Failed to upload file to S3')
@@ -89,8 +82,6 @@ export async function getMediaItems(category: 'pictures' | 'videos' | 'documents
     throw new Error('User is not authenticated')
   }
 
-  console.log('[media-service] getMediaItems called for category:', category)
-
   const response = await fetch(`${API_URL}/media/list`, {
     method: 'POST',
     headers: {
@@ -100,16 +91,12 @@ export async function getMediaItems(category: 'pictures' | 'videos' | 'documents
     body: JSON.stringify({ category }),
   })
 
-  console.log('[media-service] List response status:', response.status)
-
   if (!response.ok) {
     const error = await response.json()
     throw new Error(error.error || error.message || `Failed to load ${category}`)
   }
 
-  const items = await response.json()
-  console.log('[media-service] Got', items.length, 'items for', category)
-  return items
+  return response.json()
 }
 
 function determineCategory(contentType: string): 'pictures' | 'videos' | 'documents' {

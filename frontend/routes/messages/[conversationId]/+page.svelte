@@ -39,14 +39,20 @@
     }
 
     isDeleting = true
-    const result = await deleteConversation(conversationId)
-    isDeleting = false
-
-    if (result.success) {
-      goto('/messages')
+    try {
+      const result = await deleteConversation(conversationId)
+      if (result.success) {
+        goto('/messages')
+      }
+      else {
+        alert(result.error || 'Failed to delete conversation')
+      }
     }
- else {
-      alert(result.error || 'Failed to delete conversation')
+    catch (error) {
+      alert('Failed to delete conversation')
+    }
+    finally {
+      isDeleting = false
     }
   }
 

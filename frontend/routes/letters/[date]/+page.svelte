@@ -2,7 +2,7 @@
   import { authTokens, isAuthenticated } from '$lib/auth/auth-store'
   import CommentSection from '$lib/components/comments/CommentSection.svelte'
   import VersionHistory from '$lib/components/VersionHistory.svelte'
-  import { getAdjacentLetters, getLetter, getPdfUrl, getVersions, type AdjacentLetters, type Letter, type LetterVersion, revertToVersion } from '$lib/services/letters-service'
+  import { type AdjacentLetters, getAdjacentLetters, getLetter, getPdfUrl, getVersions, type Letter, type LetterVersion, revertToVersion } from '$lib/services/letters-service'
   import { title as storedTitle } from '$lib/stores/title'
   import { marked } from 'marked'
   import sanitizeHtml from 'sanitize-html'
@@ -42,9 +42,9 @@
       letter = await getLetter(data.date, $authTokens.idToken)
       if (letter) {
         storedTitle.set(letter.title)
+        // Load adjacent letters for navigation only if letter found
+        adjacent = await getAdjacentLetters(data.date, $authTokens.idToken)
       }
-      // Load adjacent letters for navigation
-      adjacent = await getAdjacentLetters(data.date, $authTokens.idToken)
     }
     catch (e) {
       error = e instanceof Error ? e.message : 'Letter not found'

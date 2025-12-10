@@ -63,7 +63,6 @@ export async function listLetters(
     params.set('cursor', cursor)
 
   const url = `${API_URL}/letters?${params}`
-  console.log('[letters-service] Fetching:', url)
 
   const response = await fetch(url, {
     method: 'GET',
@@ -73,7 +72,6 @@ export async function listLetters(
     },
   })
 
-  console.log('[letters-service] Response status:', response.status)
   return handleResponse<LettersListResponse>(response)
 }
 

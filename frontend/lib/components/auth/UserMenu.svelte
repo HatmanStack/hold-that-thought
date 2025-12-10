@@ -12,6 +12,12 @@
   let userProfilePhotoUrl: string | null = null
   let profileFetched = false
 
+  // Reset state when user logs out
+  $: if (!$isAuthenticated) {
+    profileFetched = false
+    userProfilePhotoUrl = null
+  }
+
   // Reactively fetch profile photo when currentUser becomes available
   $: if ($isAuthenticated && $currentUser?.sub && !profileFetched) {
     profileFetched = true
@@ -19,28 +25,17 @@
   }
 
   async function fetchProfilePhoto(userId: string) {
-    console.log('[UserMenu] fetchProfilePhoto called with userId:', userId)
     try {
       const result = await getProfile(userId)
-      console.log('[UserMenu] getProfile result:', JSON.stringify(result, null, 2))
       if (result.success && result.data) {
         const profile = Array.isArray(result.data) ? result.data[0] : result.data
-        console.log('[UserMenu] Extracted profile:', profile)
-        console.log('[UserMenu] profilePhotoUrl:', profile?.profilePhotoUrl)
         if (profile?.profilePhotoUrl) {
           userProfilePhotoUrl = profile.profilePhotoUrl
-          console.log('[UserMenu] Set userProfilePhotoUrl to:', userProfilePhotoUrl)
         }
- else {
-          console.log('[UserMenu] No profilePhotoUrl in profile data')
-        }
-      }
- else {
-        console.log('[UserMenu] getProfile failed or no data:', result.error)
       }
     }
     catch (e) {
-      console.error('[UserMenu] Error fetching profile:', e)
+      console.error('Error fetching profile photo:', e)
     }
   }
 

@@ -84,14 +84,20 @@
     }
 
     deletingId = conversationId
-    const result = await deleteConversation(conversationId)
-    deletingId = null
-
-    if (result.success) {
-      conversations = conversations.filter(c => c.conversationId !== conversationId)
+    try {
+      const result = await deleteConversation(conversationId)
+      if (result.success) {
+        conversations = conversations.filter(c => c.conversationId !== conversationId)
+      }
+      else {
+        alert(result.error || 'Failed to delete conversation')
+      }
     }
- else {
-      alert(result.error || 'Failed to delete conversation')
+    catch (error) {
+      alert('Failed to delete conversation')
+    }
+    finally {
+      deletingId = null
     }
   }
 

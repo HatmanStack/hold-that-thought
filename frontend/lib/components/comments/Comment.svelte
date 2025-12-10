@@ -127,7 +127,7 @@
     const previousCount = reactionCount
     const previousHasReacted = hasReacted
     hasReacted = !hasReacted
-    reactionCount += hasReacted ? 1 : -1
+    reactionCount = Math.max(0, reactionCount + (hasReacted ? 1 : -1))
 
     const result = await toggleReaction(comment.commentId, comment.itemId)
 
