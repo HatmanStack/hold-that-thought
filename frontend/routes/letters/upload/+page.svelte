@@ -37,7 +37,7 @@
       </a>
     </div>
     <p class='text-base-content/70 mb-8'>
-      Upload scanned letter images or PDF files. After uploading, the system will process and extract the letter content using AI.
+      Upload a scanned letter as a PDF or images. After processing, you'll have the opportunity to review and edit the extracted content before publishing.
     </p>
 
     <div class='bg-base-100 border border-base-300 rounded-lg p-6'>
@@ -56,12 +56,15 @@
 
     <div class='mt-8 p-4 bg-info/10 border border-info/30 rounded-lg'>
       <h3 class='font-semibold text-info mb-2'>How it works</h3>
-      <ol class='list-decimal list-inside space-y-1 text-sm text-base-content/80'>
-        <li>Upload one or more letter scans (PDF or images)</li>
-        <li>The system processes and extracts text using AI</li>
-        <li>Review and edit the extracted content on the drafts page</li>
-        <li>Publish the letter to make it publicly available</li>
+      <ol class='list-decimal list-inside space-y-2 text-sm text-base-content/80'>
+        <li><strong>One letter at a time:</strong> Upload a single PDF or multiple images of the same letter</li>
+        <li><strong>AI processing:</strong> The system extracts and transcribes the letter content</li>
+        <li><strong>Review & edit:</strong> Check the extracted text on the drafts page and make corrections</li>
+        <li><strong>Publish:</strong> Add the letter to the collection when ready</li>
       </ol>
+      <p class='mt-3 text-xs text-base-content/60'>
+        Note: Drafts can be reviewed and edited by any approved user, just like published letters.
+      </p>
     </div>
   </div>
 </AuthGuard>
