@@ -124,7 +124,7 @@
       {#if profile.bio}
         <div class='mb-4'>
           <h3 class='font-bold text-lg mb-2'>About</h3>
-          <p class='text-base-content/80 whitespace-pre-wrap break-words'>{profile.bio}</p>
+          <p class='whitespace-pre-wrap break-words text-base-content/80'>{profile.bio}</p>
         </div>
       {/if}
 

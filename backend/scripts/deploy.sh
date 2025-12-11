@@ -19,15 +19,15 @@ for arg in "$@"; do
         --force-migrate)
             FORCE_MIGRATE=true
             shift
-            ;;
+            ;; 
         --force-populate)
             FORCE_POPULATE=true
             shift
-            ;;
+            ;; 
         --dry-run)
             DRY_RUN=true
             shift
-            ;;
+            ;; 
     esac
 done
 
@@ -102,6 +102,23 @@ if [ -n "$GOOGLE_CLIENT_ID" ]; then
     fi
 fi
 
+# Google Gemini Setup
+echo ""
+echo "--- Google Gemini Setup (NEW) ---"
+echo "To enable Letter Processing, you need a Google Gemini API Key."
+echo "Get one at: https://aistudio.google.com/app/apikey"
+echo ""
+
+if [ -n "$GEMINI_API_KEY" ]; then
+    echo "Gemini API Key: [hidden - press Enter to keep, or paste new]"
+else
+    echo "Gemini API Key: [not set]"
+fi
+read -p "> " input_gemini_key
+if [ -n "$input_gemini_key" ]; then
+    GEMINI_API_KEY="$input_gemini_key"
+fi
+
 echo ""
 echo "--- DynamoDB (Single Table Design) ---"
 
@@ -143,6 +160,7 @@ APP_DOMAIN=$APP_DOMAIN
 ALLOWED_ORIGINS=$ALLOWED_ORIGINS
 GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
 GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET
+GEMINI_API_KEY=$GEMINI_API_KEY
 TABLE_NAME=$TABLE_NAME
 SES_FROM_EMAIL=$SES_FROM_EMAIL
 ARCHIVE_BUCKET=$ARCHIVE_BUCKET
@@ -153,7 +171,7 @@ echo "Configuration saved to $ENV_DEPLOY_FILE"
 
 # Generate samconfig.toml so `sam deploy` without arguments uses correct config
 DEPLOY_BUCKET="sam-deploy-hold-that-thought-${AWS_REGION}"
-PARAM_OVERRIDES_TOML="AllowedOrigins=$ALLOWED_ORIGINS AppDomain=$APP_DOMAIN TableName=$TABLE_NAME SesFromEmail=$SES_FROM_EMAIL ArchiveBucket=$ARCHIVE_BUCKET"
+PARAM_OVERRIDES_TOML="AllowedOrigins=$ALLOWED_ORIGINS AppDomain=$APP_DOMAIN TableName=$TABLE_NAME SesFromEmail=$SES_FROM_EMAIL ArchiveBucket=$ARCHIVE_BUCKET GeminiApiKey=$GEMINI_API_KEY"
 if [ -n "$GOOGLE_CLIENT_ID" ]; then
     PARAM_OVERRIDES_TOML="$PARAM_OVERRIDES_TOML GoogleClientId=$GOOGLE_CLIENT_ID GoogleClientSecret=$GOOGLE_CLIENT_SECRET"
 fi
@@ -189,6 +207,11 @@ if [ -n "$GOOGLE_CLIENT_ID" ]; then
 else
     echo "  Google OAuth: Disabled"
 fi
+if [ -n "$GEMINI_API_KEY" ]; then
+    echo "  Gemini API: Configured"
+else
+    echo "  Gemini API: Not configured (Letter Processing will fail)"
+fi
 echo ""
 
 # Dry run mode - stop here
@@ -217,7 +240,7 @@ fi
 if ! aws s3 ls "s3://${ARCHIVE_BUCKET}" --region "$AWS_REGION" 2>/dev/null; then
     echo "Creating archive bucket: ${ARCHIVE_BUCKET}"
     aws s3 mb "s3://${ARCHIVE_BUCKET}" --region "$AWS_REGION"
-    aws s3api put-bucket-cors --bucket "$ARCHIVE_BUCKET" --region "$AWS_REGION" --cors-configuration '{
+    aws s3api put-bucket-cors --bucket "$ARCHIVE_BUCKET" --region "$AWS_REGION" --cors-configuration '{ 
       "CORSRules": [{
         "AllowedHeaders": ["*"],
         "AllowedMethods": ["GET", "PUT", "POST", "HEAD"],
@@ -264,6 +287,7 @@ PARAM_OVERRIDES="$PARAM_OVERRIDES AppDomain=$APP_DOMAIN"
 PARAM_OVERRIDES="$PARAM_OVERRIDES TableName=$TABLE_NAME"
 PARAM_OVERRIDES="$PARAM_OVERRIDES SesFromEmail=$SES_FROM_EMAIL"
 PARAM_OVERRIDES="$PARAM_OVERRIDES ArchiveBucket=$ARCHIVE_BUCKET"
+PARAM_OVERRIDES="$PARAM_OVERRIDES GeminiApiKey=$GEMINI_API_KEY"
 
 if [ -n "$GOOGLE_CLIENT_ID" ]; then
     PARAM_OVERRIDES="$PARAM_OVERRIDES GoogleClientId=$GOOGLE_CLIENT_ID"

@@ -75,7 +75,7 @@
 
     try {
       await deleteDraft(data.draftId)
-      goto('/admin/letters/drafts')
+      goto('/letters/drafts')
     }
     catch (err) {
       error = err instanceof Error ? err.message : 'Failed to delete draft'
@@ -89,7 +89,7 @@
 </script>
 
 <svelte:head>
-  <title>Review Draft | Admin</title>
+  <title>Review Draft</title>
 </svelte:head>
 
 <AuthGuard>
@@ -111,7 +111,7 @@
           <p class='text-base-content/70 mb-4'>{error}</p>
           <div class='flex gap-2 justify-center'>
             <button class='btn btn-outline' on:click={loadDraft}>Retry</button>
-            <a href='/admin/letters/drafts' class='btn'>Back to Drafts</a>
+            <a href='/letters/drafts' class='btn'>Back to Drafts</a>
           </div>
         </div>
       </div>
@@ -136,7 +136,7 @@
             {/if}
             <div class='flex gap-2 justify-center'>
               <button class='btn btn-outline' on:click={loadDraft}>Refresh</button>
-              <a href='/admin/letters/drafts' class='btn'>Back to Drafts</a>
+              <a href='/letters/drafts' class='btn'>Back to Drafts</a>
             </div>
           </div>
         </div>

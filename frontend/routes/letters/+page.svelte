@@ -84,6 +84,16 @@
         </div>
       </div>
     {:else}
+      <!-- Add Letter Button -->
+      <div class='mb-6 flex justify-end' in:fly={{ delay: 300, duration: 300, y: -20 }}>
+        <a href='/admin/letters/upload' class='btn btn-primary gap-2'>
+          <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+            <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 4v16m8-8H4' />
+          </svg>
+          Add Letter
+        </a>
+      </div>
+
       <main class='flex flex-col relative bg-base-100 md:bg-transparent md:gap-8 z-10'>
         {#each letters as letter, index (letter.date)}
           <div
@@ -97,7 +107,7 @@
             >
               <div class='card-body'>
                 <div class='flex justify-between items-start gap-4'>
-                  <h2 class='card-title text-xl mr-auto bg-[length:100%_0%] bg-[position:0_88%] underline decoration-2 decoration-transparent group-hover:decoration-primary bg-gradient-to-t from-primary to-primary bg-no-repeat transition-all ease-in-out duration-300'>
+                  <h2 class='card-title text-xl mr-auto bg-[length:100%_0%] bg-[position:0_88%] underline decoration-transparent group-hover:decoration-primary bg-gradient-to-t from-primary to-primary bg-no-repeat transition-all ease-in-out duration-300 decoration-2'>
                     {letter.title}
                   </h2>
                   <span class='text-sm opacity-70 whitespace-nowrap'>

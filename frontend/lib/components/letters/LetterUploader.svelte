@@ -159,7 +159,7 @@
 
         // Redirect to drafts after a brief delay
         setTimeout(() => {
-          goto('/admin/letters/drafts')
+          goto('/letters/drafts')
         }, 2000)
       }
       else {

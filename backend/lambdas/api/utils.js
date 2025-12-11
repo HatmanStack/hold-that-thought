@@ -17,6 +17,7 @@ const S3_PREFIXES = {
   letters: 'letters-v2/',
   media: 'media/',
   profilePhotos: 'profile-photos/',
+  temp: 'temp/',
 }
 
 // =============================================================================
@@ -31,6 +32,7 @@ const PREFIX = {
   RATE: 'RATE#',
   LETTER: 'LETTER#',
   VERSION: 'VERSION#',
+  DRAFT: 'DRAFT#',
 }
 
 // =============================================================================
@@ -112,6 +114,12 @@ const keys = {
   letterVersions: (date) => ({
     PK: `${PREFIX.LETTER}${date}`,
     SKPrefix: PREFIX.VERSION,
+  }),
+
+  // Draft: PK=DRAFT#<draftId>, SK=METADATA
+  draft: (draftId) => ({
+    PK: `${PREFIX.DRAFT}${draftId}`,
+    SK: 'METADATA',
   }),
 }
 

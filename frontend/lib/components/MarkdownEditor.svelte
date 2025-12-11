@@ -23,7 +23,7 @@
   <!-- Title input -->
   <div class='mb-4'>
     <label class='label' for='title-input'>
-      <span class='label-text font-medium'>Title</span>
+      <span class='font-medium label-text'>Title</span>
     </label>
     <input
       id='title-input'
@@ -36,13 +36,13 @@
   </div>
 
   <!-- Editor -->
-  <div class='flex-1 flex flex-col min-h-[500px]'>
+  <div class='flex flex-col flex-1 min-h-[500px]'>
     <label class='label' for='content-editor'>
       <span class='label-text font-medium'>Content</span>
     </label>
     <textarea
       id='content-editor'
-      class='flex-1 textarea textarea-bordered font-mono text-sm resize-none'
+      class='flex-1 text-sm textarea textarea-bordered font-mono resize-none'
       bind:value={content}
       placeholder='Write your content...'
       disabled={saving}
@@ -50,7 +50,7 @@
   </div>
 
   <!-- Actions -->
-  <div class='flex justify-end gap-2 mt-4'>
+  <div class='flex gap-2 justify-end mt-4'>
     <button
       class='btn btn-ghost'
       on:click={handleCancel}

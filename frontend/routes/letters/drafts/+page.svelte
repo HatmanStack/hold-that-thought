@@ -49,7 +49,7 @@
 
   function handleReview(draft: Draft) {
     const draftId = extractDraftId(draft.PK)
-    goto(`/admin/letters/drafts/${draftId}`)
+    goto(`/letters/drafts/${draftId}`)
   }
 
   function formatDate(dateStr: string): string {
@@ -58,7 +58,7 @@
 </script>
 
 <svelte:head>
-  <title>Letter Drafts | Admin</title>
+  <title>Letter Drafts</title>
 </svelte:head>
 
 <AuthGuard>
@@ -66,23 +66,15 @@
     <div class='mb-8'>
       <nav class='text-sm breadcrumbs'>
         <ul>
-          <li><a href='/admin' class='link link-hover'>Admin</a></li>
-          <li>Letter Drafts</li>
+          <li><a href='/letters' class='link link-hover'>Letters</a></li>
+          <li>Drafts</li>
         </ul>
       </nav>
     </div>
 
-    <div class='flex items-center justify-between mb-8'>
-      <div>
-        <h1 class='text-3xl font-bold'>Letter Drafts</h1>
-        <p class='text-base-content/70 mt-1'>Review and publish uploaded letters</p>
-      </div>
-      <a href='/admin/letters/upload' class='btn btn-primary'>
-        <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5 mr-2' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
-          <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 4v16m8-8H4' />
-        </svg>
-        Upload Letter
-      </a>
+    <div class='mb-8'>
+      <h1 class='text-3xl font-bold'>Letter Drafts</h1>
+      <p class='text-base-content/70 mt-1'>Review and publish uploaded letters</p>
     </div>
 
     {#if error}
@@ -105,8 +97,7 @@
           <path stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' />
         </svg>
         <h3 class='text-lg font-semibold mb-2'>No Drafts</h3>
-        <p class='text-base-content/60 mb-4'>Upload a letter to get started</p>
-        <a href='/admin/letters/upload' class='btn btn-primary'>Upload Letter</a>
+        <p class='text-base-content/60'>No letters are waiting for review</p>
       </div>
     {:else}
       <div class='overflow-x-auto'>

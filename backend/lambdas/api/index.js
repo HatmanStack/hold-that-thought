@@ -4,6 +4,7 @@ const profile = require('./routes/profile')
 const reactions = require('./routes/reactions')
 const media = require('./routes/media')
 const letters = require('./routes/letters')
+const drafts = require('./routes/drafts')
 const { ensureProfile } = require('./utils')
 
 /**
@@ -56,6 +57,11 @@ exports.handler = async (event) => {
       return await media.handle(event, context)
     }
 
+    // Drafts / Uploads (specific routes before generic /letters)
+    if (path.startsWith('/letters/upload-request') || path.startsWith('/letters/process')) {
+      return await drafts.handle(event, context)
+    }
+
     if (path.startsWith('/letters')) {
       return await letters.handle(event, context)
     }
@@ -67,6 +73,9 @@ exports.handler = async (event) => {
       }
       if (path.includes('/comments/')) {
         return await comments.handle(event, context)
+      }
+      if (path.includes('/drafts')) {
+        return await drafts.handle(event, context)
       }
     }
 

@@ -12,7 +12,7 @@
 </script>
 
 <svelte:head>
-  <title>Upload Letter | Admin</title>
+  <title>Upload Letter</title>
 </svelte:head>
 
 <AuthGuard>
@@ -20,8 +20,7 @@
     <div class='mb-8'>
       <nav class='text-sm breadcrumbs'>
         <ul>
-          <li><a href='/admin' class='link link-hover'>Admin</a></li>
-          <li><a href='/admin/letters/drafts' class='link link-hover'>Letter Drafts</a></li>
+          <li><a href='/letters' class='link link-hover'>Letters</a></li>
           <li>Upload</li>
         </ul>
       </nav>
