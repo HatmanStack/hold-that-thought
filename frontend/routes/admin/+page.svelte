@@ -43,6 +43,25 @@
     <p class='text-green-700'>You are successfully authenticated and authorized to access this page.</p>
   </div>
 
+  <!-- Letter Management -->
+  <div class='mb-6 border rounded-lg p-6 bg-white border-gray-200'>
+    <h2 class='text-xl font-semibold mb-4'>Letter Management</h2>
+    <div class='flex gap-4'>
+      <a href='/admin/letters/upload' class='btn btn-primary'>
+        <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5 mr-2' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+          <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 4v16m8-8H4' />
+        </svg>
+        Upload Letter
+      </a>
+      <a href='/admin/letters/drafts' class='btn btn-outline'>
+        <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5 mr-2' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+          <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' />
+        </svg>
+        View Drafts
+      </a>
+    </div>
+  </div>
+
   <div class='grid md:grid-cols-2 gap-6'>
     <!-- User Information -->
     <div class='border rounded-lg p-6 bg-white border-gray-200'>
