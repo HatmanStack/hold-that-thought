@@ -1,6 +1,7 @@
 <script lang='ts'>
   import type { PageData } from './$types'
   import { goto } from '$app/navigation'
+  import { authTokens } from '$lib/auth/auth-store'
   import AuthGuard from '$lib/components/auth/AuthGuard.svelte'
   import DraftReviewModal from '$lib/components/letters/DraftReviewModal.svelte'
   import {
@@ -27,15 +28,21 @@
   })
 
   async function loadDraft() {
+    if (!$authTokens?.idToken) {
+      error = 'Not authenticated'
+      loading = false
+      return
+    }
+
     loading = true
     error = ''
     try {
-      draft = await getDraft(data.draftId)
+      draft = await getDraft(data.draftId, $authTokens.idToken)
 
       // Try to get PDF URL if available
       if (draft.s3Key) {
         try {
-          pdfUrl = await getDraftPdfUrl(draft.s3Key)
+          pdfUrl = await getDraftPdfUrl(draft.s3Key, $authTokens.idToken)
         }
         catch {
           // PDF preview not available, that's okay
@@ -52,14 +59,14 @@
   }
 
   async function handlePublish(event: CustomEvent<PublishData>) {
-    if (!draft)
+    if (!draft || !$authTokens?.idToken)
       return
 
     publishing = true
     error = ''
 
     try {
-      const result = await publishDraft(data.draftId, event.detail)
+      const result = await publishDraft(data.draftId, event.detail, $authTokens.idToken)
       // Redirect to the published letter
       goto(result.path)
     }
@@ -70,11 +77,13 @@
   }
 
   async function handleDiscard() {
+    if (!$authTokens?.idToken) return
+
     deleting = true
     error = ''
 
     try {
-      await deleteDraft(data.draftId)
+      await deleteDraft(data.draftId, $authTokens.idToken)
       goto('/letters/drafts')
     }
     catch (err) {
@@ -84,7 +93,7 @@
   }
 
   function handleClose() {
-    goto('/admin/letters/drafts')
+    goto('/letters/drafts')
   }
 </script>
 

@@ -1,5 +1,4 @@
 import { PUBLIC_API_GATEWAY_URL } from '$env/static/public'
-import { getStoredTokens } from '$lib/auth/client'
 
 const API_URL = PUBLIC_API_GATEWAY_URL?.replace(/\/+$/, '') || ''
 
@@ -43,17 +42,6 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 /**
- * Get auth token or throw
- */
-function getAuthToken(): string {
-  const tokens = getStoredTokens()
-  if (!tokens?.idToken) {
-    throw new Error('Authentication required. Please log in.')
-  }
-  return tokens.idToken
-}
-
-/**
  * Validate a file for letter upload
  */
 export function validateLetterFile(file: File): { valid: boolean, message?: string } {
@@ -93,9 +81,7 @@ export function formatFileSize(bytes: number): string {
 /**
  * Request presigned URLs for uploading letter files
  */
-export async function requestUploadUrls(files: File[]): Promise<UploadRequestResponse> {
-  const authToken = getAuthToken()
-
+export async function requestUploadUrls(files: File[], authToken: string): Promise<UploadRequestResponse> {
   const response = await fetch(`${API_URL}/letters/upload-request`, {
     method: 'POST',
     headers: {
@@ -159,9 +145,7 @@ export async function uploadFileToS3(
 /**
  * Trigger backend processing after files are uploaded
  */
-export async function triggerProcessing(uploadId: string): Promise<{ message: string }> {
-  const authToken = getAuthToken()
-
+export async function triggerProcessing(uploadId: string, authToken: string): Promise<{ message: string }> {
   const response = await fetch(`${API_URL}/letters/process/${uploadId}`, {
     method: 'POST',
     headers: {
@@ -178,6 +162,7 @@ export async function triggerProcessing(uploadId: string): Promise<{ message: st
  */
 export async function uploadLetterFiles(
   files: File[],
+  authToken: string,
   onFileProgress?: (fileIndex: number, progress: UploadProgress) => void,
   onFileComplete?: (fileIndex: number) => void,
   onFileError?: (fileIndex: number, error: string) => void,
@@ -193,7 +178,7 @@ export async function uploadLetterFiles(
   }
 
   // Get presigned URLs
-  const { uploadId, urls } = await requestUploadUrls(files)
+  const { uploadId, urls } = await requestUploadUrls(files, authToken)
 
   // Upload each file to S3
   for (let i = 0; i < files.length; i++) {
@@ -215,7 +200,7 @@ export async function uploadLetterFiles(
 
   // Only trigger processing if all uploads succeeded
   if (errors.length === 0) {
-    await triggerProcessing(uploadId)
+    await triggerProcessing(uploadId, authToken)
   }
 
   return { uploadId, success: errors.length === 0, errors }

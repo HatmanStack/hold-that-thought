@@ -1,4 +1,5 @@
 <script lang='ts'>
+  import { authTokens } from '$lib/auth/auth-store'
   import AuthGuard from '$lib/components/auth/AuthGuard.svelte'
   import LetterUploader from '$lib/components/letters/LetterUploader.svelte'
 
@@ -40,10 +41,17 @@
     </p>
 
     <div class='bg-base-100 border border-base-300 rounded-lg p-6'>
-      <LetterUploader
-        on:uploadComplete={handleUploadComplete}
-        on:uploadError={handleUploadError}
-      />
+      {#if $authTokens?.idToken}
+        <LetterUploader
+          authToken={$authTokens.idToken}
+          on:uploadComplete={handleUploadComplete}
+          on:uploadError={handleUploadError}
+        />
+      {:else}
+        <div class='text-center py-8 text-base-content/60'>
+          Loading...
+        </div>
+      {/if}
     </div>
 
     <div class='mt-8 p-4 bg-info/10 border border-info/30 rounded-lg'>

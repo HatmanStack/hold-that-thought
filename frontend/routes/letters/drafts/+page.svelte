@@ -1,5 +1,6 @@
 <script lang='ts'>
   import { goto } from '$app/navigation'
+  import { authTokens } from '$lib/auth/auth-store'
   import AuthGuard from '$lib/components/auth/AuthGuard.svelte'
   import { deleteDraft, type Draft, extractDraftId, formatDraftStatus, listDrafts } from '$lib/services/draft-service'
   import { onMount } from 'svelte'
@@ -14,10 +15,16 @@
   })
 
   async function loadDrafts() {
+    if (!$authTokens?.idToken) {
+      error = 'Not authenticated'
+      loading = false
+      return
+    }
+
     loading = true
     error = ''
     try {
-      drafts = await listDrafts()
+      drafts = await listDrafts($authTokens.idToken)
       // Sort by createdAt descending (newest first)
       drafts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     }
@@ -30,13 +37,15 @@
   }
 
   async function handleDelete(draft: Draft) {
+    if (!$authTokens?.idToken) return
+
     const draftId = extractDraftId(draft.PK)
     if (!confirm('Are you sure you want to delete this draft?'))
       return
 
     deleting = draftId
     try {
-      await deleteDraft(draftId)
+      await deleteDraft(draftId, $authTokens.idToken)
       drafts = drafts.filter(d => d.PK !== draft.PK)
     }
     catch (err) {

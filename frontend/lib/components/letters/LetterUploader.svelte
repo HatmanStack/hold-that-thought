@@ -9,6 +9,8 @@
   } from '$lib/services/letter-upload-service'
   import { createEventDispatcher } from 'svelte'
 
+  export let authToken: string
+
   const dispatch = createEventDispatcher<{
     uploadStart: { files: File[] }
     uploadComplete: { uploadId: string }
@@ -126,6 +128,7 @@
     try {
       const result = await uploadLetterFiles(
         selectedFiles,
+        authToken,
         (fileIndex, progress) => {
           uploadStates[fileIndex] = {
             ...uploadStates[fileIndex],

@@ -1,5 +1,4 @@
 import { PUBLIC_API_GATEWAY_URL } from '$env/static/public'
-import { getStoredTokens } from '$lib/auth/client'
 
 const API_URL = PUBLIC_API_GATEWAY_URL?.replace(/\/+$/, '') || ''
 
@@ -50,14 +49,6 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json()
 }
 
-function getAuthToken(): string {
-  const tokens = getStoredTokens()
-  if (!tokens?.idToken) {
-    throw new Error('Authentication required. Please log in.')
-  }
-  return tokens.idToken
-}
-
 /**
  * Extract draft ID from PK (e.g., "DRAFT#abc123" -> "abc123")
  */
@@ -68,9 +59,7 @@ export function extractDraftId(pk: string): string {
 /**
  * List all drafts (admin only)
  */
-export async function listDrafts(): Promise<Draft[]> {
-  const authToken = getAuthToken()
-
+export async function listDrafts(authToken: string): Promise<Draft[]> {
   const response = await fetch(`${API_URL}/admin/drafts`, {
     method: 'GET',
     headers: {
@@ -86,9 +75,7 @@ export async function listDrafts(): Promise<Draft[]> {
 /**
  * Get a single draft by ID (admin only)
  */
-export async function getDraft(draftId: string): Promise<Draft> {
-  const authToken = getAuthToken()
-
+export async function getDraft(draftId: string, authToken: string): Promise<Draft> {
   const response = await fetch(`${API_URL}/admin/drafts/${encodeURIComponent(draftId)}`, {
     method: 'GET',
     headers: {
@@ -103,9 +90,7 @@ export async function getDraft(draftId: string): Promise<Draft> {
 /**
  * Delete a draft (admin only)
  */
-export async function deleteDraft(draftId: string): Promise<void> {
-  const authToken = getAuthToken()
-
+export async function deleteDraft(draftId: string, authToken: string): Promise<void> {
   const response = await fetch(`${API_URL}/admin/drafts/${encodeURIComponent(draftId)}`, {
     method: 'DELETE',
     headers: {
@@ -120,9 +105,7 @@ export async function deleteDraft(draftId: string): Promise<void> {
 /**
  * Publish a draft as a letter (admin only)
  */
-export async function publishDraft(draftId: string, finalData: PublishData): Promise<PublishResponse> {
-  const authToken = getAuthToken()
-
+export async function publishDraft(draftId: string, finalData: PublishData, authToken: string): Promise<PublishResponse> {
   const response = await fetch(`${API_URL}/admin/drafts/${encodeURIComponent(draftId)}/publish`, {
     method: 'POST',
     headers: {
@@ -138,11 +121,7 @@ export async function publishDraft(draftId: string, finalData: PublishData): Pro
 /**
  * Get presigned URL for viewing draft PDF
  */
-export async function getDraftPdfUrl(s3Key: string): Promise<string> {
-  const authToken = getAuthToken()
-
-  // Use the letters PDF endpoint with the s3Key
-  // This assumes the backend can handle temp/ prefixed keys
+export async function getDraftPdfUrl(s3Key: string, authToken: string): Promise<string> {
   const response = await fetch(`${API_URL}/letters/pdf-url?key=${encodeURIComponent(s3Key)}`, {
     method: 'GET',
     headers: {
