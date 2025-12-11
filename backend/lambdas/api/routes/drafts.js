@@ -18,7 +18,7 @@ const lambdaClient = new LambdaClient({})
 
 exports.handle = async (event, context) => {
   const { httpMethod, path, body } = event
-  const { requesterId, isAdmin } = context
+  const { requesterId, isAdmin, isApprovedUser } = context
 
   if (path.endsWith('/upload-request') && httpMethod === 'POST') {
     return handleUploadRequest(JSON.parse(body), requesterId)
@@ -29,9 +29,9 @@ exports.handle = async (event, context) => {
     return handleProcess(uploadId, requesterId)
   }
 
-  // Admin routes
+  // Draft management routes - require ApprovedUsers or Admins
   if (path.includes('/admin/drafts')) {
-    if (!isAdmin) return errorResponse(403, 'Unauthorized')
+    if (!isApprovedUser && !isAdmin) return errorResponse(403, 'Unauthorized')
 
     if (path.endsWith('/publish') && httpMethod === 'POST') {
        // /admin/drafts/{draftId}/publish

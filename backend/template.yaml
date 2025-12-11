@@ -453,6 +453,37 @@ Resources:
           Properties:
             Path: /letters/{date}/pdf
             Method: get
+        # Letter upload/draft routes
+        LetterUploadRequest:
+          Type: Api
+          Properties:
+            Path: /letters/upload-request
+            Method: post
+        LetterProcess:
+          Type: Api
+          Properties:
+            Path: /letters/process/{uploadId}
+            Method: post
+        ListDrafts:
+          Type: Api
+          Properties:
+            Path: /admin/drafts
+            Method: get
+        GetDraft:
+          Type: Api
+          Properties:
+            Path: /admin/drafts/{draftId}
+            Method: get
+        DeleteDraft:
+          Type: Api
+          Properties:
+            Path: /admin/drafts/{draftId}
+            Method: delete
+        PublishDraft:
+          Type: Api
+          Properties:
+            Path: /admin/drafts/{draftId}/publish
+            Method: post
 
   # =============================================================================
   # Background Processors (keep separate - different triggers)
