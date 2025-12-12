@@ -130,7 +130,7 @@ async function updateLetter(event, requesterId) {
   } catch {
     return errorResponse(400, 'Invalid JSON body')
   }
-  const { content, title } = body
+  const { content, title, author, description } = body
 
   if (!date || !isValidDate(date)) {
     return errorResponse(400, 'Valid date parameter required (YYYY-MM-DD)')
@@ -161,6 +161,8 @@ async function updateLetter(event, requesterId) {
         ...keys.letterVersion(date, now),
         content: current.Item.content,
         title: current.Item.title,
+        author: current.Item.author,
+        description: current.Item.description,
         editedBy: current.Item.lastEditedBy,
         editedAt: current.Item.updatedAt,
         versionNumber: current.Item.versionCount || 0,
@@ -169,15 +171,19 @@ async function updateLetter(event, requesterId) {
     }))
 
     const updatedTitle = title || current.Item.title
+    const updatedAuthor = author !== undefined ? author : current.Item.author
+    const updatedDescription = description !== undefined ? description : current.Item.description
 
     // Update current letter in DynamoDB
     await docClient.send(new UpdateCommand({
       TableName: TABLE_NAME,
       Key: keys.letter(date),
-      UpdateExpression: 'SET content = :content, title = :title, updatedAt = :now, lastEditedBy = :editor, versionCount = :vc',
+      UpdateExpression: 'SET content = :content, title = :title, author = :author, description = :description, updatedAt = :now, lastEditedBy = :editor, versionCount = :vc',
       ExpressionAttributeValues: {
         ':content': content,
         ':title': updatedTitle,
+        ':author': updatedAuthor,
+        ':description': updatedDescription,
         ':now': now,
         ':editor': requesterId,
         ':vc': versionNumber,
@@ -188,8 +194,8 @@ async function updateLetter(event, requesterId) {
     const letterJson = {
       date,
       title: updatedTitle,
-      author: current.Item.author || null,
-      description: current.Item.description || null,
+      author: updatedAuthor || null,
+      description: updatedDescription || null,
       content,
       pdfKey: current.Item.pdfKey || null,
     }
@@ -204,6 +210,8 @@ async function updateLetter(event, requesterId) {
     return successResponse({
       date,
       title: updatedTitle,
+      author: updatedAuthor,
+      description: updatedDescription,
       content,
       updatedAt: now,
       versionCount: versionNumber,

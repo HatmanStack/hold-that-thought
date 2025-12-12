@@ -1,5 +1,6 @@
 <script lang='ts'>
   import { goto } from '$app/navigation'
+  import { getDraft } from '$lib/services/draft-service'
   import {
     type FileUploadState,
     formatFileSize,
@@ -108,6 +109,41 @@
     }
   }
 
+  async function waitForDraftReady(uploadId: string) {
+    const maxAttempts = 30 // 30 attempts * 2 seconds = 60 seconds max
+    const pollInterval = 2000 // 2 seconds
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const draft = await getDraft(uploadId, authToken)
+
+        if (draft.status === 'REVIEW') {
+          successMessage = 'Processing complete! Redirecting to review...'
+          setTimeout(() => goto(`/letters/drafts/${uploadId}`), 1000)
+          return
+        }
+
+        if (draft.status === 'ERROR') {
+          errorMessage = draft.error || 'Processing failed'
+          processing = false
+          return
+        }
+
+        // Still processing, update message and wait
+        successMessage = `Processing with AI... (${attempt + 1}/${maxAttempts})`
+        await new Promise(resolve => setTimeout(resolve, pollInterval))
+      }
+      catch {
+        // Draft might not exist yet, keep polling
+        await new Promise(resolve => setTimeout(resolve, pollInterval))
+      }
+    }
+
+    // Timeout - redirect to drafts anyway
+    successMessage = 'Processing is taking longer than expected. Redirecting to drafts...'
+    setTimeout(() => goto('/letters/drafts'), 1000)
+  }
+
   async function startUpload() {
     if (selectedFiles.length === 0 || uploading)
       return
@@ -157,13 +193,11 @@
 
       if (result.success) {
         processing = true
-        successMessage = 'Files uploaded successfully. Processing started...'
+        successMessage = 'Files uploaded successfully. Processing with AI...'
         dispatch('uploadComplete', { uploadId: result.uploadId })
 
-        // Redirect to drafts after a brief delay
-        setTimeout(() => {
-          goto('/letters/drafts')
-        }, 2000)
+        // Poll for draft completion
+        await waitForDraftReady(result.uploadId)
       }
       else {
         errorMessage = result.errors.join('\n')

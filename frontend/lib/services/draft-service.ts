@@ -122,7 +122,7 @@ export async function publishDraft(draftId: string, finalData: PublishData, auth
  * Get presigned URL for viewing draft PDF
  */
 export async function getDraftPdfUrl(s3Key: string, authToken: string): Promise<string> {
-  const response = await fetch(`${API_URL}/letters/pdf-url?key=${encodeURIComponent(s3Key)}`, {
+  const response = await fetch(`${API_URL}/download/presigned-url?key=${encodeURIComponent(s3Key)}`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${authToken}`,

@@ -13,23 +13,39 @@
     close: void
   }>()
 
+  // Clean content by replacing carriage returns and newlines with spaces
+  function cleanContent(text: string): string {
+    return text.replace(/[\r\n]+/g, ' ').replace(/  +/g, ' ')
+  }
+
+  // Handle tab key in content editor
+  function handleContentKeydown(event: KeyboardEvent) {
+    if (event.key === 'Tab') {
+      event.preventDefault()
+      const textarea = event.target as HTMLTextAreaElement
+      const start = textarea.selectionStart
+      const end = textarea.selectionEnd
+
+      // Insert tab at cursor position
+      formData.content = formData.content.substring(0, start) + '\t' + formData.content.substring(end)
+
+      // Move cursor after the tab
+      requestAnimationFrame(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + 1
+      })
+    }
+  }
+
   // Form state pre-filled from parsedData
   const formData: PublishData = {
     date: draft.parsedData?.date || new Date().toISOString().split('T')[0],
     title: draft.parsedData?.title || '',
-    content: draft.parsedData?.content || '',
+    content: cleanContent(draft.parsedData?.content || ''),
     author: draft.parsedData?.author || '',
-    tags: draft.parsedData?.tags || [],
-    description: draft.parsedData?.summary || '',
+    description: cleanContent(draft.parsedData?.summary || ''),
   }
 
-  let tagsInput = formData.tags?.join(', ') || ''
   let errors: Partial<Record<keyof PublishData, string>> = {}
-
-  $: formData.tags = tagsInput
-    .split(',')
-    .map(t => t.trim())
-    .filter(t => t.length > 0)
 
   function validate(): boolean {
     errors = {}
@@ -163,23 +179,6 @@ return
           />
         </div>
 
-        <!-- Tags -->
-        <div class='form-control'>
-          <label class='label' for='tags'>
-            <span class='label-text font-medium'>Tags</span>
-          </label>
-          <input
-            type='text'
-            id='tags'
-            bind:value={tagsInput}
-            class='input input-bordered w-full'
-            placeholder='family, 1950s, travel (comma separated)'
-          />
-          <label class='label'>
-            <span class='label-text-alt'>Separate tags with commas</span>
-          </label>
-        </div>
-
         <!-- Description / Summary -->
         <div class='form-control'>
           <label class='label' for='description'>
@@ -194,16 +193,18 @@ return
         </div>
 
         <!-- Content -->
-        <div class='form-control'>
+        <div class='form-control flex-1'>
           <label class='label' for='content'>
             <span class='label-text font-medium'>Content <span class='text-error'>*</span></span>
           </label>
           <textarea
             id='content'
             bind:value={formData.content}
-            class='textarea textarea-bordered w-full h-64 font-mono text-sm'
+            class='content-editor textarea textarea-bordered w-full flex-1 min-h-[300px] font-mono text-sm leading-relaxed'
             class:textarea-error={errors.content}
-            placeholder='Letter content (Markdown supported)'
+            placeholder='Letter content'
+            spellcheck='true'
+            on:keydown={handleContentKeydown}
           ></textarea>
           {#if errors.content}
             <label class='label'>
@@ -251,5 +252,11 @@ return
 <style>
   .draft-review {
     min-height: 600px;
+  }
+
+  .content-editor {
+    white-space: pre-wrap;
+    tab-size: 2;
+    line-height: 1.6;
   }
 </style>

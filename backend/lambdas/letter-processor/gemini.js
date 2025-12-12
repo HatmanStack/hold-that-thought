@@ -10,7 +10,7 @@ async function parseLetter(pdfBuffer) {
   }
 
   const genAI = new GoogleGenerativeAI(API_KEY)
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" })
 
   const prompt = `
     Analyze this letter. Extract the following information in JSON format:

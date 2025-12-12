@@ -10,6 +10,9 @@
   let letter: Letter | null = null
   let content = ''
   let title = ''
+  let author = ''
+  let description = ''
+  let letterDate = ''
   let saving = false
   let loading = true
   let error = ''
@@ -24,6 +27,9 @@
       letter = await getLetter(data.date, $authTokens.idToken)
       content = letter.content
       title = letter.title
+      author = letter.author || ''
+      description = letter.description || ''
+      letterDate = letter.date
     }
     catch (e) {
       error = e instanceof Error ? e.message : 'Failed to load letter'
@@ -31,7 +37,7 @@
     loading = false
   }
 
-  async function handleSave(event: CustomEvent<{ content: string, title: string }>) {
+  async function handleSave(event: CustomEvent<{ content: string, title: string, author: string, description: string, date: string }>) {
     if (!$authTokens?.idToken || !letter)
       return
 
@@ -39,8 +45,10 @@
     error = ''
 
     try {
-      await updateLetter(letter.date, event.detail.content, event.detail.title, $authTokens.idToken)
-      goto(`/letters/${letter.date}`)
+      const { content, title, author, description, date } = event.detail
+      await updateLetter(letter.date, { content, title, author, description, date }, $authTokens.idToken)
+      // If date changed, redirect to new URL
+      goto(`/letters/${date || letter.date}`)
     }
     catch (e) {
       error = e instanceof Error ? e.message : 'Failed to save changes'
@@ -88,6 +96,9 @@
     <MarkdownEditor
       {content}
       {title}
+      {author}
+      {description}
+      date={letterDate}
       {saving}
       on:save={handleSave}
       on:cancel={handleCancel}
