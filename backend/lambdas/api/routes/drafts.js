@@ -195,18 +195,26 @@ async function handlePublish(draftId, data, requesterId) {
         // 5. Write DB Letter
         // Use existing key builder if compatible or match Phase 0
         // keys.letter(date) => PK: LETTER#date, SK: CURRENT
-        await docClient.send(new PutCommand({
-            TableName: TABLE_NAME,
-            Item: {
-                ...keys.letter(finalData.date),
-                entityType: 'LETTER',
-                ...finalData,
-                s3PdfKey: pdfKey,
-                s3JsonKey: jsonKey,
-                createdAt: new Date().toISOString(),
-                publishedBy: requesterId
+        try {
+            await docClient.send(new PutCommand({
+                TableName: TABLE_NAME,
+                Item: {
+                    ...keys.letter(finalData.date),
+                    entityType: 'LETTER',
+                    ...finalData,
+                    s3PdfKey: pdfKey,
+                    s3JsonKey: jsonKey,
+                    createdAt: new Date().toISOString(),
+                    publishedBy: requesterId
+                },
+                ConditionExpression: 'attribute_not_exists(PK)'
+            }))
+        } catch (err) {
+            if (err.name === 'ConditionalCheckFailedException') {
+                return errorResponse(409, `A letter with date ${finalData.date} already exists`)
             }
-        }))
+            throw err
+        }
 
         // 6. Delete Draft
         await docClient.send(new DeleteCommand({

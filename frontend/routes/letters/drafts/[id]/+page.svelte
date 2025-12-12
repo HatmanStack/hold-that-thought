@@ -71,7 +71,13 @@
       goto(result.path)
     }
     catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to publish draft'
+      const message = err instanceof Error ? err.message : 'Failed to publish draft'
+      // Check for date collision error
+      if (message.includes('already exists')) {
+        error = `${message}. Please choose a different date or edit the existing letter.`
+      } else {
+        error = message
+      }
       publishing = false
     }
   }
