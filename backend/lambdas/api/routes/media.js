@@ -203,7 +203,7 @@ async function getDownloadUrl(event, requesterId) {
   }
 
   // Restrict to allowed prefixes
-  const allowedPrefixes = ['media/', 'letters/']
+  const allowedPrefixes = ['media/', 'letters/', 'temp/']
   if (!allowedPrefixes.some(prefix => key.startsWith(prefix))) {
     return errorResponse(403, 'Access denied to this resource')
   }

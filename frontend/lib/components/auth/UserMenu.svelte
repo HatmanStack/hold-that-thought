@@ -97,7 +97,7 @@
 
 {#if $isAuthenticated && $currentUser}
   <div class='dropdown dropdown-end'>
-    <button type='button' tabindex='0' class='btn btn-ghost btn-circle avatar' on:click={toggleDropdown}>
+    <button type='button' tabindex='0' class='btn btn-ghost avatar btn-circle' on:click={toggleDropdown}>
       <div class='w-10 rounded-full overflow-hidden'>
         {#if userProfilePhotoUrl}
           <img src={userProfilePhotoUrl} alt='Profile' class='w-full h-full object-cover' />

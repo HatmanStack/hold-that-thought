@@ -62,10 +62,10 @@ jobs:
 
       - name: Install Lambda test dependencies
         run: |
-          for dir in backend/lambdas/activity-aggregator backend/lambdas/notification-processor; do
+          for dir in backend/lambdas/activity-aggregator backend/lambdas/notification-processor backend/lambdas/letter-processor; do
             if [ -f "$dir/package.json" ]; then
-              echo "Installing aws-sdk-client-mock in $dir"
-              (cd "$dir" && npm install --save-dev aws-sdk-client-mock)
+              echo "Installing dependencies in $dir"
+              (cd "$dir" && npm ci && npm install --save-dev aws-sdk-client-mock)
             fi
           done
 

@@ -250,7 +250,7 @@
                   </svg>
                   <div class='flex-1 min-w-0'>
                     <div class='text-xs text-base-content/60 mb-1'>Previous Letter</div>
-                    <div class='font-semibold truncate group-hover:text-primary transition-colors'>
+                    <div class='font-semibold truncate transition-colors group-hover:text-primary'>
                       {adjacent.prev.title}
                     </div>
                   </div>

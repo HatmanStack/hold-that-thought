@@ -2,6 +2,7 @@
   import type { PageData } from './$types'
   import { browser } from '$app/environment'
   import { goto } from '$app/navigation'
+  import { page } from '$app/stores'
   import { authLoading, currentUser, isAuthenticated } from '$lib/auth/auth-store'
   import CommentSection from '$lib/components/comments/CommentSection.svelte'
   import Head from '$lib/components/head.svelte'
@@ -28,6 +29,9 @@
       const items = await getMediaItems(section)
       // Filter out files with 0 bytes
       mediaItems = items.filter(item => item.fileSize > 0)
+
+      // Check for item query param to auto-open
+      checkForItemParam()
     }
     catch (err) {
       console.error(`Error loading ${section}:`, err)
@@ -36,6 +40,32 @@
     }
     finally {
       loading = false
+    }
+  }
+
+  // Check URL for item param and open modal if found
+  function checkForItemParam() {
+    const itemParam = $page.url.searchParams.get('item')
+    if (!itemParam)
+      return
+
+    // Determine section from itemId (e.g., "media/pictures/..." -> "pictures")
+    const match = itemParam.match(/^media\/(pictures|videos|documents)\//)
+    if (match) {
+      const section = match[1] as 'pictures' | 'videos' | 'documents'
+      if (section !== selectedSection) {
+        selectedSection = section
+        loadMediaItems(section)
+        return
+      }
+    }
+
+    // Find and open the item
+    const item = mediaItems.find(m => m.id === itemParam)
+    if (item) {
+      openMediaItem(item)
+      // Clear the query param so it doesn't reopen on section change
+      goto('/gallery', { replaceState: true })
     }
   }
 
@@ -56,7 +86,7 @@
         throw new Error('File size cannot exceed 300MB')
       }
 
-      const newItem = await uploadMedia(file)
+      await uploadMedia(file)
 
       // Reload the media list to ensure proper display with signed URLs
       await loadMediaItems(selectedSection)

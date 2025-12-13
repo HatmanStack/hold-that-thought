@@ -40,10 +40,10 @@
   {:else}
     <ul class='space-y-2'>
       {#each versions as version}
-        <li class='flex items-center bg-base-100 rounded-lg justify-between p-3'>
+        <li class='flex items-center rounded-lg bg-base-100 justify-between p-3'>
           <div>
             <span class='font-medium'>Version {version.versionNumber}</span>
-            <span class='text-sm text-gray-500 ml-2'>
+            <span class='text-gray-500 text-sm ml-2'>
               {formatDate(version.editedAt)}
             </span>
           </div>

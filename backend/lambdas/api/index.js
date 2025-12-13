@@ -4,6 +4,7 @@ const profile = require('./routes/profile')
 const reactions = require('./routes/reactions')
 const media = require('./routes/media')
 const letters = require('./routes/letters')
+const drafts = require('./routes/drafts')
 const { ensureProfile } = require('./utils')
 
 /**
@@ -19,6 +20,7 @@ exports.handler = async (event) => {
   const requesterEmail = claims.email
   const requesterGroups = claims['cognito:groups'] || ''
   const isAdmin = requesterGroups.includes('Admins')
+  const isApprovedUser = requesterGroups.includes('ApprovedUsers')
 
   console.log('Auth context:', { requesterId, requesterEmail, requesterGroups, claimKeys: Object.keys(claims) })
 
@@ -32,7 +34,7 @@ exports.handler = async (event) => {
     }
   }
 
-  const context = { requesterId, requesterEmail, isAdmin }
+  const context = { requesterId, requesterEmail, isAdmin, isApprovedUser }
 
   try {
     // Route to appropriate handler based on path
@@ -56,12 +58,25 @@ exports.handler = async (event) => {
       return await media.handle(event, context)
     }
 
+    // Drafts / Uploads (specific routes before generic /letters)
+    if (path.startsWith('/letters/upload-request') || path.startsWith('/letters/process')) {
+      return await drafts.handle(event, context)
+    }
+
     if (path.startsWith('/letters')) {
       return await letters.handle(event, context)
     }
 
     if (path.startsWith('/admin')) {
-      // Admin routes - check admin status first
+      // Draft routes - allow ApprovedUsers (not just Admins)
+      if (path.includes('/drafts')) {
+        if (!isApprovedUser && !isAdmin) {
+          return errorResponse(403, 'Approved user access required')
+        }
+        return await drafts.handle(event, context)
+      }
+
+      // Other admin routes - require Admins group
       if (!isAdmin) {
         return errorResponse(403, 'Admin access required')
       }

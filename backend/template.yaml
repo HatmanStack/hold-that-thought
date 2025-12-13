@@ -48,6 +48,12 @@ Parameters:
     Description: Email address to send notifications from (domain must be verified in SES)
     Default: noreply@holdthatthought.family
 
+  GeminiApiKey:
+    Type: String
+    Description: Google Gemini API Key
+    Default: ''
+    NoEcho: true
+
 Conditions:
   HasGoogleOAuth: !Not [!Equals [!Ref GoogleClientId, '']]
 
@@ -221,6 +227,8 @@ Resources:
   # =============================================================================
   DynamoDBTable:
     Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       TableName: !Ref TableName
       BillingMode: PAY_PER_REQUEST
@@ -268,7 +276,10 @@ Resources:
         Variables:
           TABLE_NAME: !Ref TableName
           ARCHIVE_BUCKET: !Ref ArchiveBucket
+          LETTER_PROCESSOR_FUNCTION_NAME: !Ref LetterProcessorFunction
       Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref LetterProcessorFunction
         - DynamoDBCrudPolicy:
             TableName: !Ref TableName
         - S3CrudPolicy:
@@ -444,6 +455,37 @@ Resources:
           Properties:
             Path: /letters/{date}/pdf
             Method: get
+        # Letter upload/draft routes
+        LetterUploadRequest:
+          Type: Api
+          Properties:
+            Path: /letters/upload-request
+            Method: post
+        LetterProcess:
+          Type: Api
+          Properties:
+            Path: /letters/process/{uploadId}
+            Method: post
+        ListDrafts:
+          Type: Api
+          Properties:
+            Path: /admin/drafts
+            Method: get
+        GetDraft:
+          Type: Api
+          Properties:
+            Path: /admin/drafts/{draftId}
+            Method: get
+        DeleteDraft:
+          Type: Api
+          Properties:
+            Path: /admin/drafts/{draftId}
+            Method: delete
+        PublishDraft:
+          Type: Api
+          Properties:
+            Path: /admin/drafts/{draftId}/publish
+            Method: post
 
   # =============================================================================
   # Background Processors (keep separate - different triggers)
@@ -490,6 +532,26 @@ Resources:
             FilterCriteria:
               Filters:
                 - Pattern: '{"eventName": ["INSERT"]}'
+
+  LetterProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/letter-processor/
+      Handler: index.handler
+      Description: Letter processor - merges PDFs and parses with Gemini
+      Runtime: nodejs20.x
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TableName
+          ARCHIVE_BUCKET: !Ref ArchiveBucket
+          GEMINI_API_KEY: !Ref GeminiApiKey
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TableName
+        - S3CrudPolicy:
+            BucketName: !Ref ArchiveBucket
 
 Outputs:
   ApiUrl:

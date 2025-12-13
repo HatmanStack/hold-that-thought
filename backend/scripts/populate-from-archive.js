@@ -40,7 +40,8 @@ async function listLetterJsonFiles(bucket, prefix) {
 
     if (response.Contents) {
       for (const item of response.Contents) {
-        if (item.Key && item.Key.endsWith('/letter.json')) {
+        // Match date-based JSON files: letters/YYYY-MM-DD/YYYY-MM-DD.json
+        if (item.Key && /\/\d{4}-\d{2}-\d{2}(_\d+)?\/\d{4}-\d{2}-\d{2}(_\d+)?\.json$/.test(item.Key)) {
           files.push(item.Key)
         }
       }
@@ -68,9 +69,13 @@ async function readLetterJson(bucket, key) {
 
 /**
  * Create DynamoDB item from letter data
+ * @param {Object} letterData - Parsed JSON data
+ * @param {string} jsonKey - S3 key of the JSON file (used to derive pdfKey)
  */
-function createDynamoItem(letterData) {
+function createDynamoItem(letterData, jsonKey) {
   const now = new Date().toISOString()
+  // Derive pdfKey from jsonKey: letters/2008-05-20/2008-05-20.json -> letters/2008-05-20/2008-05-20.pdf
+  const pdfKey = letterData.pdfKey || jsonKey.replace(/\.json$/, '.pdf')
 
   return {
     PK: `LETTER#${letterData.date}`,
@@ -81,7 +86,7 @@ function createDynamoItem(letterData) {
     author: letterData.author || null,
     description: letterData.description || null,
     content: letterData.content,
-    pdfKey: letterData.pdfKey || null,
+    pdfKey: pdfKey,
     createdAt: now,
     updatedAt: now,
     versionCount: 0,
@@ -98,7 +103,7 @@ async function main() {
 
   // Parse arguments
   let bucket = 'hold-that-thought-archive'
-  let prefix = 'letters-v2/'
+  let prefix = 'letters/'
   let tableName = 'htthough-test'
   const dryRun = args.includes('--dry-run')
   const verbose = args.includes('--verbose') || args.includes('-v')
@@ -133,7 +138,7 @@ async function main() {
       }
 
       if (!dryRun) {
-        const item = createDynamoItem(letterData)
+        const item = createDynamoItem(letterData, jsonKey)
         await docClient.send(new PutCommand({
           TableName: tableName,
           Item: item

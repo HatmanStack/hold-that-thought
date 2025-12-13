@@ -87,10 +87,17 @@ export async function getLetter(date: string, authToken: string): Promise<Letter
   return handleResponse<Letter>(response)
 }
 
+export interface UpdateLetterData {
+  content: string
+  title?: string
+  author?: string
+  description?: string
+  date?: string
+}
+
 export async function updateLetter(
   date: string,
-  content: string,
-  title: string | undefined,
+  data: UpdateLetterData,
   authToken: string,
 ): Promise<Letter> {
   const response = await fetch(`${API_URL}/letters/${encodeURIComponent(date)}`, {
@@ -99,7 +106,7 @@ export async function updateLetter(
       'Authorization': `Bearer ${authToken}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ content, title }),
+    body: JSON.stringify(data),
   })
 
   return handleResponse<Letter>(response)
