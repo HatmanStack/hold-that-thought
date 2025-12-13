@@ -1,15 +1,18 @@
-import { vi, describe, it, expect, beforeEach } from 'vitest'
+import { vi, describe, it, expect, beforeEach, beforeAll } from 'vitest'
 import { mockClient } from 'aws-sdk-client-mock'
 import { S3Client, PutObjectCommand, CopyObjectCommand } from '@aws-sdk/client-s3'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
 import { DynamoDBDocumentClient, ScanCommand, GetCommand, DeleteCommand, PutCommand } from '@aws-sdk/lib-dynamodb'
 
-// Set env vars before import
+// Set env vars before any imports
 process.env.TABLE_NAME = 'test-table'
 process.env.ARCHIVE_BUCKET = 'test-bucket'
 process.env.LETTER_PROCESSOR_FUNCTION_NAME = 'test-processor'
+process.env.AWS_REGION = 'us-east-1'
+process.env.AWS_ACCESS_KEY_ID = 'test-key'
+process.env.AWS_SECRET_ACCESS_KEY = 'test-secret'
 
-// Mock presigner - must be before handler import
+// Mock the presigner module before importing handler
 vi.mock('@aws-sdk/s3-request-presigner', () => ({
   getSignedUrl: vi.fn().mockResolvedValue('https://test-bucket.s3.us-east-1.amazonaws.com/mock-key')
 }))
@@ -18,8 +21,14 @@ const s3Mock = mockClient(S3Client)
 const lambdaMock = mockClient(LambdaClient)
 const ddbMock = mockClient(DynamoDBDocumentClient)
 
-// Import handler after mocks are set up
-const { handler } = await import('../../backend/lambdas/api/index.js')
+let handler
+
+beforeAll(async () => {
+  // Clear module cache and import fresh
+  vi.resetModules()
+  const module = await import('../../backend/lambdas/api/index.js')
+  handler = module.handler
+})
 
 beforeEach(() => {
   s3Mock.reset()
