@@ -1,23 +1,25 @@
-const { mockClient } = require('aws-sdk-client-mock')
-const { S3Client, PutObjectCommand, CopyObjectCommand } = require('@aws-sdk/client-s3')
-const { LambdaClient, InvokeCommand } = require('@aws-sdk/client-lambda')
-const { DynamoDBDocumentClient, ScanCommand, GetCommand, DeleteCommand, PutCommand } = require('@aws-sdk/lib-dynamodb')
+import { vi, describe, it, expect, beforeEach } from 'vitest'
+import { mockClient } from 'aws-sdk-client-mock'
+import { S3Client, PutObjectCommand, CopyObjectCommand } from '@aws-sdk/client-s3'
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
+import { DynamoDBDocumentClient, ScanCommand, GetCommand, DeleteCommand, PutCommand } from '@aws-sdk/lib-dynamodb'
 
-// Set env vars before require
+// Set env vars before import
 process.env.TABLE_NAME = 'test-table'
 process.env.ARCHIVE_BUCKET = 'test-bucket'
 process.env.LETTER_PROCESSOR_FUNCTION_NAME = 'test-processor'
 
-// Mock presigner
+// Mock presigner - must be before handler import
 vi.mock('@aws-sdk/s3-request-presigner', () => ({
-  getSignedUrl: vi.fn().mockResolvedValue('https://mock-s3-url.com')
+  getSignedUrl: vi.fn().mockResolvedValue('https://test-bucket.s3.us-east-1.amazonaws.com/mock-key')
 }))
 
 const s3Mock = mockClient(S3Client)
 const lambdaMock = mockClient(LambdaClient)
 const ddbMock = mockClient(DynamoDBDocumentClient)
 
-const { handler } = require('../../backend/lambdas/api/index')
+// Import handler after mocks are set up
+const { handler } = await import('../../backend/lambdas/api/index.js')
 
 beforeEach(() => {
   s3Mock.reset()
@@ -172,7 +174,7 @@ describe('Drafts API', () => {
 
       const response = await handler(event)
       expect(response.statusCode).toBe(200)
-      
+
       // Verify Letter Saved
       const putCalls = ddbMock.calls().filter(c => c.args[0] instanceof PutCommand)
       expect(putCalls).toHaveLength(1)
