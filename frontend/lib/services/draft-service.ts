@@ -46,6 +46,14 @@ async function handleResponse<T>(response: Response): Promise<T> {
     const errorData = await response.json().catch(() => ({}))
     throw new Error(errorData.error || `Request failed: ${response.status} ${response.statusText}`)
   }
+  // Handle 204 No Content or empty responses
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    return undefined as T
+  }
+  const contentType = response.headers.get('content-type')
+  if (!contentType?.includes('application/json')) {
+    return undefined as T
+  }
   return response.json()
 }
 

@@ -140,6 +140,7 @@
     }
 
     // Timeout - redirect to drafts anyway
+    processing = false
     successMessage = 'Processing is taking longer than expected. Redirecting to drafts...'
     setTimeout(() => goto('/letters/drafts'), 1000)
   }

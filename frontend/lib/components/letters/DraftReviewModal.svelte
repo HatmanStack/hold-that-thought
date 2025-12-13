@@ -106,8 +106,7 @@ return
           <iframe
             src={pdfUrl}
             title='Letter PDF'
-            class='w-full h-full'
-            frameborder='0'
+            class='w-full h-full border-0'
           ></iframe>
         {:else}
           <div class='flex items-center justify-center h-full text-base-content/50'>

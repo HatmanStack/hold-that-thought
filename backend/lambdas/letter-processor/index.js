@@ -33,8 +33,12 @@ exports.handler = async (event) => {
     const objects = listRes.Contents
         .filter(obj => !obj.Key.endsWith('combined.pdf'))
         .sort((a, b) => {
-            const idxA = parseInt(a.Key.split('/').pop().split('.')[0])
-            const idxB = parseInt(b.Key.split('/').pop().split('.')[0])
+            const idxA = parseInt(a.Key.split('/').pop().split('.')[0], 10)
+            const idxB = parseInt(b.Key.split('/').pop().split('.')[0], 10)
+            // Handle NaN - put non-numeric filenames at end
+            if (Number.isNaN(idxA) && Number.isNaN(idxB)) return 0
+            if (Number.isNaN(idxA)) return 1
+            if (Number.isNaN(idxB)) return -1
             return idxA - idxB
         })
         
@@ -111,8 +115,7 @@ exports.handler = async (event) => {
 const streamToBuffer = (stream) =>
   new Promise((resolve, reject) => {
     const chunks = []
-    console.log('Stream started')
-    stream.on("data", (chunk) => { console.log('Chunk received'); chunks.push(chunk) })
-    stream.on("error", (err) => { console.log('Stream error', err); reject(err) })
-    stream.on("end", () => { console.log('Stream ended'); resolve(Buffer.concat(chunks)) })
+    stream.on("data", (chunk) => chunks.push(chunk))
+    stream.on("error", reject)
+    stream.on("end", () => resolve(Buffer.concat(chunks)))
   })

@@ -40,7 +40,8 @@ async function listLetterJsonFiles(bucket, prefix) {
 
     if (response.Contents) {
       for (const item of response.Contents) {
-        if (item.Key && item.Key.endsWith('.json')) {
+        // Match date-based JSON files: letters/YYYY-MM-DD/YYYY-MM-DD.json
+        if (item.Key && /\/\d{4}-\d{2}-\d{2}(_\d+)?\/\d{4}-\d{2}-\d{2}(_\d+)?\.json$/.test(item.Key)) {
           files.push(item.Key)
         }
       }
