@@ -178,7 +178,7 @@ describe('Drafts API', () => {
       expect(putCalls).toHaveLength(1)
       const item = putCalls[0].args[0].input.Item
       expect(item.PK).toBe('LETTER#2020-01-01')
-      expect(item.s3PdfKey).toContain('test-letter/2020-01-01.pdf')
+      expect(item.pdfKey).toContain('2020-01-01/2020-01-01.pdf')
     })
   })
 })

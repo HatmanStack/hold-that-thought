@@ -6,6 +6,26 @@
 
   export let userId: string
 
+  /**
+   * Convert stored itemId to navigable path
+   * Media items: "media/pictures/foo.jpg" -> "/gallery?item=media/pictures/foo.jpg"
+   * Letters: "2024-12-10" -> "/letters/2024-12-10"
+   */
+  function itemIdToPath(itemId: string, itemType?: string): string {
+    if (itemId.startsWith('media/')) {
+      return `/gallery?item=${encodeURIComponent(itemId)}`
+    }
+    // Letter dates are stored as just "2024-12-10"
+    if (itemType === 'letter' || /^\d{4}-\d{2}-\d{2}$/.test(itemId)) {
+      return `/letters/${itemId}`
+    }
+    // Ensure path starts with /
+    if (itemId.startsWith('/')) {
+      return itemId
+    }
+    return `/${itemId}`
+  }
+
   let comments: CommentHistoryItem[] = []
   let loading = true
   let error = ''
@@ -53,8 +73,9 @@
   /**
    * Navigate to item page and scroll to comment
    */
-  function navigateToComment(itemId: string, commentId: string) {
-    goto(`${itemId}#comment-${commentId}`)
+  function navigateToComment(itemId: string, commentId: string, itemType?: string) {
+    const path = itemIdToPath(itemId, itemType)
+    goto(`${path}#comment-${commentId}`)
   }
 
   /**
@@ -166,7 +187,7 @@
           <div class='border-l-4 py-2 hover:bg-base-200 transition-colors border-primary pl-4'>
             <button
               class='text-left w-full'
-              on:click={() => navigateToComment(comment.itemId, comment.commentId)}
+              on:click={() => navigateToComment(comment.itemId, comment.commentId, comment.itemType)}
             >
               <!-- Item title -->
               <h4 class='font-semibold text-primary hover:underline mb-1'>

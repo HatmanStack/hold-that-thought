@@ -171,11 +171,10 @@ async function handlePublish(draftId, data, requesterId) {
         const draft = draftRes.Item
         if (!draft) return errorResponse(404, 'Draft not found')
 
-        // 2. Determine paths
-        const slug = finalData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-        const letterPrefix = `${S3_PREFIXES.letters}${slug}/`
+        // 2. Determine paths (date-based folder structure)
+        const letterPrefix = `${S3_PREFIXES.letters}${finalData.date}/`
         const pdfKey = `${letterPrefix}${finalData.date}.pdf`
-        const jsonKey = `${letterPrefix}letter.json`
+        const jsonKey = `${letterPrefix}${finalData.date}.json`
 
         // 3. Move PDF
         await s3Client.send(new CopyObjectCommand({
@@ -202,10 +201,13 @@ async function handlePublish(draftId, data, requesterId) {
                     ...keys.letter(finalData.date),
                     entityType: 'LETTER',
                     ...finalData,
-                    s3PdfKey: pdfKey,
-                    s3JsonKey: jsonKey,
+                    pdfKey: pdfKey,
+                    jsonKey: jsonKey,
                     createdAt: new Date().toISOString(),
-                    publishedBy: requesterId
+                    publishedBy: requesterId,
+                    // GSI1 for listing letters
+                    GSI1PK: 'LETTERS',
+                    GSI1SK: finalData.date,
                 },
                 ConditionExpression: 'attribute_not_exists(PK)'
             }))

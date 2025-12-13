@@ -20,6 +20,21 @@
   function handleCancel() {
     dispatch('cancel')
   }
+
+  function handleContentKeydown(event: KeyboardEvent) {
+    if (event.key === 'Tab') {
+      event.preventDefault()
+      const textarea = event.target as HTMLTextAreaElement
+      const start = textarea.selectionStart
+      const end = textarea.selectionEnd
+      // Use Unicode non-breaking spaces - looks like regular space but won't collapse
+      const indent = '\u00A0\u00A0\u00A0\u00A0\u00A0'
+      content = `${content.substring(0, start)}${indent}${content.substring(end)}`
+      requestAnimationFrame(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + 5
+      })
+    }
+  }
 </script>
 
 <div class='flex flex-col h-full'>
@@ -92,6 +107,7 @@
       bind:value={content}
       placeholder='Write your content...'
       disabled={saving}
+      on:keydown={handleContentKeydown}
     />
   </div>
 

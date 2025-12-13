@@ -75,7 +75,8 @@
       // Check for date collision error
       if (message.includes('already exists')) {
         error = `${message}. Please choose a different date or edit the existing letter.`
-      } else {
+      }
+      else {
         error = message
       }
       publishing = false
@@ -83,7 +84,8 @@
   }
 
   async function handleDiscard() {
-    if (!$authTokens?.idToken) return
+    if (!$authTokens?.idToken)
+      return
 
     deleting = true
     error = ''

@@ -202,7 +202,7 @@ async function updateLetter(event, requesterId) {
 
     await s3Client.send(new PutObjectCommand({
       Bucket: ARCHIVE_BUCKET,
-      Key: `letters-v2/${updatedTitle}/letter.json`,
+      Key: `letters/${date}/${date}.json`,
       Body: JSON.stringify(letterJson, null, 2),
       ContentType: 'application/json',
     }))

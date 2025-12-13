@@ -37,7 +37,8 @@
   }
 
   async function handleDelete(draft: Draft) {
-    if (!$authTokens?.idToken) return
+    if (!$authTokens?.idToken)
+      return
 
     const draftId = extractDraftId(draft.PK)
     if (!confirm('Are you sure you want to delete this draft?'))

@@ -148,7 +148,7 @@ ARCHIVE_BUCKET="${input_bucket:-$DEFAULT_ARCHIVE}"
 # Letters archive check
 echo ""
 echo "--- Letter Archive ---"
-echo "Letters are stored in s3://$ARCHIVE_BUCKET/letters-v2/"
+echo "Letters are stored in s3://$ARCHIVE_BUCKET/letters/"
 echo "DynamoDB will be populated from this archive on first deploy."
 
 # Save configuration
@@ -260,12 +260,12 @@ echo "==================================="
 echo "Step 2: Verify Letter Archive"
 echo "==================================="
 
-LETTER_COUNT=$(aws s3 ls "s3://$ARCHIVE_BUCKET/letters-v2/" --recursive 2>/dev/null | grep "letter.json" | wc -l || echo "0")
-echo "Found $LETTER_COUNT letters in archive (s3://$ARCHIVE_BUCKET/letters-v2/)"
+LETTER_COUNT=$(aws s3 ls "s3://$ARCHIVE_BUCKET/letters/" --recursive 2>/dev/null | grep -E "\.json$" | wc -l || echo "0")
+echo "Found $LETTER_COUNT letters in archive (s3://$ARCHIVE_BUCKET/letters/)"
 
 if [ "$LETTER_COUNT" = "0" ]; then
     echo "WARNING: No letters found in archive bucket."
-    echo "Letters should be stored in s3://$ARCHIVE_BUCKET/letters-v2/{Title}/letter.json"
+    echo "Letters should be stored in s3://$ARCHIVE_BUCKET/letters/{date}/{date}.json"
 fi
 
 echo ""
@@ -313,12 +313,12 @@ echo "==================================="
 if [ "$LETTERS_DB_POPULATED" != "true" ] || [ "$FORCE_POPULATE" = "true" ]; then
     if [ "$LETTER_COUNT" != "0" ]; then
         echo "Populating DynamoDB from letter archive..."
-        echo "  Source: s3://$ARCHIVE_BUCKET/letters-v2/"
+        echo "  Source: s3://$ARCHIVE_BUCKET/letters/"
         echo "  Table: $TABLE_NAME"
 
         if node scripts/populate-from-archive.js \
             --bucket "$ARCHIVE_BUCKET" \
-            --prefix "letters-v2/" \
+            --prefix "letters/" \
             --table "$TABLE_NAME" \
             --verbose; then
 

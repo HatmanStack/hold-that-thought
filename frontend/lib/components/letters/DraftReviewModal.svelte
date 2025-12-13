@@ -13,9 +13,9 @@
     close: void
   }>()
 
-  // Clean content by replacing carriage returns and newlines with spaces
-  function cleanContent(text: string): string {
-    return text.replace(/[\r\n]+/g, ' ').replace(/  +/g, ' ')
+  // Clean text for single-line fields (description)
+  function cleanText(text: string): string {
+    return text.replace(/[\r\n]+/g, ' ').replace(/ {2,}/g, ' ')
   }
 
   // Handle tab key in content editor
@@ -27,7 +27,7 @@
       const end = textarea.selectionEnd
 
       // Insert tab at cursor position
-      formData.content = formData.content.substring(0, start) + '\t' + formData.content.substring(end)
+      formData.content = `${formData.content.substring(0, start)}\t${formData.content.substring(end)}`
 
       // Move cursor after the tab
       requestAnimationFrame(() => {
@@ -40,9 +40,9 @@
   const formData: PublishData = {
     date: draft.parsedData?.date || new Date().toISOString().split('T')[0],
     title: draft.parsedData?.title || '',
-    content: cleanContent(draft.parsedData?.content || ''),
+    content: draft.parsedData?.content || '',
     author: draft.parsedData?.author || '',
-    description: cleanContent(draft.parsedData?.summary || ''),
+    description: cleanText(draft.parsedData?.summary || ''),
   }
 
   let errors: Partial<Record<keyof PublishData, string>> = {}
@@ -197,6 +197,7 @@ return
           <label class='label' for='content'>
             <span class='label-text font-medium'>Content <span class='text-error'>*</span></span>
           </label>
+          <p class='text-xs text-base-content/60 mb-1'>Newlines preserved. For formatting changes, publish first then edit.</p>
           <textarea
             id='content'
             bind:value={formData.content}
