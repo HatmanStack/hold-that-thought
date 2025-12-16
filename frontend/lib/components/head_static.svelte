@@ -1,7 +1,6 @@
 <script lang='ts'>
   import Icon from '$lib/components/head_icon.svelte'
   import { head } from '$lib/config/general'
-  import { post } from '$lib/config/post'
 </script>
 
 <svelte:head>
