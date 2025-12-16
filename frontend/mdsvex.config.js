@@ -13,14 +13,12 @@ import { visit } from 'unist-util-visit'
 
 function remarkUraraFm() {
   return (tree, { data, filename }) => {
-    const filepath = filename ? filename.split('/frontend/routes')[1] : 'unknown'
+    const filepath = filename ? filename.split('/routes')[1] : 'unknown'
     const { dir, name } = parse(filepath)
     if (!data.fm)
       data.fm = {}
-      // Generate slug & path
     data.fm.slug = filepath
     data.fm.path = join(dir, `/${name}`.replace('/+page', '').replace('.svelte', ''))
-    // Generate ToC
     if (data.fm.toc !== false) {
       const [slugs, toc] = [new Slugger(), []]
       visit(tree, 'heading', (node) => {
@@ -37,7 +35,6 @@ function remarkUraraFm() {
   }
 }
 
-// Better type definitions needed
 function remarkUraraSpoiler() {
   return tree =>
     visit(tree, 'paragraph', (node) => {
@@ -79,7 +76,7 @@ export default {
     },
   },
   layout: {
-    _: './frontend/lib/components/post_layout.svelte',
+    _: './lib/components/post_layout.svelte',
   },
   rehypePlugins: [
     rehypeSlug,
@@ -97,7 +94,7 @@ export default {
       remarkFFF,
       {
         autofill: {
-          path: path => path.replace('/frontend/routes/', '/urara/'),
+          path: path => path.replace('/routes/', '/urara/'),
           provider: 'fs',
         },
         presets: [],

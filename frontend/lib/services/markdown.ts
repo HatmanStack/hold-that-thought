@@ -29,8 +29,7 @@ async function checkAuthentication(): Promise<{ authenticated: boolean, token?: 
       }
       return { authenticated: true, token: newAuth.tokens.idToken }
     }
-    catch (error) {
-      console.warn('Authentication refresh failed:', error)
+    catch {
       return { authenticated: false }
     }
   }
@@ -39,111 +38,67 @@ async function checkAuthentication(): Promise<{ authenticated: boolean, token?: 
 }
 
 export async function getMarkdownContent(letterPath: string): Promise<string> {
-  try {
-    console.log('Getting markdown content for path:', letterPath)
-    const response = await fetch(`/api/markdown?path=${encodeURIComponent(letterPath)}`)
+  const response = await fetch(`/api/markdown?path=${encodeURIComponent(letterPath)}`)
 
-    if (!response.ok) {
-      console.error('Failed to load markdown:', response.status)
-      throw new Error(`Failed to load markdown: ${response.status}`)
-    }
-
-    const data = await response.json()
-    console.log('Successfully loaded markdown content')
-
-    // Extract just the content part for editing
-    const { content } = extractFrontmatter(data.content)
-    return content
+  if (!response.ok) {
+    throw new Error(`Failed to load markdown: ${response.status}`)
   }
-  catch (error) {
-    console.error('Error loading markdown content:', error)
-    throw error
-  }
+
+  const data = await response.json()
+  const { content } = extractFrontmatter(data.content)
+  return content
 }
 
 export async function saveMarkdownContent(path: string, content: string): Promise<boolean> {
+  const response = await fetch(`/api/markdown?path=${encodeURIComponent(path)}`)
+  if (!response.ok) {
+    throw new Error('Failed to get original content')
+  }
+  const data = await response.json()
+  const { frontmatter } = extractFrontmatter(data.content)
+
+  const fullContent = combineFrontmatterAndContent(frontmatter, content.trim())
+
+  const localResponse = await fetch('/api/markdown', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      path,
+      content: fullContent,
+    }),
+  })
+
+  if (!localResponse.ok) {
+    throw new Error(`Failed to save locally: ${localResponse.status}`)
+  }
+
   try {
-    console.log('Saving markdown content for path:', path)
+    const { authenticated, token } = await checkAuthentication()
 
-    // First, get the original content to preserve frontmatter
-    const response = await fetch(`/api/markdown?path=${encodeURIComponent(path)}`)
-    if (!response.ok) {
-      throw new Error('Failed to get original content')
+    if (!authenticated) {
+      return true
     }
-    const data = await response.json()
-    const { frontmatter } = extractFrontmatter(data.content)
 
-    // Combine frontmatter with new content
-    const fullContent = combineFrontmatterAndContent(frontmatter, content.trim())
-    console.log('Combined content preview:', `${fullContent.substring(0, 100)}...`)
+    const s3Payload = {
+      type: 'markdown',
+      key: path,
+      content: fullContent,
+    }
 
-    // Save locally first
-    const localResponse = await fetch('/api/markdown', {
+    await fetch(`${PUBLIC_API_GATEWAY_URL}/pdf-download`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
       },
-      body: JSON.stringify({
-        path,
-        content: fullContent,
-      }),
+      body: JSON.stringify(s3Payload),
     })
-
-    if (!localResponse.ok) {
-      console.error('Failed to save locally:', localResponse.status)
-      throw new Error(`Failed to save locally: ${localResponse.status}`)
-    }
-
-    console.log('Successfully saved content locally')
-
-    // Try to save to S3 as backup only if authenticated
-    try {
-      const { authenticated, token } = await checkAuthentication()
-
-      if (!authenticated) {
-        console.warn('Not authenticated for S3 backup - skipping')
-        return true // Still return success since local save worked
-      }
-
-      console.log('Attempting S3 backup to:', `${PUBLIC_API_GATEWAY_URL}/pdf-download`)
-
-      const s3Payload = {
-        type: 'markdown',
-        key: path,
-        content: fullContent,
-      }
-      console.log('S3 backup payload:', s3Payload)
-
-      const s3Response = await fetch(`${PUBLIC_API_GATEWAY_URL}/pdf-download`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(s3Payload),
-      })
-
-      if (!s3Response.ok) {
-        const errorText = await s3Response.text()
-        console.warn('S3 backup failed with status:', s3Response.status)
-        console.warn('S3 error response:', errorText)
-      }
-      else {
-        const responseData = await s3Response.json()
-        console.log('S3 backup successful:', responseData)
-      }
-    }
-    catch (s3Error) {
-      console.warn('S3 backup failed:', s3Error)
-      const message = s3Error instanceof Error ? s3Error.message : 'Unknown error'
-      console.warn('Error details:', message)
-      // Don't throw error for S3 backup failure
-    }
-
-    return true
   }
-  catch (error) {
-    console.error('Error saving markdown content:', error)
-    throw error
+  catch {
+    // S3 backup failure is non-fatal
   }
+
+  return true
 }

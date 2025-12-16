@@ -4,13 +4,9 @@ export default antfu({
   svelte: true,
   typescript: true,
   ignores: [
-    'backend/**/*.js',
-    'tests/**/*.js',
-    'tests/**/*.ts',
     'mdsvex.config.js',
-    'docs/**/*',
     '**/*.md',
-    'frontend/lib/components/MediaUpload.svelte',
+    'lib/components/MediaUpload.svelte',
   ],
   rules: {
     'no-console': 'off',
@@ -26,6 +22,6 @@ export default antfu({
     'style/indent-binary-ops': 'off',
     'regexp/no-super-linear-backtracking': 'off',
     'eqeqeq': 'warn',
-    'no-undef-init': 'off', // Required for Svelte optional props with undefined default
+    'no-undef-init': 'off',
   },
 })

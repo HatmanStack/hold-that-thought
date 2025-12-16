@@ -41,10 +41,7 @@
     isModifying = true
     try {
       if (post.path) {
-        console.log('Opening editor for path:', post.path)
-        // Load the original markdown content
         markdownContent = await getMarkdownContent(post.path)
-        console.log('Loaded content length:', markdownContent?.length)
         if (!markdownContent) {
           throw new Error('Failed to load content')
         }
@@ -52,7 +49,6 @@
       }
     }
     catch (error) {
-      console.error('Error loading markdown content:', error)
       const message = error instanceof Error ? error.message : 'Unknown error'
       alert(`Failed to load content: ${message}`)
     }
@@ -69,14 +65,9 @@
         throw new Error('No content to save')
       }
 
-      console.log('Saving content for path:', post.path)
-      console.log('Content length:', updatedContent.length)
-      console.log('Content preview:', `${updatedContent.substring(0, 100)}...`)
-
       const success = await saveMarkdownContent(post.path, updatedContent)
 
       if (success) {
-        console.log('Save successful, reloading page')
         window.location.reload()
       }
       else {
@@ -84,7 +75,6 @@
       }
     }
     catch (error) {
-      console.error('Error saving markdown content:', error)
       const message = error instanceof Error ? error.message : 'Unknown error'
       alert(`Failed to save content: ${message}`)
     }

@@ -49,6 +49,7 @@ async function toggleReaction(event, userId) {
   const itemIdVariants = [itemId, encodeURIComponent(itemId)]
 
   try {
+    let foundComment = null
     let foundCommentKey = null
 
     // Find the comment first
@@ -59,18 +60,19 @@ async function toggleReaction(event, userId) {
         Key: tryKey,
       }))
       if (result.Item && result.Item.entityType === 'COMMENT') {
+        foundComment = result.Item
         foundCommentKey = tryKey
-        console.log('[toggleReaction] found comment with itemId:', tryItemId)
         break
       }
     }
 
-    if (!foundCommentKey) {
+    if (!foundComment) {
       return errorResponse(404, 'Comment not found')
     }
 
-    // Use the itemId that matched
-    const actualItemId = foundCommentKey.PK.replace(PREFIX.COMMENT, '')
+    // Use the itemId stored in the comment record for consistency
+    // This ensures reactions always use the same key regardless of how the comment was found
+    const actualItemId = foundComment.itemId || foundCommentKey.PK.replace(PREFIX.COMMENT, '')
     const reactionKey = keys.reaction(actualItemId, commentId, userId)
 
     // Check if reaction exists

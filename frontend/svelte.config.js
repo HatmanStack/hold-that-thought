@@ -23,12 +23,12 @@ export default {
   kit: {
     files: {
       assets: 'static',
-      lib: 'frontend/lib',
-      params: 'frontend/params',
-      routes: 'frontend/routes',
-      appTemplate: 'frontend/app.html',
+      lib: 'lib',
+      params: 'params',
+      routes: 'routes',
+      appTemplate: 'app.html',
       hooks: {
-        server: 'frontend/hooks.server',
+        server: 'hooks.server',
       },
     },
     adapter:
@@ -38,37 +38,18 @@ export default {
         : Object.keys(process.env).some(key => ['NETLIFY', 'VERCEL'].includes(key))
           ? adapter.auto
           : adapter.static,
-    // CSP disabled for development - re-enable for production with proper domains
-    // csp: {
-    //   directives: {
-    //     'style-src': ['self', 'unsafe-inline'],
-    //     'img-src': ['self', 'data:', 'blob:', 'https:'],
-    //     'connect-src': ['self', 'https:'],
-    //   },
-    //   mode: 'auto',
-    // },
     prerender: {
       handleMissingId: 'warn',
       handleHttpError: ({ path, referrer, message }) => {
-        // Ignore double-slash paths during prerendering
         if (path.includes('//') && referrer) {
-          console.warn(`Ignoring double-slash path: ${message}`)
           return
         }
-
-        // Ignore 401 errors for protected routes like /admin
         if (message.includes('401') && (path.includes('/admin') || path.includes('/login'))) {
-          console.warn(`Ignoring protected route during prerender: ${path}`)
           return
         }
-
-        // Ignore favicon 404 during prerender (known issue)
         if (path === '/favicon.png') {
-          console.warn(`Ignoring missing favicon during prerender: ${path}`)
           return
         }
-
-        // For other errors, throw to fail the build
         throw new Error(message)
       },
     },

@@ -30,7 +30,7 @@ async function handle(event, context) {
   const resource = event.resource
 
   if (method === 'GET' && resource === '/comments/{itemId}') {
-    return await listComments(event)
+    return await listComments(event, requesterId)
   }
 
   if (method === 'POST' && resource === '/comments/{itemId}') {
@@ -52,7 +52,7 @@ async function handle(event, context) {
   return errorResponse(404, 'Route not found')
 }
 
-async function listComments(event) {
+async function listComments(event, requesterId) {
   const rawItemId = event.pathParameters?.itemId
   const limit = parseInt(event.queryStringParameters?.limit || '50', 10)
   const lastEvaluatedKey = event.queryStringParameters?.lastEvaluatedKey
@@ -63,7 +63,6 @@ async function listComments(event) {
 
   // Decode base64url itemId from frontend
   const itemId = decodeItemId(rawItemId)
-  console.log('[listComments] decoded itemId:', itemId)
 
   // Try multiple storage formats for backwards compatibility
   // Old data stored with URL-encoded itemId, new data stores plain itemId
@@ -103,7 +102,7 @@ async function listComments(event) {
       return successResponse({ items: [], lastEvaluatedKey: null })
     }
 
-    // Sign profile photo URLs for private bucket access
+    // Sign profile photo URLs and check user reactions
     const comments = await Promise.all(allItems.map(async (item) => {
       let signedPhotoUrl = null
       if (item.userPhotoUrl) {
@@ -125,6 +124,22 @@ async function listComments(event) {
         }
       }
 
+      // Check if current user has reacted to this comment
+      let userHasReacted = false
+      if (requesterId) {
+        const reactionItemId = item.itemId || item.PK?.replace(PREFIX.COMMENT, '')
+        const reactionKey = keys.reaction(reactionItemId, item.SK, requesterId)
+        try {
+          const reactionResult = await docClient.send(new GetCommand({
+            TableName: TABLE_NAME,
+            Key: reactionKey,
+          }))
+          userHasReacted = !!reactionResult.Item
+        } catch (e) {
+          // Ignore errors checking reactions
+        }
+      }
+
       return {
         itemId: item.itemId,
         commentId: item.SK,
@@ -136,6 +151,7 @@ async function listComments(event) {
         updatedAt: item.updatedAt,
         isEdited: item.isEdited,
         reactionCount: item.reactionCount || 0,
+        userHasReacted,
       }
     }))
 
