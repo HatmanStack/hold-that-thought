@@ -6,6 +6,7 @@ const reactions = require('./routes/reactions')
 const media = require('./routes/media')
 const letters = require('./routes/letters')
 const drafts = require('./routes/drafts')
+const contact = require('./routes/contact')
 const { ensureProfile } = require('./utils')
 const { log } = require('./lib/logger')
 const { errorResponse } = require('./lib/responses')
@@ -70,6 +71,10 @@ exports.handler = async (event) => {
 
     if (path.startsWith('/letters')) {
       return await letters.handle(event, context)
+    }
+
+    if (path.startsWith('/contact')) {
+      return await contact.handle(event, context)
     }
 
     if (path.startsWith('/admin')) {

@@ -1,8 +1,17 @@
 <script lang='ts'>
+  import { PUBLIC_API_GATEWAY_URL } from '$env/static/public'
   import Head from '$lib/components/head.svelte'
 
   let selectedImage: string | null = null
   let selectedImageAlt: string | null = null
+
+  // Contact form state
+  let showContactModal = false
+  let contactEmail = ''
+  let contactMessage = ''
+  let sending = false
+  let sendError = ''
+  let sendSuccess = false
 
   function openImage(src: string, alt: string) {
     selectedImage = src
@@ -14,9 +23,57 @@
     selectedImageAlt = null
   }
 
+  function openContactModal() {
+    showContactModal = true
+    sendError = ''
+    sendSuccess = false
+  }
+
+  function closeContactModal() {
+    showContactModal = false
+    contactEmail = ''
+    contactMessage = ''
+    sendError = ''
+    sendSuccess = false
+  }
+
+  async function sendContactMessage() {
+    if (!contactEmail || !contactMessage) {
+      sendError = 'Please fill in both fields'
+      return
+    }
+
+    sending = true
+    sendError = ''
+
+    try {
+      const response = await fetch(`${PUBLIC_API_GATEWAY_URL}/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: contactEmail, message: contactMessage }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to send message')
+      }
+
+      sendSuccess = true
+      contactEmail = ''
+      contactMessage = ''
+    }
+    catch (err) {
+      sendError = err instanceof Error ? err.message : 'Failed to send message'
+    }
+    finally {
+      sending = false
+    }
+  }
+
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
       closeImage()
+      closeContactModal()
     }
   }
 </script>
@@ -120,9 +177,9 @@
         <h2 class='text-2xl font-semibold mb-4'>Get In Touch</h2>
 
         <div class='flex flex-col sm:flex-row gap-4 justify-center'>
-          <a href='mailto:gemenielabs@gmail.com' class='btn btn-primary'>
+          <button on:click={openContactModal} class='btn btn-primary'>
             📧 Contact Us
-          </a>
+          </button>
           <a href='/letters' class='btn btn-outline'>
             📜 Browse Letters
           </a>
@@ -162,6 +219,96 @@
         alt={selectedImageAlt || 'Family memory'}
         class='max-w-full max-h-full rounded-lg shadow-2xl object-contain'
       />
+    </div>
+  </button>
+{/if}
+
+<!-- Contact Modal -->
+{#if showContactModal}
+  <button
+    type='button'
+    class='fixed inset-0 bg-black flex items-center justify-center z-50 p-4 w-full h-full border-none bg-opacity-50 cursor-default'
+    on:click={closeContactModal}
+    on:keydown={handleKeydown}
+    aria-label='Close contact form'
+  >
+    <div
+      class='bg-base-100 rounded-lg shadow-xl max-w-md w-full p-6'
+      role='dialog'
+      aria-modal='true'
+      on:click|stopPropagation={() => {}}
+      on:keydown|stopPropagation={() => {}}
+    >
+      <div class='flex justify-between items-center mb-4'>
+        <h3 class='text-xl font-semibold'>Contact Us</h3>
+        <button
+          class='btn btn-sm btn-circle btn-ghost'
+          on:click={closeContactModal}
+          aria-label='Close'
+        >
+          <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+            <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 18L18 6M6 6l12 12' />
+          </svg>
+        </button>
+      </div>
+
+      {#if sendSuccess}
+        <div class='text-center py-8'>
+          <div class='text-4xl mb-4'>✅</div>
+          <p class='text-lg font-medium mb-2'>Message Sent!</p>
+          <p class='text-base-content/70 mb-4'>We'll get back to you soon.</p>
+          <button class='btn btn-primary' on:click={closeContactModal}>Close</button>
+        </div>
+      {:else}
+        <div class='space-y-4'>
+          <div class='form-control'>
+            <label class='label' for='contact-email'>
+              <span class='label-text'>Your Email</span>
+            </label>
+            <input
+              id='contact-email'
+              type='email'
+              class='input input-bordered w-full'
+              placeholder='you@example.com'
+              bind:value={contactEmail}
+              disabled={sending}
+            />
+          </div>
+
+          <div class='form-control'>
+            <label class='label' for='contact-message'>
+              <span class='label-text'>Message</span>
+            </label>
+            <textarea
+              id='contact-message'
+              class='textarea textarea-bordered w-full h-32'
+              placeholder='How can we help?'
+              bind:value={contactMessage}
+              disabled={sending}
+            />
+          </div>
+
+          {#if sendError}
+            <div class='alert alert-error text-sm'>
+              <span>{sendError}</span>
+            </div>
+          {/if}
+
+          <div class='flex gap-2 justify-end'>
+            <button class='btn btn-ghost' on:click={closeContactModal} disabled={sending}>
+              Cancel
+            </button>
+            <button class='btn btn-primary' on:click={sendContactMessage} disabled={sending}>
+              {#if sending}
+                <span class='loading loading-spinner loading-sm'></span>
+                Sending...
+              {:else}
+                Send Message
+              {/if}
+            </button>
+          </div>
+        </div>
+      {/if}
     </div>
   </button>
 {/if}
