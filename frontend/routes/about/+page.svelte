@@ -14,7 +14,6 @@
     selectedImageAlt = null
   }
 
-  // Close modal when clicking outside or pressing Escape
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
       closeImage()
@@ -35,11 +34,7 @@
 
     <div class='text-center mb-12'>
       <p class='text-xl text-base-content/80'>
-        An archive to see how our parents, grandparents, and great-grandparents communicated.
-      </p>
-      <p class='mb-4 text-base-content/90 leading-relaxed'>
-        Don't share media or letters through social media.  Modifying and adding new letters will come soon.
-
+        A family archive preserving how our parents, grandparents, and great-grandparents communicated.
       </p>
     </div>
 
@@ -50,39 +45,33 @@
         <h2 class='text-2xl font-semibold mb-4'>How It Works</h2>
         <div class='bg-base-100 border border-base-300 rounded-lg p-6 mb-4'>
           <h3 class='font-semibold mb-3'>📤 Upload Letters</h3>
-          <p class='text-base-content/80 mb-3'>The system supports:</p>
+          <p class='text-base-content/80 mb-3'>Upload scanned letters or photos of handwritten correspondence:</p>
           <ul class='text-sm text-base-content/80 space-y-1 list-disc list-inside'>
             <li>Multiple images or PDFs for multi-page letters</li>
             <li>Access to original document files</li>
-            <li>One letter submission at a time</li>
+            <li>Automatic AI-powered transcription</li>
           </ul>
-
         </div>
 
         <div class='bg-base-100 border border-base-300 rounded-lg p-6 mb-4'>
-          <h3 class='font-semibold mb-3'>🔍 OCR Technology</h3>
+          <h3 class='font-semibold mb-3'>🤖 AI Transcription</h3>
           <p class='text-base-content/80 mb-3'>
-            Google's OCR (Optical Content Recognition) to parse the letters, but it's not perfect and some handwriting can be challenging to read.
+            Letters are automatically transcribed using AI, but handwriting can be challenging to read perfectly.
           </p>
-          <p class='text-base-content/80 mb-3'>You can improve existing letters by:</p>
+          <p class='text-base-content/80 mb-3'>You can improve transcriptions by:</p>
           <ul class='list-disc list-inside text-sm text-base-content/80 space-y-1'>
-            <li>Correcting transcriptions</li>
-            <li>Adding or refining tags</li>
-            <li>Providing additional context or photos</li>
+            <li>Correcting OCR errors</li>
+            <li>Adding context or notes</li>
+            <li>Editing metadata (dates, authors)</li>
           </ul>
-          <p class='text-xs text-base-content/60 mt-3'>
-            Check the help section when modifying a letter for guidance on Markdown formatting.
-          </p>
         </div>
 
         <div class='bg-base-100 border border-base-300 rounded-lg p-6'>
-          <h3 class='font-semibold mb-3'>📷 Sharing Pictures</h3>
-          <p class='text-base-content/80 mb-3'>
-            To share pictures from Google Drive, use this format:
+          <h3 class='font-semibold mb-3'>💬 Comments & Reactions</h3>
+          <p class='text-base-content/80'>
+            Family members can comment on letters, share memories, and react to content.
+            Private messaging is also available for more personal conversations.
           </p>
-          <div class='bg-base-200 rounded p-3 font-mono text-sm'>
-            ![image](https://lh3.googleusercontent.com/d/&lt;picture id&gt;)
-          </div>
         </div>
       </section>
 
@@ -134,8 +123,8 @@
           <a href='mailto:gemenielabs@gmail.com' class='btn btn-primary'>
             📧 Contact Us
           </a>
-          <a href='/gallery' class='btn btn-outline'>
-            🖼️ View Gallery
+          <a href='/letters' class='btn btn-outline'>
+            📜 Browse Letters
           </a>
         </div>
       </section>
@@ -158,7 +147,6 @@
       on:click|stopPropagation={() => {}}
       on:keydown|stopPropagation={() => {}}
     >
-      <!-- Close button -->
       <button
         class='absolute btn btn-circle btn-sm bg-black bg-opacity-50 border-none z-10 top-4 right-4 text-white hover:bg-opacity-75'
         on:click|stopPropagation={closeImage}
@@ -169,7 +157,6 @@
         </svg>
       </button>
 
-      <!-- Expanded image -->
       <img
         src={selectedImage}
         alt={selectedImageAlt || 'Family memory'}
@@ -179,5 +166,4 @@
   </button>
 {/if}
 
-<!-- Add keyboard event listener to window -->
 <svelte:window on:keydown={handleKeydown} />
