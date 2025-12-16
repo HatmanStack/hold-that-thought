@@ -425,25 +425,28 @@ async function listUsers(requesterId) {
     // Scan for all user profiles (in production, consider pagination)
     const result = await docClient.send(new ScanCommand({
       TableName: TABLE_NAME,
-      FilterExpression: 'entityType = :type AND #status = :active',
-      ExpressionAttributeNames: { '#status': 'status' },
+      FilterExpression: 'entityType = :type',
       ExpressionAttributeValues: {
         ':type': 'USER_PROFILE',
-        ':active': 'active',
       },
       Limit: 100,
     }))
 
-    const items = result.Items || []
+    // Filter in code: exclude inactive/deleted users (handles missing status field)
+    // Also exclude the requester (can't message yourself)
+    const activeItems = (result.Items || []).filter(user =>
+      user.status !== 'inactive' && user.status !== 'deleted' && user.userId !== requesterId
+    )
 
     // Batch sign all photo URLs (deduped for efficiency)
-    const photoUrls = items.map(u => u.profilePhotoUrl)
+    const photoUrls = activeItems.map(u => u.profilePhotoUrl)
     const signedUrls = await batchSignUrls(photoUrls)
 
-    // Map results using pre-signed URLs
-    const users = items.map(user => ({
+    // Map results with email included for search/display
+    const users = activeItems.map(user => ({
       userId: user.userId,
       displayName: user.displayName || 'Anonymous',
+      email: user.email || '',
       profilePhotoUrl: signedUrls.get(user.profilePhotoUrl) || null,
     }))
 
