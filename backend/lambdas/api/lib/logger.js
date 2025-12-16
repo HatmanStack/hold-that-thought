@@ -10,9 +10,9 @@ const levels = { error: 0, warn: 1, info: 2, debug: 3 }
 const shouldLog = level => levels[level] <= levels[LOG_LEVEL]
 
 const formatLog = (level, msg, data = {}) => JSON.stringify({
+  ...data,
   level,
   msg,
-  ...data,
   ts: Date.now(),
 })
 

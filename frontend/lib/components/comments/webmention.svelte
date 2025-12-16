@@ -84,6 +84,7 @@
       {`sort-by=${config?.sortBy ?? 'created'}&sort-dir=${sortDirUp ? 'up' : 'down'}`}
     </p>
     <button
+      aria-label={sortDirUp ? 'Sort descending' : 'Sort ascending'}
       class='btn btn-ghost btn-sm float-right'
       on:click={() => {
         sortDirUp = !sortDirUp

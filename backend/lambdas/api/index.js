@@ -8,6 +8,7 @@ const letters = require('./routes/letters')
 const drafts = require('./routes/drafts')
 const { ensureProfile } = require('./utils')
 const { log } = require('./lib/logger')
+const { errorResponse } = require('./lib/responses')
 
 /**
  * Main API router - consolidates all API endpoints into a single Lambda
@@ -93,22 +94,5 @@ exports.handler = async (event) => {
   } catch (error) {
     log.error('unhandled_error', { error: error.message, stack: error.stack })
     return errorResponse(500, 'Internal server error')
-  }
-}
-
-/**
- * @param {number} statusCode
- * @param {string} message
- * @returns {import('aws-lambda').APIGatewayProxyResult}
- */
-function errorResponse(statusCode, message) {
-  return {
-    statusCode,
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Credentials': true,
-    },
-    body: JSON.stringify({ error: message }),
   }
 }
