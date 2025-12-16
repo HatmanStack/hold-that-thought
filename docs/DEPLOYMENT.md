@@ -7,15 +7,31 @@
 - **AWS CLI** configured with credentials
 - **AWS SAM CLI** for serverless deployment
 
+## Project Structure
+
+This is a monorepo with npm workspaces:
+
+```text
+├── frontend/          # SvelteKit app (has own package.json)
+├── backend/           # AWS SAM application
+│   ├── lambdas/       # Lambda function code
+│   ├── scripts/       # Deployment scripts
+│   └── template.yaml  # SAM template
+├── tests/             # Centralized tests
+└── package.json       # Root orchestration
+```
+
 ## Quick Deploy
 
 ```bash
-# Backend (Lambda + API Gateway + DynamoDB)
-cd backend && sam build && sam deploy --guided
+# From repository root:
 
-# Frontend (after backend is deployed)
+# Backend (Lambda + API Gateway + DynamoDB)
+npm run deploy
+
+# Frontend
 npm run build
-netlify deploy --prod  # or your preferred host
+netlify deploy --prod --dir=frontend/build
 ```
 
 ## Backend Deployment
@@ -38,6 +54,14 @@ Configuration is saved to `samconfig.toml` for subsequent deploys.
 
 ### Subsequent Deploys
 
+From repository root:
+
+```bash
+npm run deploy
+```
+
+Or manually:
+
 ```bash
 cd backend && sam build && sam deploy
 ```
@@ -45,6 +69,8 @@ cd backend && sam build && sam deploy
 ### Environment-specific Deploys
 
 ```bash
+cd backend
+
 # Development
 sam deploy --config-env dev
 
@@ -54,39 +80,54 @@ sam deploy --config-env prod
 
 ## Frontend Deployment
 
+### Install Dependencies
+
+```bash
+# From repository root
+npm install              # Root dependencies
+cd frontend && npm install  # Frontend dependencies
+```
+
 ### Build
 
 ```bash
+# From repository root
 npm run build
 ```
+
+Output is in `frontend/build/`.
 
 ### Deploy to Netlify
 
 ```bash
-netlify deploy --prod --dir=build
+netlify deploy --prod --dir=frontend/build
 ```
 
 Or connect your repo to Netlify for automatic deploys on push.
 
 ### Environment Variables
 
-Set these in your hosting platform:
+The deploy script automatically copies `.env` to `frontend/.env` for Vite.
+
+Required variables (set in `.env` or hosting platform):
 
 | Variable | Description |
 |----------|-------------|
-| `PUBLIC_AWS_REGION` | AWS region (e.g., `us-east-1`) |
-| `PUBLIC_API_ENDPOINT` | API Gateway URL |
+| `PUBLIC_AWS_REGION` | AWS region (e.g., `us-west-2`) |
+| `PUBLIC_API_GATEWAY_URL` | API Gateway URL (auto-populated by deploy) |
 | `PUBLIC_COGNITO_USER_POOL_ID` | Cognito User Pool ID |
 | `PUBLIC_COGNITO_USER_POOL_CLIENT_ID` | Cognito App Client ID |
-| `PUBLIC_S3_BUCKET` | S3 bucket for media |
+| `PUBLIC_COGNITO_IDENTITY_POOL_ID` | Cognito Identity Pool ID |
+| `PUBLIC_COGNITO_HOSTED_UI_URL` | Cognito Hosted UI URL (for OAuth) |
+| `PUBLIC_COGNITO_HOSTED_UI_DOMAIN` | Cognito domain prefix |
 
 ## Infrastructure Components
 
 ### Created by SAM Deploy
 
 - **API Gateway** - REST API with Cognito authorizer
-- **Lambda Functions** - 9 functions for API endpoints
-- **DynamoDB Tables** - UserProfiles, Comments, Messages, Reactions
+- **Lambda Functions** - API handler + background processors
+- **DynamoDB Table** - Single-table design for all data
 - **S3 Bucket** - Media storage with presigned URL access
 - **Cognito User Pool** - Authentication with Google OAuth
 - **SES** - Email notifications (requires verification)
@@ -106,15 +147,21 @@ Set these in your hosting platform:
 3. Enter Google Client ID and Secret
 4. Map attributes: `email`, `name`, `picture`
 
-### Create ApprovedUsers Group
+### Create Groups
 
 ```bash
+# ApprovedUsers - can comment, message, react
 aws cognito-idp create-group \
   --user-pool-id YOUR_POOL_ID \
   --group-name ApprovedUsers
+
+# Admins - full access including moderation
+aws cognito-idp create-group \
+  --user-pool-id YOUR_POOL_ID \
+  --group-name Admins
 ```
 
-### Add User to Approved Group
+### Add User to Group
 
 ```bash
 aws cognito-idp admin-add-user-to-group \
@@ -123,11 +170,30 @@ aws cognito-idp admin-add-user-to-group \
   --group-name ApprovedUsers
 ```
 
+## Development Workflow
+
+```bash
+# Start dev server (from root)
+npm run dev
+
+# Run tests
+npm test
+
+# Run all checks (lint + tests)
+npm run check
+
+# Frontend-specific commands
+cd frontend
+npm run check:lint    # ESLint
+npm run check:types   # Svelte type check
+npm run lint:fix      # Auto-fix lint issues
+```
+
 ## Troubleshooting
 
 ### Lambda Timeout
 
-Increase timeout in `template.yaml`:
+Increase timeout in `backend/template.yaml`:
 ```yaml
 Globals:
   Function:
@@ -136,14 +202,24 @@ Globals:
 
 ### CORS Errors
 
-Check API Gateway CORS settings and `AllowedOrigins` in template.yaml.
+Check API Gateway CORS settings and `AllowedOrigins` parameter in template.yaml.
 
 ### Auth Failures
 
-1. Verify Cognito User Pool ID and Client ID
+1. Verify Cognito User Pool ID and Client ID in `.env`
 2. Check user is in ApprovedUsers group
 3. Verify JWT token is being sent in Authorization header
 
 ### DynamoDB Errors
 
-Check Lambda execution role has DynamoDB permissions.
+Check Lambda execution role has DynamoDB permissions for the table.
+
+### Build Failures
+
+```bash
+# Clear caches and reinstall
+rm -rf node_modules frontend/node_modules
+rm package-lock.json frontend/package-lock.json
+npm install
+cd frontend && npm install
+```
