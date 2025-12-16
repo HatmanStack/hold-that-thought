@@ -81,13 +81,13 @@
 <Head />
 
 <svelte:head>
-  <title>About - Hold That Thought</title>
-  <meta name='description' content='Learn more about Hold That Thought and our mission to preserve family letters and memories.' />
+  <title>About Us</title>
+  <meta name='description' content='Learn more about our mission to preserve family letters and memories.' />
 </svelte:head>
 
 <div class='mx-auto px-4 py-8 max-w-4xl container'>
   <div class='prose mx-auto prose-lg'>
-    <h1 class='text-4xl font-bold text-center mb-8'>About Hold That Thought</h1>
+    <h1 class='text-4xl font-bold text-center mb-8'>About Us</h1>
 
     <div class='text-center mb-12'>
       <p class='text-xl text-base-content/80'>
