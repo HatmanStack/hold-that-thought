@@ -119,9 +119,10 @@
   }
 
   // Sanitize HTML to prevent XSS
+  // Use breaks: true to preserve single line breaks from the original letter
   $: htmlContent = letter
-    ? sanitizeHtml(marked(letter.content) as string, {
-        allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2']),
+    ? sanitizeHtml(marked(letter.content, { breaks: true }) as string, {
+        allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2', 'br']),
         allowedAttributes: {
           ...sanitizeHtml.defaults.allowedAttributes,
           img: ['src', 'alt', 'title'],
