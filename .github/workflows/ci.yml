@@ -94,7 +94,7 @@ jobs:
           done
 
       - name: Run backend unit tests
-        run: npx vitest run tests/unit backend/ --reporter=verbose
+        run: npm test -- tests/unit backend/ --reporter=verbose
 
   status-check:
     name: All Checks Passed
