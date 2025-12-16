@@ -18,7 +18,7 @@ async function parseLetter(pdfBuffer) {
     - author: Name of sender
     - recipient: Name of recipient
     - location: Origin location/city
-    - content: Full text transcription. IMPORTANT: Preserve the original line breaks exactly as they appear in the letter. Each line in the original should be a separate line in the transcription. Use \\n for line breaks within the JSON string.
+    - content: Full text transcription (preserve paragraphs)
     - summary: A brief 2-3 sentence summary
     - tags: Array of 3-5 keywords/topics
 
