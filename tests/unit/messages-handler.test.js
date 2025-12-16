@@ -67,7 +67,7 @@ describe('messages API Lambda', () => {
 
       expect(response.statusCode).toBe(201)
       const body = JSON.parse(response.body)
-      expect(body.conversationId).toBe('user-1#user-2') // Sorted
+      expect(body.conversationId).toBe('user-1_user-2') // Sorted
       expect(body.conversationType).toBe('direct')
     })
 
@@ -112,23 +112,31 @@ describe('messages API Lambda', () => {
 
   describe('POST /messages/conversations/{conversationId}', () => {
     it('should send message in conversation', async () => {
-      const mockConversation = {
+      const mockMembership = {
+        entityType: 'CONVERSATION_MEMBER',
+        PK: 'USER#user-1',
+        SK: 'CONV#user-1_user-2',
         userId: 'user-1',
-        conversationId: 'user-1#user-2',
+        conversationId: 'user-1_user-2',
         conversationType: 'direct',
-        participantIds: new Set(['user-1', 'user-2']),
+      }
+
+      const mockProfile = {
+        entityType: 'USER_PROFILE',
+        userId: 'user-1',
+        displayName: 'User 1',
       }
 
       ddbMock.on(GetCommand)
-        .resolvesOnce({ Item: mockConversation }) // Member check
-        .resolvesOnce({ Item: { userId: 'user-1', displayName: 'User 1' } }) // Sender name
+        .resolvesOnce({ Item: mockMembership }) // Member check
+        .resolvesOnce({ Item: mockProfile }) // Sender name
       ddbMock.on(PutCommand).resolves({})
       ddbMock.on(UpdateCommand).resolves({})
 
       const event = {
         httpMethod: 'POST',
         resource: '/messages/conversations/{conversationId}',
-        pathParameters: { conversationId: 'user-1#user-2' },
+        pathParameters: { conversationId: 'user-1_user-2' },
         body: JSON.stringify({
           messageText: 'Hello there!',
         }),
@@ -176,8 +184,9 @@ describe('messages API Lambda', () => {
     it('should list user conversations', async () => {
       const mockConversations = [
         {
+          entityType: 'CONVERSATION_MEMBER',
           userId: 'user-1',
-          conversationId: 'user-1#user-2',
+          conversationId: 'user-1_user-2',
           conversationType: 'direct',
           lastMessageAt: '2025-01-15T12:00:00.000Z',
           unreadCount: 2,
@@ -212,7 +221,7 @@ describe('messages API Lambda', () => {
       const event = {
         httpMethod: 'PUT',
         resource: '/messages/conversations/{conversationId}/read',
-        pathParameters: { conversationId: 'user-1#user-2' },
+        pathParameters: { conversationId: 'user-1_user-2' },
         requestContext: {
           authorizer: {
             claims: { sub: 'user-1', email: 'user1@example.com' },

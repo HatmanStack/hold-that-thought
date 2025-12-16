@@ -72,18 +72,13 @@ describe('comments API Lambda', () => {
     })
 
     it('should filter out deleted comments', async () => {
+      // DynamoDB FilterExpression filters at query time, so mock returns only non-deleted
       const mockComments = [
         {
           itemId: '/2015/christmas',
           commentId: '2025-01-15T10:00:00.000Z#abc',
           commentText: 'Visible',
           isDeleted: false,
-        },
-        {
-          itemId: '/2015/christmas',
-          commentId: '2025-01-15T11:00:00.000Z#def',
-          commentText: 'Deleted',
-          isDeleted: true,
         },
       ]
 
@@ -132,6 +127,7 @@ describe('comments API Lambda', () => {
   describe('POST /comments/{itemId}', () => {
     it('should create comment with denormalized user data', async () => {
       const mockProfile = {
+        entityType: 'USER_PROFILE',
         userId: 'user-1',
         displayName: 'John Doe',
         profilePhotoUrl: 'https://example.com/photo.jpg',
@@ -169,6 +165,7 @@ describe('comments API Lambda', () => {
 
     it('should sanitize HTML in comment text', async () => {
       const mockProfile = {
+        entityType: 'USER_PROFILE',
         userId: 'user-1',
         displayName: 'John Doe',
       }
@@ -269,6 +266,7 @@ describe('comments API Lambda', () => {
   describe('PUT /comments/{itemId}/{commentId}', () => {
     it('should edit own comment', async () => {
       const mockComment = {
+        entityType: 'COMMENT',
         itemId: '/2015/christmas',
         commentId: '2025-01-15T10:00:00.000Z#abc',
         userId: 'user-1',
@@ -321,6 +319,7 @@ describe('comments API Lambda', () => {
 
     it('should return 403 if editing someone elses comment', async () => {
       const mockComment = {
+        entityType: 'COMMENT',
         itemId: '/2015/christmas',
         commentId: '2025-01-15T10:00:00.000Z#abc',
         userId: 'user-2',
@@ -355,6 +354,7 @@ describe('comments API Lambda', () => {
 
     it('should allow admin to edit any comment', async () => {
       const mockComment = {
+        entityType: 'COMMENT',
         itemId: '/2015/christmas',
         commentId: '2025-01-15T10:00:00.000Z#abc',
         userId: 'user-2',
@@ -428,6 +428,7 @@ describe('comments API Lambda', () => {
   describe('DELETE /comments/{itemId}/{commentId}', () => {
     it('should soft delete own comment', async () => {
       const mockComment = {
+        entityType: 'COMMENT',
         itemId: '/2015/christmas',
         commentId: '2025-01-15T10:00:00.000Z#abc',
         userId: 'user-1',
@@ -461,6 +462,7 @@ describe('comments API Lambda', () => {
 
     it('should return 403 if deleting someone elses comment', async () => {
       const mockComment = {
+        entityType: 'COMMENT',
         itemId: '/2015/christmas',
         commentId: '2025-01-15T10:00:00.000Z#abc',
         userId: 'user-2',
@@ -492,6 +494,7 @@ describe('comments API Lambda', () => {
 
     it('should allow admin to delete any comment', async () => {
       const mockComment = {
+        entityType: 'COMMENT',
         itemId: '/2015/christmas',
         commentId: '2025-01-15T10:00:00.000Z#abc',
         userId: 'user-2',

@@ -99,6 +99,7 @@ describe('profile API Security Tests', () => {
 
       ddbMock.on(GetCommand).resolves({
         Item: {
+          entityType: 'USER_PROFILE',
           userId: validUserId,
           email: 'test@example.com',
           displayName: 'Test User',
@@ -316,8 +317,15 @@ describe('profile API Security Tests', () => {
     it('should sanitize HTML in bio field', async () => {
       const validUserId = '550e8400-e29b-41d4-a716-446655440000'
 
-      ddbMock.on(GetCommand).resolves({ Item: null })
-      ddbMock.on(PutCommand).resolves({})
+      // Profile must exist for UpdateCommand to be called
+      ddbMock.on(GetCommand).resolves({
+        Item: {
+          entityType: 'USER_PROFILE',
+          userId: validUserId,
+          email: 'test@example.com',
+          displayName: 'Test User',
+        }
+      })
       ddbMock.on(UpdateCommand).resolves({
         Attributes: {
           userId: validUserId,
@@ -462,6 +470,7 @@ describe('profile API Security Tests', () => {
 
       ddbMock.on(GetCommand).resolves({
         Item: {
+          entityType: 'USER_PROFILE',
           userId: profileOwner,
           email: 'owner@example.com',
           displayName: 'Profile Owner',
@@ -493,6 +502,7 @@ describe('profile API Security Tests', () => {
 
       ddbMock.on(GetCommand).resolves({
         Item: {
+          entityType: 'USER_PROFILE',
           userId,
           email: 'owner@example.com',
           displayName: 'Profile Owner',
@@ -524,6 +534,7 @@ describe('profile API Security Tests', () => {
 
       ddbMock.on(GetCommand).resolves({
         Item: {
+          entityType: 'USER_PROFILE',
           userId: profileOwner,
           email: 'owner@example.com',
           displayName: 'Profile Owner',
