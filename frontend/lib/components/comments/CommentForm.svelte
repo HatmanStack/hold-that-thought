@@ -1,6 +1,6 @@
 <script lang='ts'>
   import type { Comment } from '$lib/types/comment'
-  import { createComment } from '$lib/services/commentService'
+  import { createComment } from '$lib/services/comment-service'
   import { createEventDispatcher } from 'svelte'
 
   export let itemId: string

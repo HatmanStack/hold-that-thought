@@ -10,8 +10,6 @@
   import { onMount } from 'svelte'
   import { registerSW } from 'virtual:pwa-register'
 
-  import 'uno.css'
-
   import '../app.pcss'
 
   export let data: LayoutData

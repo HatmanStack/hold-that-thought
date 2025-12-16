@@ -1,23 +1,36 @@
-// Import SDK from root node_modules
-const { mockClient } = require('aws-sdk-client-mock')
-const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb')
+import { vi, describe, it, expect, beforeEach, beforeAll } from 'vitest'
+import { mockClient } from 'aws-sdk-client-mock'
+import { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb'
 
-// Create mock BEFORE setting env vars or importing handler
+// Set env vars before any imports
+process.env.TABLE_NAME = 'test-table'
+process.env.ARCHIVE_BUCKET = 'test-bucket'
+process.env.AWS_REGION = 'us-east-1'
+process.env.AWS_ACCESS_KEY_ID = 'test-key'
+process.env.AWS_SECRET_ACCESS_KEY = 'test-secret'
+
+// Mock the presigner module before importing handler
+vi.mock('@aws-sdk/s3-request-presigner', () => ({
+  getSignedUrl: vi.fn().mockResolvedValue('https://test-bucket.s3.us-east-1.amazonaws.com/mock-key')
+}))
+
 const ddbMock = mockClient(DynamoDBDocumentClient)
 
-// Set env vars BEFORE importing handler
-process.env.TABLE_NAME = 'test-table'
-process.env.S3_BUCKET = 'test-bucket'
+let handler
 
-// Import handler after mock is created
-const { handler } = require('../../backend/lambdas/api/index')
+beforeAll(async () => {
+  // Clear module cache and import fresh
+  vi.resetModules()
+  const module = await import('../../backend/lambdas/api/index.js')
+  handler = module.handler
+})
 
 beforeEach(() => {
   ddbMock.reset()
 })
 
 describe('comments API Lambda', () => {
-  describe('gET /comments/{itemId}', () => {
+  describe('GET /comments/{itemId}', () => {
     it('should return paginated comments', async () => {
       const mockComments = [
         {
@@ -116,7 +129,7 @@ describe('comments API Lambda', () => {
     })
   })
 
-  describe('pOST /comments/{itemId}', () => {
+  describe('POST /comments/{itemId}', () => {
     it('should create comment with denormalized user data', async () => {
       const mockProfile = {
         userId: 'user-1',
@@ -253,7 +266,7 @@ describe('comments API Lambda', () => {
     })
   })
 
-  describe('pUT /comments/{itemId}/{commentId}', () => {
+  describe('PUT /comments/{itemId}/{commentId}', () => {
     it('should edit own comment', async () => {
       const mockComment = {
         itemId: '/2015/christmas',
@@ -412,7 +425,7 @@ describe('comments API Lambda', () => {
     })
   })
 
-  describe('dELETE /comments/{itemId}/{commentId}', () => {
+  describe('DELETE /comments/{itemId}/{commentId}', () => {
     it('should soft delete own comment', async () => {
       const mockComment = {
         itemId: '/2015/christmas',
@@ -512,7 +525,7 @@ describe('comments API Lambda', () => {
     })
   })
 
-  describe('dELETE /admin/comments/{commentId}', () => {
+  describe('DELETE /admin/comments/{commentId}', () => {
     it('should allow admin to delete any comment', async () => {
       ddbMock.on(UpdateCommand).resolves({})
 

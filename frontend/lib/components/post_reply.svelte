@@ -1,4 +1,6 @@
 <script lang='ts'>
+  import { ArrowUturnLeft, Icon } from 'svelte-hero-icons'
+
   let className = ''
   export { className as class }
   export let in_reply_to: Urara.Post['in_reply_to']
@@ -11,7 +13,9 @@
     href={in_reply_to}
     rel='noopener noreferrer external'
     target='_blank'>
-    <span class='my-auto !w-4 !h-4 i-heroicons-outline-reply' />
+    <span class='my-auto'>
+      <Icon src={ArrowUturnLeft} class='w-4 h-4' />
+    </span>
     {in_reply_to}
   </a>
 </div>

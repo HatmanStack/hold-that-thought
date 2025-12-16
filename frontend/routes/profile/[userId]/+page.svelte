@@ -4,7 +4,7 @@
   import { currentUser } from '$lib/auth/auth-store'
   import CommentHistory from '$lib/components/profile/CommentHistory.svelte'
   import ProfileCard from '$lib/components/profile/ProfileCard.svelte'
-  import { getProfile } from '$lib/services/profileService'
+  import { getProfile } from '$lib/services/profile-service'
   import { onMount } from 'svelte'
 
   let profile: UserProfile | null = null

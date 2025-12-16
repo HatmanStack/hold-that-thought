@@ -1,6 +1,7 @@
 <script lang='ts'>
   import { header as headerConfig } from '$lib/config/general'
   import { site } from '$lib/config/site'
+  import { Icon, MagnifyingGlass } from 'svelte-hero-icons'
 </script>
 
 <form
@@ -16,6 +17,6 @@
     type='hidden'
     value={site.protocol + site.domain} />
   <button class='btn btn-square btn-ghost ml-2' type='submit'>
-    <span class='i-heroicons-outline-search' />
+    <Icon src={MagnifyingGlass} class='w-6 h-6' />
   </button>
 </form>

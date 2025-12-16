@@ -1,5 +1,5 @@
 import type { UserProfile } from '$lib/types/profile'
-import { getProfile } from '$lib/services/profileService'
+import { getProfile } from '$lib/services/profile-service'
 import { get, writable } from 'svelte/store'
 
 interface ProfileCache {

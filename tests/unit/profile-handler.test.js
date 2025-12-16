@@ -1,16 +1,20 @@
-// Import SDK from root node_modules
-const { mockClient } = require('aws-sdk-client-mock')
-const { DynamoDBDocumentClient, GetCommand, QueryCommand, UpdateCommand, PutCommand } = require('@aws-sdk/lib-dynamodb')
+import { vi, describe, it, expect, beforeEach, beforeAll } from 'vitest'
+import { mockClient } from 'aws-sdk-client-mock'
+import { DynamoDBDocumentClient, GetCommand, QueryCommand, UpdateCommand, PutCommand } from '@aws-sdk/lib-dynamodb'
 
-// Create mock BEFORE setting env vars or importing handler
-const ddbMock = mockClient(DynamoDBDocumentClient)
-
-// Set environment variables
+// Set env vars before any imports
 process.env.TABLE_NAME = 'test-table'
-process.env.S3_BUCKET = 'test-bucket'
+process.env.ARCHIVE_BUCKET = 'test-bucket'
+process.env.AWS_REGION = 'us-east-1'
+process.env.AWS_ACCESS_KEY_ID = 'test-key'
+process.env.AWS_SECRET_ACCESS_KEY = 'test-secret'
 
-// Import handler after mock is created
-const { handler } = require('../../backend/lambdas/api/index')
+// Mock the presigner module before importing handler
+vi.mock('@aws-sdk/s3-request-presigner', () => ({
+  getSignedUrl: vi.fn().mockResolvedValue('https://test-bucket.s3.us-east-1.amazonaws.com/mock-key')
+}))
+
+const ddbMock = mockClient(DynamoDBDocumentClient)
 
 // Use valid UUIDs for testing
 const TEST_USER_UUID = '550e8400-e29b-41d4-a716-446655440000'
@@ -18,12 +22,21 @@ const PRIVATE_USER_UUID = '660e8400-e29b-41d4-a716-446655440001'
 const OTHER_USER_UUID = '770e8400-e29b-41d4-a716-446655440002'
 const ADMIN_USER_UUID = '880e8400-e29b-41d4-a716-446655440003'
 
+let handler
+
+beforeAll(async () => {
+  // Clear module cache and import fresh
+  vi.resetModules()
+  const module = await import('../../backend/lambdas/api/index.js')
+  handler = module.handler
+})
+
 beforeEach(() => {
   ddbMock.reset()
 })
 
 describe('profile API Lambda', () => {
-  describe('gET /profile/{userId}', () => {
+  describe('GET /profile/{userId}', () => {
     it('should return user profile', async () => {
       const mockProfile = {
         userId: TEST_USER_UUID,
@@ -173,7 +186,7 @@ describe('profile API Lambda', () => {
     })
   })
 
-  describe('pUT /profile', () => {
+  describe('PUT /profile', () => {
     it('should update user profile', async () => {
       ddbMock.on(GetCommand).resolves({ Item: null })
       ddbMock.on(PutCommand).resolves({})
@@ -312,7 +325,7 @@ describe('profile API Lambda', () => {
     })
   })
 
-  describe('gET /profile/{userId}/comments', () => {
+  describe('GET /profile/{userId}/comments', () => {
     it('should return user comment history', async () => {
       const mockProfile = {
         userId: TEST_USER_UUID,

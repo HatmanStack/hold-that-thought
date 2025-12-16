@@ -1,19 +1,31 @@
-// Set environment variables BEFORE importing handler
+import { vi, describe, it, expect, beforeEach, beforeAll } from 'vitest'
+import { mockClient } from 'aws-sdk-client-mock'
+import { S3Client } from '@aws-sdk/client-s3'
+import { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand, BatchWriteCommand, BatchGetCommand } from '@aws-sdk/lib-dynamodb'
+
+// Set env vars before any imports
 process.env.TABLE_NAME = 'test-table'
-process.env.S3_BUCKET = 'test-bucket'
+process.env.ARCHIVE_BUCKET = 'test-bucket'
 process.env.AWS_REGION = 'us-east-1'
+process.env.AWS_ACCESS_KEY_ID = 'test-key'
+process.env.AWS_SECRET_ACCESS_KEY = 'test-secret'
 
-// Import SDK from root node_modules
-const { S3Client } = require('@aws-sdk/client-s3')
-const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand, BatchWriteCommand, BatchGetCommand } = require('@aws-sdk/lib-dynamodb')
-const { mockClient } = require('aws-sdk-client-mock')
+// Mock the presigner module before importing handler
+vi.mock('@aws-sdk/s3-request-presigner', () => ({
+  getSignedUrl: vi.fn().mockResolvedValue('https://test-bucket.s3.us-east-1.amazonaws.com/mock-key')
+}))
 
-// Create mocks BEFORE importing handler (handler creates clients at module load)
 const ddbMock = mockClient(DynamoDBDocumentClient)
 const s3Mock = mockClient(S3Client)
 
-// NOW import handler (will use the mocked clients)
-const { handler } = require('../../backend/lambdas/api/index')
+let handler
+
+beforeAll(async () => {
+  // Clear module cache and import fresh
+  vi.resetModules()
+  const module = await import('../../backend/lambdas/api/index.js')
+  handler = module.handler
+})
 
 beforeEach(() => {
   ddbMock.reset()
@@ -21,7 +33,7 @@ beforeEach(() => {
 })
 
 describe('messages API Lambda', () => {
-  describe('pOST /messages/conversations', () => {
+  describe('POST /messages/conversations', () => {
     it('should create 1-on-1 conversation with sorted user IDs', async () => {
       ddbMock.on(BatchGetCommand).resolves({
         Responses: {
@@ -98,7 +110,7 @@ describe('messages API Lambda', () => {
     })
   })
 
-  describe('pOST /messages/conversations/{conversationId}', () => {
+  describe('POST /messages/conversations/{conversationId}', () => {
     it('should send message in conversation', async () => {
       const mockConversation = {
         userId: 'user-1',
@@ -160,7 +172,7 @@ describe('messages API Lambda', () => {
     })
   })
 
-  describe('gET /messages/conversations', () => {
+  describe('GET /messages/conversations', () => {
     it('should list user conversations', async () => {
       const mockConversations = [
         {
@@ -193,7 +205,7 @@ describe('messages API Lambda', () => {
     })
   })
 
-  describe('pUT /messages/conversations/{conversationId}/read', () => {
+  describe('PUT /messages/conversations/{conversationId}/read', () => {
     it('should mark conversation as read', async () => {
       ddbMock.on(UpdateCommand).resolves({})
 

@@ -1,24 +1,36 @@
-// Set environment variables BEFORE importing handler
+import { vi, describe, it, expect, beforeEach, beforeAll } from 'vitest'
+import { mockClient } from 'aws-sdk-client-mock'
+import { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, DeleteCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb'
+
+// Set env vars before any imports
 process.env.TABLE_NAME = 'test-table'
-process.env.S3_BUCKET = 'test-bucket'
+process.env.ARCHIVE_BUCKET = 'test-bucket'
 process.env.AWS_REGION = 'us-east-1'
+process.env.AWS_ACCESS_KEY_ID = 'test-key'
+process.env.AWS_SECRET_ACCESS_KEY = 'test-secret'
 
-// Import SDK from root node_modules
-const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, DeleteCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb')
-const { mockClient } = require('aws-sdk-client-mock')
+// Mock the presigner module before importing handler
+vi.mock('@aws-sdk/s3-request-presigner', () => ({
+  getSignedUrl: vi.fn().mockResolvedValue('https://test-bucket.s3.us-east-1.amazonaws.com/mock-key')
+}))
 
-// Create mock BEFORE importing handler (handler creates client at module load)
 const ddbMock = mockClient(DynamoDBDocumentClient)
 
-// NOW import handler (will use the mocked client)
-const { handler } = require('../../backend/lambdas/api/index')
+let handler
+
+beforeAll(async () => {
+  // Clear module cache and import fresh
+  vi.resetModules()
+  const module = await import('../../backend/lambdas/api/index.js')
+  handler = module.handler
+})
 
 beforeEach(() => {
   ddbMock.reset()
 })
 
 describe('reactions API Lambda', () => {
-  describe('pOST /reactions/{commentId}', () => {
+  describe('POST /reactions/{commentId}', () => {
     it('should add reaction if not exists', async () => {
       // Mock: reaction doesn't exist
       ddbMock.on(GetCommand).resolves({ Item: undefined })
@@ -231,7 +243,7 @@ describe('reactions API Lambda', () => {
     })
   })
 
-  describe('gET /reactions/{commentId}', () => {
+  describe('GET /reactions/{commentId}', () => {
     it('should return all reactions for a comment', async () => {
       const mockReactions = [
         {

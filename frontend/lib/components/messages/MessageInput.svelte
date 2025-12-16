@@ -1,5 +1,5 @@
 <script lang='ts'>
-  import { sendMessage, uploadAttachment } from '$lib/services/messageService'
+  import { sendMessage, uploadAttachment } from '$lib/services/message-service'
   import { createEventDispatcher } from 'svelte'
 
   export let conversationId: string

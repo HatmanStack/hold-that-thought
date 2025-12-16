@@ -1,4 +1,6 @@
 <script lang='ts'>
+  import { CheckCircle, ExclamationCircle, Icon, InformationCircle, XCircle } from 'svelte-hero-icons'
+
   export let title: string | undefined
   export let description: string | undefined
   export let status: 'error' | 'info' | 'success' | 'warning' | undefined
@@ -12,13 +14,13 @@
   class:alert-warning={status === 'warning'}>
   <div class='mr-auto'>
     {#if status === 'success'}
-      <span class='i-heroicons-outline-check-circle' />
+      <Icon src={CheckCircle} class='w-6 h-6' />
     {:else if status === 'warning'}
-      <span class='i-heroicons-outline-exclamation-circle' />
+      <Icon src={ExclamationCircle} class='w-6 h-6' />
     {:else if status === 'error'}
-      <span class='i-heroicons-outline-x-circle' />
+      <Icon src={XCircle} class='w-6 h-6' />
     {:else}
-      <span class='i-heroicons-outline-information-circle' />
+      <Icon src={InformationCircle} class='w-6 h-6' />
     {/if}
     <div>
       <div class:font-bold={description}>{title}</div>

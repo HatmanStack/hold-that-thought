@@ -1,7 +1,7 @@
 <script lang='ts'>
   import type { CommentHistoryItem } from '$lib/types/profile'
   import { goto } from '$app/navigation'
-  import { getCommentHistory } from '$lib/services/profileService'
+  import { getCommentHistory } from '$lib/services/profile-service'
   import { onMount } from 'svelte'
 
   export let userId: string

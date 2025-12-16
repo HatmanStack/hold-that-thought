@@ -3,6 +3,7 @@
 
   import { site } from '$lib/config/site'
   import { onMount } from 'svelte'
+  import { BarsArrowDown, BarsArrowUp, Icon } from 'svelte-hero-icons'
 
   export let config: WebmentionConfig
   export let post: Urara.Post
@@ -89,9 +90,9 @@
         reset()
       }}>
       {#if sortDirUp === true}
-        <span class='i-heroicons-outline-sort-ascending' />
+        <Icon src={BarsArrowUp} class='w-5 h-5' />
       {:else}
-        <span class='i-heroicons-outline-sort-descending' />
+        <Icon src={BarsArrowDown} class='w-5 h-5' />
       {/if}
     </button>
   </div>

@@ -1,4 +1,4 @@
-import { getConversations } from '$lib/services/messageService'
+import { getConversations } from '$lib/services/message-service'
 import { writable } from 'svelte/store'
 
 /**

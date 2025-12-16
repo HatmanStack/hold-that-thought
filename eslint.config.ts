@@ -3,7 +3,6 @@ import antfu from '@antfu/eslint-config'
 export default antfu({
   svelte: true,
   typescript: true,
-  unocss: true,
   ignores: [
     'backend/**/*.js',
     'tests/**/*.js',
