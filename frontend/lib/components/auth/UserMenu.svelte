@@ -3,7 +3,7 @@
   import { authService } from '$lib/auth/auth-service'
   import { currentUser, isAuthenticated } from '$lib/auth/auth-store'
   import { googleOAuth } from '$lib/auth/google-oauth'
-  import { getProfile } from '$lib/services/profileService'
+  import { getProfile } from '$lib/services/profile-service'
   import { unreadCount, updateUnreadCount } from '$lib/stores/messages'
   import { onDestroy, onMount } from 'svelte'
 

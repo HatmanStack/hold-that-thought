@@ -1,22 +1,31 @@
-// Import SDK from root node_modules
-const { mockClient } = require('aws-sdk-client-mock')
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3')
-const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb')
+import { vi, describe, it, expect, beforeEach, beforeAll } from 'vitest'
+import { mockClient } from 'aws-sdk-client-mock'
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+import { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb'
 
-// Create mocks BEFORE setting env vars or importing handler
+// Set env vars before any imports
+process.env.TABLE_NAME = 'test-table'
+process.env.ARCHIVE_BUCKET = 'test-bucket'
+process.env.AWS_REGION = 'us-east-1'
+process.env.AWS_ACCESS_KEY_ID = 'test-key'
+process.env.AWS_SECRET_ACCESS_KEY = 'test-secret'
+
+// Mock the presigner module before importing handler
+vi.mock('@aws-sdk/s3-request-presigner', () => ({
+  getSignedUrl: vi.fn().mockResolvedValue('https://s3.amazonaws.com/test-bucket/presigned-url')
+}))
+
 const ddbMock = mockClient(DynamoDBDocumentClient)
 const s3Mock = mockClient(S3Client)
 
-// Mock the s3-request-presigner module
-const mockGetSignedUrl = async () => 'https://s3.amazonaws.com/test-bucket/presigned-url'
-require.cache[require.resolve('@aws-sdk/s3-request-presigner')] = {
-  exports: { getSignedUrl: mockGetSignedUrl },
-}
+let handler
 
-process.env.TABLE_NAME = 'test-table'
-process.env.S3_BUCKET = 'test-bucket'
-
-const { handler } = require('../../backend/lambdas/api/index')
+beforeAll(async () => {
+  // Clear module cache and import fresh
+  vi.resetModules()
+  const module = await import('../../backend/lambdas/api/index.js')
+  handler = module.handler
+})
 
 describe('profile API Security Tests', () => {
   beforeEach(() => {
@@ -90,6 +99,7 @@ describe('profile API Security Tests', () => {
 
       ddbMock.on(GetCommand).resolves({
         Item: {
+          entityType: 'USER_PROFILE',
           userId: validUserId,
           email: 'test@example.com',
           displayName: 'Test User',
@@ -165,6 +175,11 @@ describe('profile API Security Tests', () => {
 
     it('should reject malformed base64 lastEvaluatedKey', async () => {
       const validUserId = '550e8400-e29b-41d4-a716-446655440000'
+
+      // Mock profile lookup to return a valid profile
+      ddbMock.on(GetCommand).resolves({
+        Item: { userId: validUserId, entityType: 'USER_PROFILE', isProfilePrivate: false },
+      })
 
       const event = {
         httpMethod: 'GET',
@@ -303,12 +318,19 @@ describe('profile API Security Tests', () => {
     })
   })
 
-  describe('xSS Prevention', () => {
+  describe('XSS Prevention', () => {
     it('should sanitize HTML in bio field', async () => {
       const validUserId = '550e8400-e29b-41d4-a716-446655440000'
 
-      ddbMock.on(GetCommand).resolves({ Item: null })
-      ddbMock.on(PutCommand).resolves({})
+      // Profile must exist for UpdateCommand to be called
+      ddbMock.on(GetCommand).resolves({
+        Item: {
+          entityType: 'USER_PROFILE',
+          userId: validUserId,
+          email: 'test@example.com',
+          displayName: 'Test User',
+        }
+      })
       ddbMock.on(UpdateCommand).resolves({
         Attributes: {
           userId: validUserId,
@@ -453,6 +475,7 @@ describe('profile API Security Tests', () => {
 
       ddbMock.on(GetCommand).resolves({
         Item: {
+          entityType: 'USER_PROFILE',
           userId: profileOwner,
           email: 'owner@example.com',
           displayName: 'Profile Owner',
@@ -484,6 +507,7 @@ describe('profile API Security Tests', () => {
 
       ddbMock.on(GetCommand).resolves({
         Item: {
+          entityType: 'USER_PROFILE',
           userId,
           email: 'owner@example.com',
           displayName: 'Profile Owner',
@@ -515,6 +539,7 @@ describe('profile API Security Tests', () => {
 
       ddbMock.on(GetCommand).resolves({
         Item: {
+          entityType: 'USER_PROFILE',
           userId: profileOwner,
           email: 'owner@example.com',
           displayName: 'Profile Owner',

@@ -1,7 +1,7 @@
 <script lang='ts'>
   import type { Comment as CommentType } from '$lib/types/comment'
   import { currentUser } from '$lib/auth/auth-store'
-  import { getComments } from '$lib/services/commentService'
+  import { getComments } from '$lib/services/comment-service'
   import { onDestroy, onMount } from 'svelte'
   import Comment from './Comment.svelte'
   import CommentForm from './CommentForm.svelte'

@@ -1,6 +1,6 @@
 <script lang='ts'>
   import type { Message } from '$lib/types/message'
-  import { deleteMessage, getMessages, markAsRead } from '$lib/services/messageService'
+  import { deleteMessage, getMessages, markAsRead } from '$lib/services/message-service'
   import { getCachedProfile, prefetchProfiles, profileCache } from '$lib/stores/profiles'
   import { afterUpdate, createEventDispatcher, onMount, tick } from 'svelte'
 

@@ -5,7 +5,7 @@
   import { currentUser } from '$lib/auth/auth-store'
   import MessageInput from '$lib/components/messages/MessageInput.svelte'
   import MessageThread from '$lib/components/messages/MessageThread.svelte'
-  import { deleteConversation, getMessages } from '$lib/services/messageService'
+  import { deleteConversation, getMessages } from '$lib/services/message-service'
   import { onDestroy, onMount } from 'svelte'
 
   $: conversationId = $page.params.conversationId ?? ''

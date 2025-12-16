@@ -1,7 +1,7 @@
 <script lang='ts'>
   import type { Conversation } from '$lib/types/message'
   import { currentUser } from '$lib/auth/auth-store'
-  import { deleteConversation, getConversations } from '$lib/services/messageService'
+  import { deleteConversation, getConversations } from '$lib/services/message-service'
   import { createEventDispatcher, onMount } from 'svelte'
 
   const dispatch = createEventDispatcher()

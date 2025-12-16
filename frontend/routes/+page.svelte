@@ -11,6 +11,7 @@
   import { title as storedTitle } from '$lib/stores/title'
   import { addLetterLambda } from '$lib/utils/s3Client'
   import { onMount, tick } from 'svelte'
+  import { Icon, Trash } from 'svelte-hero-icons'
   import { fly } from 'svelte/transition'
 
   let allPosts: Urara.Post[]
@@ -293,7 +294,9 @@
                 {/each}]
               </h2>
               <button class='btn btn-secondary' on:click={() => (tags = [])}>
-                <span class='mr-2 i-heroicons-outline-trash' />
+                <span class='mr-2'>
+                  <Icon src={Trash} class='w-5 h-5' />
+                </span>
                 tags = []
               </button>
             </div>

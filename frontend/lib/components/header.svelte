@@ -6,9 +6,10 @@
   import Search from '$lib/components/header_search.svelte'
   import { header as headerConfig, theme } from '$lib/config/general'
   import { site } from '$lib/config/site'
-  import { getProfile, updateProfile } from '$lib/services/profileService'
+  import { getProfile, updateProfile } from '$lib/services/profile-service'
   import { title as storedTitle } from '$lib/stores/title'
   import { hslToHex } from '$lib/utils/color'
+  import { ChevronUp, Icon, MagnifyingGlass, Swatch, XMark } from 'svelte-hero-icons'
   import { fly } from 'svelte/transition'
 
   export let path: string
@@ -118,7 +119,7 @@
       <div class='navbar-end'>
         {#if headerConfig.search}
           <button aria-label='search' class='btn btn-ghost btn-square' on:click={() => (search = !search)} tabindex='0'>
-            <span class='i-heroicons-outline-search' />
+            <Icon src={MagnifyingGlass} class='w-6 h-6' />
           </button>
         {/if}
         <UserMenu />
@@ -126,7 +127,7 @@
           <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
           <!-- reference: https://github.com/saadeghi/daisyui/issues/1285 -->
           <div class='btn btn-square btn-ghost' tabindex='0'>
-            <span class='i-heroicons-outline-color-swatch' />
+            <Icon src={Swatch} class='w-6 h-6' />
           </div>
           <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
           <!-- reference: https://github.com/saadeghi/daisyui/issues/1285 -->
@@ -163,7 +164,7 @@
     <div class='navbar' in:fly={{ delay: 300, duration: 300, x: 50 }} out:fly={{ duration: 300, x: 50 }}>
       <Search />
       <button class='btn btn-square btn-ghost' on:click={() => (search = !search)} tabindex='0'>
-        <span class='i-heroicons-outline-x' />
+        <Icon src={XMark} class='w-6 h-6' />
       </button>
     </div>
   {/if}
@@ -187,6 +188,6 @@
   <div
     class='col-start-1 row-start-1 rounded-full w-full h-full grid duration-500 ease-in-out p-4 border-4 border-base-content/10 group-hover:border-transparent'
     class:border-transparent={percent > 95}>
-    <span class='!w-6 !h-6 i-heroicons-solid-chevron-up' />
+    <Icon src={ChevronUp} solid class='w-6 h-6' />
   </div>
 </button>

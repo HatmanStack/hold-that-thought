@@ -1,5 +1,6 @@
 <script lang='ts'>
   import { currentUser, isAuthenticated } from '$lib/auth/auth-store'
+  import { Bars3BottomLeft, ChevronDown, ChevronRight, Icon } from 'svelte-hero-icons'
 
   export let nav: { children?: { link: string, text: string }[], link?: string, text: string }[]
   export let path: string
@@ -16,7 +17,7 @@
 <!-- reference: https://github.com/saadeghi/daisyui/issues/1285 -->
 <div class='dropdown lg:hidden'>
   <label class='btn btn-square btn-ghost' for='navbar-dropdown' tabindex='0'>
-    <span class='i-heroicons-outline-menu-alt-1' />
+    <Icon src={Bars3BottomLeft} class='w-6 h-6' />
   </label>
   <ul
     class='menu dropdown-content bg-base-100 text-base-content rounded-box p-2 menu-compact shadow-lg min-w-max max-w-52'
@@ -49,7 +50,9 @@
         <li tabindex='0'>
           <span class='gap-1 justify-between max-w-[13rem]' class:font-bold={children.some(({ link }) => link === path)}>
             {text}
-            <span class='mr-2 i-heroicons-solid-chevron-right' />
+            <span class='mr-2'>
+              <Icon src={ChevronRight} solid class='w-4 h-4' />
+            </span>
           </span>
           <ul class='bg-base-100 text-base-content shadow-lg p-2'>
             {#each children as { link, text }}
@@ -80,7 +83,9 @@
         <li>
           <span class='!rounded-btn gap-1' class:font-bold={children.some(({ link }) => link === path)}>
             {text}
-            <span class='-mr-1 i-heroicons-solid-chevron-down' />
+            <span class='-mr-1'>
+              <Icon src={ChevronDown} solid class='w-4 h-4' />
+            </span>
           </span>
           <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
           <ul class='menu rounded-box bg-base-100 text-base-content shadow-lg p-2' tabindex='0'>

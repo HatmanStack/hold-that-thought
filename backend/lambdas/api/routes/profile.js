@@ -2,6 +2,7 @@ const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/clien
 const { GetCommand, PutCommand, QueryCommand, UpdateCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb')
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner')
 const { docClient, TABLE_NAME, PREFIX, keys, ARCHIVE_BUCKET, checkRateLimit, validateUserId, validateLimit, sanitizeText, successResponse, errorResponse, rateLimitResponse } = require('../utils')
+const { log } = require('../lib/logger')
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || 'us-west-2',
@@ -20,21 +21,20 @@ async function signPhotoUrl(photoUrl) {
   // Format: https://bucket.s3.region.amazonaws.com/key
   const match = photoUrl.match(/https:\/\/([^.]+)\.s3\.[^/]+\.amazonaws\.com\/(.+)/)
   if (!match) {
-    console.log('[signPhotoUrl] URL does not match S3 pattern, returning as-is:', photoUrl)
+    log.debug('sign_photo_url_skip', { reason: 'not_s3_pattern', url: photoUrl })
     return photoUrl // Return as-is if not S3 URL
   }
 
   const [, bucket, key] = match
-  console.log('[signPhotoUrl] Extracted bucket:', bucket, 'key:', key)
+  log.debug('sign_photo_url', { bucket, key })
 
   try {
     const command = new GetObjectCommand({ Bucket: bucket, Key: key })
     const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 }) // 1 hour
-    console.log('[signPhotoUrl] Generated signed URL length:', signedUrl?.length)
-    console.log('[signPhotoUrl] Signed URL has query params:', signedUrl?.includes('?'))
+    log.debug('sign_photo_url_success', { urlLength: signedUrl?.length })
     return signedUrl
   } catch (error) {
-    console.error('[signPhotoUrl] Error generating signed URL:', error)
+    log.error('sign_photo_url_failed', { bucket, key, error: error.message })
     return photoUrl // Fall back to original URL
   }
 }
@@ -74,7 +74,7 @@ async function handle(event, context) {
 
 async function getProfile(event, requesterId, isAdmin) {
   const userId = event.pathParameters?.userId
-  console.log('[getProfile] Called for userId:', userId, 'by requesterId:', requesterId)
+  log.info('get_profile', { userId, requesterId })
 
   if (!userId) {
     return errorResponse(400, 'Missing userId parameter')
@@ -91,14 +91,14 @@ async function getProfile(event, requesterId, isAdmin) {
       Key: keys.userProfile(userId),
     }))
 
-    console.log('[getProfile] DynamoDB result:', result.Item ? 'Found' : 'Not found')
+    log.debug('get_profile_result', { found: !!result.Item })
 
     if (!result.Item || result.Item.entityType !== 'USER_PROFILE') {
       return errorResponse(404, 'Profile not found')
     }
 
     const profile = result.Item
-    console.log('[getProfile] Profile profilePhotoUrl from DB:', profile.profilePhotoUrl)
+    log.debug('get_profile_photo', { hasPhoto: !!profile.profilePhotoUrl })
 
     if (profile.isProfilePrivate && userId !== requesterId && !isAdmin) {
       return errorResponse(403, 'This profile is private')
@@ -107,7 +107,6 @@ async function getProfile(event, requesterId, isAdmin) {
     // Return clean profile object (strip PK/SK)
     // Sign photo URL for private bucket access
     const signedPhotoUrl = await signPhotoUrl(profile.profilePhotoUrl)
-    console.log('[getProfile] Signed photo URL:', signedPhotoUrl ? signedPhotoUrl.substring(0, 100) + '...' : null)
 
     return successResponse({
       userId: profile.userId,
@@ -129,7 +128,7 @@ async function getProfile(event, requesterId, isAdmin) {
       theme: profile.theme || null,
     })
   } catch (error) {
-    console.error('[getProfile] Error fetching profile:', { userId, error })
+    log.error('get_profile_failed', { userId, error: error.message })
     throw error
   }
 }
@@ -256,7 +255,7 @@ async function updateProfile(event, requesterId, requesterEmail) {
       isProfilePrivate: updated.isProfilePrivate,
     })
   } catch (error) {
-    console.error('Error updating profile:', { requesterId, error })
+    log.error('update_profile_failed', { requesterId, error: error.message })
     throw error
   }
 }
@@ -337,13 +336,13 @@ async function getUserComments(event, requesterId, isAdmin) {
         : null,
     })
   } catch (error) {
-    console.error('Error fetching user comments:', { userId, error })
+    log.error('get_user_comments_failed', { userId, error: error.message })
     throw error
   }
 }
 
 async function getPhotoUploadUrl(event, requesterId) {
-  console.log('getPhotoUploadUrl called', { requesterId, body: event.body, bucket: ARCHIVE_BUCKET })
+  log.info('get_photo_upload_url', { requesterId, bucket: ARCHIVE_BUCKET })
 
   const rateLimitCheck = await checkRateLimit(requesterId, 'photoUpload')
   if (!rateLimitCheck.allowed) {
@@ -354,7 +353,7 @@ async function getPhotoUploadUrl(event, requesterId) {
   const { filename, contentType } = body
 
   if (!filename || !contentType) {
-    console.log('Missing filename or contentType', { filename, contentType })
+    log.warn('photo_upload_missing_params', { filename: !!filename, contentType: !!contentType })
     return errorResponse(400, 'Filename and contentType are required')
   }
 
@@ -378,7 +377,7 @@ async function getPhotoUploadUrl(event, requesterId) {
     const sanitizedFilename = filename.replace(/[^\w.-]/g, '_')
     const key = `profile-photos/${requesterId}/${timestamp}-${sanitizedFilename}`
 
-    console.log('Generating presigned URL', { bucket: ARCHIVE_BUCKET, key, contentType })
+    log.debug('generating_presigned_url', { bucket: ARCHIVE_BUCKET, key, contentType })
 
     const command = new PutObjectCommand({
       Bucket: ARCHIVE_BUCKET,
@@ -393,12 +392,32 @@ async function getPhotoUploadUrl(event, requesterId) {
     })
     const photoUrl = `https://${ARCHIVE_BUCKET}.s3.${process.env.AWS_REGION || 'us-west-2'}.amazonaws.com/${key}`
 
-    console.log('Presigned URL generated successfully', { photoUrl })
+    log.info('presigned_url_generated', { photoUrl })
     return successResponse({ uploadUrl, photoUrl, expiresIn: 300 })
   } catch (error) {
-    console.error('Error generating presigned URL:', { requesterId, error: error.message, stack: error.stack })
+    log.error('presigned_url_failed', { requesterId, error: error.message })
     return errorResponse(500, 'Failed to generate upload URL')
   }
+}
+
+/**
+ * Batch sign multiple photo URLs in parallel
+ * Returns a Map of originalUrl -> signedUrl
+ */
+async function batchSignUrls(urls) {
+  const signedMap = new Map()
+  const uniqueUrls = [...new Set(urls.filter(Boolean))]
+
+  await Promise.all(uniqueUrls.map(async url => {
+    try {
+      signedMap.set(url, await signPhotoUrl(url))
+    } catch (e) {
+      log.error('batch_sign_url_failed', { url, error: e.message })
+      signedMap.set(url, null)
+    }
+  }))
+
+  return signedMap
 }
 
 async function listUsers(requesterId) {
@@ -415,23 +434,22 @@ async function listUsers(requesterId) {
       Limit: 100,
     }))
 
-    const users = await Promise.all((result.Items || []).map(async user => {
-      let photoUrl = null
-      try {
-        photoUrl = await signPhotoUrl(user.profilePhotoUrl)
-      } catch (e) {
-        console.error('Error signing photo URL for user:', user.userId, e)
-      }
-      return {
-        userId: user.userId,
-        displayName: user.displayName || 'Anonymous',
-        profilePhotoUrl: photoUrl,
-      }
+    const items = result.Items || []
+
+    // Batch sign all photo URLs (deduped for efficiency)
+    const photoUrls = items.map(u => u.profilePhotoUrl)
+    const signedUrls = await batchSignUrls(photoUrls)
+
+    // Map results using pre-signed URLs
+    const users = items.map(user => ({
+      userId: user.userId,
+      displayName: user.displayName || 'Anonymous',
+      profilePhotoUrl: signedUrls.get(user.profilePhotoUrl) || null,
     }))
 
     return successResponse({ items: users })
   } catch (error) {
-    console.error('Error listing users:', { requesterId, error })
+    log.error('list_users_failed', { requesterId, error: error.message })
     throw error
   }
 }

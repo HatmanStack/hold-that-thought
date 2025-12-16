@@ -1,7 +1,7 @@
 <script lang='ts'>
   import type { Comment } from '$lib/types/comment'
-  import { adminDeleteComment, deleteComment, updateComment } from '$lib/services/commentService'
-  import { toggleReaction } from '$lib/services/reactionService'
+  import { adminDeleteComment, deleteComment, updateComment } from '$lib/services/comment-service'
+  import { toggleReaction } from '$lib/services/reaction-service'
   import { createEventDispatcher, tick } from 'svelte'
 
   export let comment: Comment

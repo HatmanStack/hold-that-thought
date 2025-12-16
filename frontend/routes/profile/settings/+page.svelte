@@ -2,7 +2,7 @@
   import type { UserProfile } from '$lib/types/profile'
   import { goto } from '$app/navigation'
   import { currentUser, isAuthenticated } from '$lib/auth/auth-store'
-  import { getProfile, updateProfile, uploadProfilePhoto } from '$lib/services/profileService'
+  import { getProfile, updateProfile, uploadProfilePhoto } from '$lib/services/profile-service'
   import { onMount } from 'svelte'
 
   let profile: UserProfile | null = null

@@ -164,6 +164,10 @@ async function createComment(event, userId, userEmail) {
     return errorResponse(400, 'Missing or invalid commentText')
   }
 
+  if (commentText.length > 2000) {
+    return errorResponse(400, 'Comment must be 2000 characters or less')
+  }
+
   const sanitizedText = sanitizeText(commentText, 2000)
 
   if (!sanitizedText) {
@@ -302,6 +306,10 @@ async function editComment(event, userId, isAdmin) {
 
   if (!commentText || typeof commentText !== 'string') {
     return errorResponse(400, 'Missing or invalid commentText')
+  }
+
+  if (commentText.length > 2000) {
+    return errorResponse(400, 'Comment must be 2000 characters or less')
   }
 
   const sanitizedText = sanitizeText(commentText, 2000)

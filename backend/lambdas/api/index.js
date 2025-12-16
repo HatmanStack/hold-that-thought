@@ -1,3 +1,4 @@
+// @ts-check
 const comments = require('./routes/comments')
 const messages = require('./routes/messages')
 const profile = require('./routes/profile')
@@ -6,9 +7,13 @@ const media = require('./routes/media')
 const letters = require('./routes/letters')
 const drafts = require('./routes/drafts')
 const { ensureProfile } = require('./utils')
+const { log } = require('./lib/logger')
+const { errorResponse } = require('./lib/responses')
 
 /**
  * Main API router - consolidates all API endpoints into a single Lambda
+ * @param {import('aws-lambda').APIGatewayProxyEvent} event
+ * @returns {Promise<import('aws-lambda').APIGatewayProxyResult>}
  */
 exports.handler = async (event) => {
   const method = event.httpMethod
@@ -22,14 +27,14 @@ exports.handler = async (event) => {
   const isAdmin = requesterGroups.includes('Admins')
   const isApprovedUser = requesterGroups.includes('ApprovedUsers')
 
-  console.log('Auth context:', { requesterId, requesterEmail, requesterGroups, claimKeys: Object.keys(claims) })
+  log.info('auth_context', { requesterId, requesterEmail, requesterGroups })
 
   // Auto-create profile for approved users on first request
   if (requesterId) {
     try {
       await ensureProfile(requesterId, requesterEmail, requesterGroups)
     } catch (err) {
-      console.error('Failed to ensure profile:', { requesterId, error: err.message })
+      log.error('ensure_profile_failed', { requesterId, error: err.message })
       return errorResponse(500, 'Failed to initialize user profile')
     }
   }
@@ -87,19 +92,7 @@ exports.handler = async (event) => {
 
     return errorResponse(404, `Route not found: ${method} ${path}`)
   } catch (error) {
-    console.error('Unhandled error:', error)
+    log.error('unhandled_error', { error: error.message, stack: error.stack })
     return errorResponse(500, 'Internal server error')
-  }
-}
-
-function errorResponse(statusCode, message) {
-  return {
-    statusCode,
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Credentials': true,
-    },
-    body: JSON.stringify({ error: message }),
   }
 }

@@ -1,5 +1,6 @@
 <script lang='ts'>
   import Image from '$lib/components/prose/img.svelte'
+  import { ChevronLeft, ChevronRight, Icon } from 'svelte-hero-icons'
 
   export let prev: undefined | Urara.Post
   export let next: undefined | Urara.Post
@@ -20,7 +21,9 @@
         </figure>
       {/if}
       <div class='card-body'>
-        <span class='mr-auto group-hover:opacity-100 opacity-50 i-heroicons-outline-chevron-left' />
+        <span class='mr-auto group-hover:opacity-100 opacity-50'>
+          <Icon src={ChevronLeft} class='w-6 h-6' />
+        </span>
         <a
           class='card-title block text-left mb-0 mr-auto bg-[length:100%_0%] bg-[position:0_88%] underline decoration-transparent group-hover:decoration-primary hover:bg-[length:100%_100%] hover:text-primary-content bg-gradient-to-t from-primary to-primary bg-no-repeat transition-all ease-in-out duration-300 decoration-3'
           href={prev.path}
@@ -53,7 +56,9 @@
           rel='next'>
           {next.title ?? next.summary ?? next.path.slice(1)}
         </a>
-        <span class='opacity-50 group-hover:opacity-100 ml-auto i-heroicons-outline-chevron-right' />
+        <span class='opacity-50 group-hover:opacity-100 ml-auto'>
+          <Icon src={ChevronRight} class='w-6 h-6' />
+        </span>
       </div>
     </div>
   {/if}

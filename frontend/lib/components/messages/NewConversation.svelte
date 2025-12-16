@@ -1,7 +1,7 @@
 <script lang='ts'>
   import type { UserProfile } from '$lib/types/profile'
-  import { createConversation } from '$lib/services/messageService'
-  import { getAllUsers } from '$lib/services/profileService'
+  import { createConversation } from '$lib/services/message-service'
+  import { getAllUsers } from '$lib/services/profile-service'
   import { createEventDispatcher, onMount } from 'svelte'
 
   const dispatch = createEventDispatcher()

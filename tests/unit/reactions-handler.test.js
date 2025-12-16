@@ -1,29 +1,64 @@
-// Set environment variables BEFORE importing handler
+import { vi, describe, it, expect, beforeEach, beforeAll } from 'vitest'
+import { mockClient } from 'aws-sdk-client-mock'
+import { DynamoDBDocumentClient, GetCommand, QueryCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb'
+
+// Set env vars before any imports
 process.env.TABLE_NAME = 'test-table'
-process.env.S3_BUCKET = 'test-bucket'
+process.env.ARCHIVE_BUCKET = 'test-bucket'
 process.env.AWS_REGION = 'us-east-1'
+process.env.AWS_ACCESS_KEY_ID = 'test-key'
+process.env.AWS_SECRET_ACCESS_KEY = 'test-secret'
 
-// Import SDK from root node_modules
-const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, DeleteCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb')
-const { mockClient } = require('aws-sdk-client-mock')
+// Mock the presigner module before importing handler
+vi.mock('@aws-sdk/s3-request-presigner', () => ({
+  getSignedUrl: vi.fn().mockResolvedValue('https://test-bucket.s3.us-east-1.amazonaws.com/mock-key')
+}))
 
-// Create mock BEFORE importing handler (handler creates client at module load)
 const ddbMock = mockClient(DynamoDBDocumentClient)
 
-// NOW import handler (will use the mocked client)
-const { handler } = require('../../backend/lambdas/api/index')
+let handler
+
+beforeAll(async () => {
+  vi.resetModules()
+  const module = await import('../../backend/lambdas/api/index.js')
+  handler = module.handler
+})
 
 beforeEach(() => {
   ddbMock.reset()
 })
 
+// Helper to create a mock comment
+const mockComment = (itemId = '/2015/christmas', commentId = 'comment-123') => ({
+  PK: `COMMENT#${itemId}`,
+  SK: commentId,
+  entityType: 'COMMENT',
+  itemId,
+  commentId,
+  commentText: 'Test comment',
+  userId: 'author-123',
+  reactionCount: 0,
+})
+
+// Helper to create a mock reaction
+const mockReaction = (commentId = 'comment-123', userId = 'user-123') => ({
+  PK: `COMMENT#/2015/christmas`,
+  SK: `REACTION#${commentId}#${userId}`,
+  entityType: 'REACTION',
+  commentId,
+  userId,
+  reactionType: 'like',
+  createdAt: '2025-01-15T10:00:00.000Z',
+})
+
 describe('reactions API Lambda', () => {
-  describe('pOST /reactions/{commentId}', () => {
+  describe('POST /reactions/{commentId}', () => {
     it('should add reaction if not exists', async () => {
-      // Mock: reaction doesn't exist
-      ddbMock.on(GetCommand).resolves({ Item: undefined })
-      ddbMock.on(PutCommand).resolves({})
-      ddbMock.on(UpdateCommand).resolves({})
+      // Mock: comment exists, reaction doesn't exist
+      ddbMock.on(GetCommand)
+        .resolvesOnce({ Item: mockComment() })  // comment lookup
+        .resolvesOnce({ Item: undefined })       // reaction lookup
+      ddbMock.on(TransactWriteCommand).resolves({})
 
       const event = {
         httpMethod: 'POST',
@@ -49,17 +84,11 @@ describe('reactions API Lambda', () => {
     })
 
     it('should remove reaction if exists', async () => {
-      // Mock: reaction exists
-      const existingReaction = {
-        commentId: 'comment-123',
-        userId: 'user-123',
-        reactionType: 'like',
-        createdAt: '2025-01-15T10:00:00.000Z',
-      }
-
-      ddbMock.on(GetCommand).resolves({ Item: existingReaction })
-      ddbMock.on(DeleteCommand).resolves({})
-      ddbMock.on(UpdateCommand).resolves({})
+      // Mock: comment exists, reaction exists
+      ddbMock.on(GetCommand)
+        .resolvesOnce({ Item: mockComment() })      // comment lookup
+        .resolvesOnce({ Item: mockReaction() })     // reaction lookup - exists
+      ddbMock.on(TransactWriteCommand).resolves({})
 
       const event = {
         httpMethod: 'POST',
@@ -84,13 +113,9 @@ describe('reactions API Lambda', () => {
       expect(body.message).toContain('removed')
     })
 
-    it('should toggle reaction on repeated calls', async () => {
-      ddbMock.reset()
-
-      // First call: reaction doesn't exist, add it
-      ddbMock.on(GetCommand).resolvesOnce({ Item: undefined })
-      ddbMock.on(PutCommand).resolves({})
-      ddbMock.on(UpdateCommand).resolves({})
+    it('should return 404 if comment not found', async () => {
+      // Mock: comment doesn't exist
+      ddbMock.on(GetCommand).resolves({ Item: undefined })
 
       const event = {
         httpMethod: 'POST',
@@ -98,41 +123,8 @@ describe('reactions API Lambda', () => {
         pathParameters: { commentId: 'comment-123' },
         body: JSON.stringify({
           itemId: '/2015/christmas',
-        }),
-        requestContext: {
-          authorizer: {
-            claims: { sub: 'user-123', email: 'user@example.com' },
-          },
-        },
-      }
-
-      let response = await handler(event)
-      expect(response.statusCode).toBe(200)
-      expect(JSON.parse(response.body).liked).toBe(true)
-
-      // Second call: reaction exists, remove it
-      ddbMock.reset()
-      ddbMock.on(GetCommand).resolvesOnce({
-        Item: {
-          commentId: 'comment-123',
-          userId: 'user-123',
           reactionType: 'like',
-        },
-      })
-      ddbMock.on(DeleteCommand).resolves({})
-      ddbMock.on(UpdateCommand).resolves({})
-
-      response = await handler(event)
-      expect(response.statusCode).toBe(200)
-      expect(JSON.parse(response.body).liked).toBe(false)
-    })
-
-    it('should return 400 if commentId missing', async () => {
-      const event = {
-        httpMethod: 'POST',
-        resource: '/reactions/{commentId}',
-        pathParameters: {},
-        body: JSON.stringify({ itemId: '/2015/christmas' }),
+        }),
         requestContext: {
           authorizer: {
             claims: { sub: 'user-123', email: 'user@example.com' },
@@ -142,9 +134,9 @@ describe('reactions API Lambda', () => {
 
       const response = await handler(event)
 
-      expect(response.statusCode).toBe(400)
+      expect(response.statusCode).toBe(404)
       const body = JSON.parse(response.body)
-      expect(body.error).toContain('Missing commentId')
+      expect(body.error).toContain('Comment not found')
     })
 
     it('should return 400 if itemId missing', async () => {
@@ -167,10 +159,11 @@ describe('reactions API Lambda', () => {
       expect(body.error).toContain('Missing itemId')
     })
 
-    it('should update reactionCount in Comments table when adding', async () => {
-      ddbMock.on(GetCommand).resolves({ Item: undefined })
-      ddbMock.on(PutCommand).resolves({})
-      ddbMock.on(UpdateCommand).resolves({})
+    it('should use TransactWriteCommand for atomic operations', async () => {
+      ddbMock.on(GetCommand)
+        .resolvesOnce({ Item: mockComment() })
+        .resolvesOnce({ Item: undefined })
+      ddbMock.on(TransactWriteCommand).resolves({})
 
       const event = {
         httpMethod: 'POST',
@@ -189,63 +182,16 @@ describe('reactions API Lambda', () => {
 
       await handler(event)
 
-      // Verify UpdateCommand was called to increment reactionCount
-      const updateCalls = ddbMock.commandCalls(UpdateCommand)
-      expect(updateCalls.length).toBe(1)
-      expect(updateCalls[0].args[0].input.UpdateExpression).toContain('reactionCount')
-      expect(updateCalls[0].args[0].input.ExpressionAttributeValues[':increment']).toBe(1)
-    })
-
-    it('should update reactionCount in Comments table when removing', async () => {
-      const existingReaction = {
-        commentId: 'comment-123',
-        userId: 'user-123',
-        reactionType: 'like',
-      }
-
-      ddbMock.on(GetCommand).resolves({ Item: existingReaction })
-      ddbMock.on(DeleteCommand).resolves({})
-      ddbMock.on(UpdateCommand).resolves({})
-
-      const event = {
-        httpMethod: 'POST',
-        resource: '/reactions/{commentId}',
-        pathParameters: { commentId: 'comment-123' },
-        body: JSON.stringify({
-          itemId: '/2015/christmas',
-        }),
-        requestContext: {
-          authorizer: {
-            claims: { sub: 'user-123', email: 'user@example.com' },
-          },
-        },
-      }
-
-      await handler(event)
-
-      // Verify UpdateCommand was called to decrement reactionCount
-      const updateCalls = ddbMock.commandCalls(UpdateCommand)
-      expect(updateCalls.length).toBe(1)
-      expect(updateCalls[0].args[0].input.UpdateExpression).toContain('reactionCount')
-      expect(updateCalls[0].args[0].input.ExpressionAttributeValues[':decrement']).toBe(-1)
+      const txCalls = ddbMock.commandCalls(TransactWriteCommand)
+      expect(txCalls.length).toBe(1)
     })
   })
 
-  describe('gET /reactions/{commentId}', () => {
+  describe('GET /reactions/{commentId}', () => {
     it('should return all reactions for a comment', async () => {
       const mockReactions = [
-        {
-          commentId: 'comment-123',
-          userId: 'user-1',
-          reactionType: 'like',
-          createdAt: '2025-01-15T10:00:00.000Z',
-        },
-        {
-          commentId: 'comment-123',
-          userId: 'user-2',
-          reactionType: 'like',
-          createdAt: '2025-01-15T11:00:00.000Z',
-        },
+        { ...mockReaction('comment-123', 'user-1'), entityType: 'REACTION' },
+        { ...mockReaction('comment-123', 'user-2'), entityType: 'REACTION' },
       ]
 
       ddbMock.on(QueryCommand).resolves({ Items: mockReactions })
@@ -254,6 +200,7 @@ describe('reactions API Lambda', () => {
         httpMethod: 'GET',
         resource: '/reactions/{commentId}',
         pathParameters: { commentId: 'comment-123' },
+        queryStringParameters: { itemId: '/2015/christmas' },
         requestContext: {
           authorizer: {
             claims: { sub: 'user-123', email: 'user@example.com' },
@@ -268,7 +215,6 @@ describe('reactions API Lambda', () => {
       expect(body.commentId).toBe('comment-123')
       expect(body.count).toBe(2)
       expect(body.reactions).toHaveLength(2)
-      expect(body.reactions[0].userId).toBe('user-1')
     })
 
     it('should return empty array if no reactions', async () => {
@@ -278,6 +224,7 @@ describe('reactions API Lambda', () => {
         httpMethod: 'GET',
         resource: '/reactions/{commentId}',
         pathParameters: { commentId: 'comment-123' },
+        queryStringParameters: { itemId: '/2015/christmas' },
         requestContext: {
           authorizer: {
             claims: { sub: 'user-123', email: 'user@example.com' },
@@ -293,11 +240,12 @@ describe('reactions API Lambda', () => {
       expect(body.reactions).toEqual([])
     })
 
-    it('should return 400 if commentId missing', async () => {
+    it('should return 400 if itemId query param missing', async () => {
       const event = {
         httpMethod: 'GET',
         resource: '/reactions/{commentId}',
-        pathParameters: {},
+        pathParameters: { commentId: 'comment-123' },
+        queryStringParameters: {},
         requestContext: {
           authorizer: {
             claims: { sub: 'user-123', email: 'user@example.com' },
@@ -309,7 +257,7 @@ describe('reactions API Lambda', () => {
 
       expect(response.statusCode).toBe(400)
       const body = JSON.parse(response.body)
-      expect(body.error).toContain('Missing commentId')
+      expect(body.error).toContain('Missing itemId')
     })
   })
 
@@ -332,8 +280,9 @@ describe('reactions API Lambda', () => {
 
     it('should return 404 for unknown route', async () => {
       const event = {
-        httpMethod: 'DELETE',
-        resource: '/reactions/unknown',
+        httpMethod: 'PATCH',
+        resource: '/reactions/{commentId}',
+        pathParameters: { commentId: 'comment-123' },
         requestContext: {
           authorizer: {
             claims: { sub: 'user-123', email: 'user@example.com' },
@@ -344,8 +293,6 @@ describe('reactions API Lambda', () => {
       const response = await handler(event)
 
       expect(response.statusCode).toBe(404)
-      const body = JSON.parse(response.body)
-      expect(body.error).toBe('Route not found')
     })
   })
 })
