@@ -110,7 +110,7 @@ describe('messages API Lambda', () => {
     })
   })
 
-  describe('POST /messages/conversations/{conversationId}', () => {
+  describe('POST /messages/{conversationId}', () => {
     it('should send message in conversation', async () => {
       const mockMembership = {
         entityType: 'CONVERSATION_MEMBER',
@@ -119,6 +119,7 @@ describe('messages API Lambda', () => {
         userId: 'user-1',
         conversationId: 'user-1_user-2',
         conversationType: 'direct',
+        participantIds: ['user-1', 'user-2'],
       }
 
       const mockProfile = {
@@ -135,7 +136,7 @@ describe('messages API Lambda', () => {
 
       const event = {
         httpMethod: 'POST',
-        resource: '/messages/conversations/{conversationId}',
+        resource: '/messages/{conversationId}',
         pathParameters: { conversationId: 'user-1_user-2' },
         body: JSON.stringify({
           messageText: 'Hello there!',
@@ -160,7 +161,7 @@ describe('messages API Lambda', () => {
 
       const event = {
         httpMethod: 'POST',
-        resource: '/messages/conversations/{conversationId}',
+        resource: '/messages/{conversationId}',
         pathParameters: { conversationId: 'other-conv' },
         body: JSON.stringify({
           messageText: 'Hello',
@@ -214,13 +215,13 @@ describe('messages API Lambda', () => {
     })
   })
 
-  describe('PUT /messages/conversations/{conversationId}/read', () => {
+  describe('PUT /messages/{conversationId}/read', () => {
     it('should mark conversation as read', async () => {
       ddbMock.on(UpdateCommand).resolves({})
 
       const event = {
         httpMethod: 'PUT',
-        resource: '/messages/conversations/{conversationId}/read',
+        resource: '/messages/{conversationId}/read',
         pathParameters: { conversationId: 'user-1_user-2' },
         requestContext: {
           authorizer: {

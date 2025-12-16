@@ -176,6 +176,11 @@ describe('profile API Security Tests', () => {
     it('should reject malformed base64 lastEvaluatedKey', async () => {
       const validUserId = '550e8400-e29b-41d4-a716-446655440000'
 
+      // Mock profile lookup to return a valid profile
+      ddbMock.on(GetCommand).resolves({
+        Item: { userId: validUserId, entityType: 'USER_PROFILE', isProfilePrivate: false },
+      })
+
       const event = {
         httpMethod: 'GET',
         resource: '/profile/{userId}/comments',

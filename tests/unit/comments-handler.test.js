@@ -16,6 +16,9 @@ vi.mock('@aws-sdk/s3-request-presigner', () => ({
 
 const ddbMock = mockClient(DynamoDBDocumentClient)
 
+// Base64url encoded itemId for '/2015/christmas'
+const ENCODED_ITEM_ID = 'LzIwMTUvY2hyaXN0bWFz'
+
 let handler
 
 beforeAll(async () => {
@@ -34,7 +37,7 @@ describe('comments API Lambda', () => {
     it('should return paginated comments', async () => {
       const mockComments = [
         {
-          itemId: '/2015/christmas',
+          itemId: ENCODED_ITEM_ID,
           commentId: '2025-01-15T10:00:00.000Z#abc',
           userId: 'user-1',
           commentText: 'Great letter!',
@@ -54,7 +57,7 @@ describe('comments API Lambda', () => {
       const event = {
         httpMethod: 'GET',
         resource: '/comments/{itemId}',
-        pathParameters: { itemId: '/2015/christmas' },
+        pathParameters: { itemId: ENCODED_ITEM_ID },
         queryStringParameters: { limit: '50' },
         requestContext: {
           authorizer: {
@@ -75,7 +78,7 @@ describe('comments API Lambda', () => {
       // DynamoDB FilterExpression filters at query time, so mock returns only non-deleted
       const mockComments = [
         {
-          itemId: '/2015/christmas',
+          itemId: ENCODED_ITEM_ID,
           commentId: '2025-01-15T10:00:00.000Z#abc',
           commentText: 'Visible',
           isDeleted: false,
@@ -87,7 +90,7 @@ describe('comments API Lambda', () => {
       const event = {
         httpMethod: 'GET',
         resource: '/comments/{itemId}',
-        pathParameters: { itemId: '/2015/christmas' },
+        pathParameters: { itemId: ENCODED_ITEM_ID },
         queryStringParameters: {},
         requestContext: {
           authorizer: {
@@ -139,7 +142,7 @@ describe('comments API Lambda', () => {
       const event = {
         httpMethod: 'POST',
         resource: '/comments/{itemId}',
-        pathParameters: { itemId: '/2015/christmas' },
+        pathParameters: { itemId: ENCODED_ITEM_ID },
         body: JSON.stringify({
           commentText: 'Great letter!',
           itemType: 'letter',
@@ -176,7 +179,7 @@ describe('comments API Lambda', () => {
       const event = {
         httpMethod: 'POST',
         resource: '/comments/{itemId}',
-        pathParameters: { itemId: '/2015/christmas' },
+        pathParameters: { itemId: ENCODED_ITEM_ID },
         body: JSON.stringify({
           commentText: '<script>alert("xss")</script>Hello <b>world</b>!',
         }),
@@ -202,7 +205,7 @@ describe('comments API Lambda', () => {
       const event = {
         httpMethod: 'POST',
         resource: '/comments/{itemId}',
-        pathParameters: { itemId: '/2015/christmas' },
+        pathParameters: { itemId: ENCODED_ITEM_ID },
         body: JSON.stringify({
           commentText: longText,
         }),
@@ -224,7 +227,7 @@ describe('comments API Lambda', () => {
       const event = {
         httpMethod: 'POST',
         resource: '/comments/{itemId}',
-        pathParameters: { itemId: '/2015/christmas' },
+        pathParameters: { itemId: ENCODED_ITEM_ID },
         body: JSON.stringify({}),
         requestContext: {
           authorizer: {
@@ -244,7 +247,7 @@ describe('comments API Lambda', () => {
       const event = {
         httpMethod: 'POST',
         resource: '/comments/{itemId}',
-        pathParameters: { itemId: '/2015/christmas' },
+        pathParameters: { itemId: ENCODED_ITEM_ID },
         body: JSON.stringify({
           commentText: '<script></script>   ',
         }),
@@ -295,7 +298,7 @@ describe('comments API Lambda', () => {
         httpMethod: 'PUT',
         resource: '/comments/{itemId}/{commentId}',
         pathParameters: {
-          itemId: '/2015/christmas',
+          itemId: ENCODED_ITEM_ID,
           commentId: '2025-01-15T10:00:00.000Z#abc',
         },
         body: JSON.stringify({
@@ -314,7 +317,7 @@ describe('comments API Lambda', () => {
       const body = JSON.parse(response.body)
       expect(body.commentText).toBe('Updated text')
       expect(body.isEdited).toBe(true)
-      expect(body.editHistory).toHaveLength(1)
+      // Note: editHistory is stored but not returned in response to keep it small
     })
 
     it('should return 403 if editing someone elses comment', async () => {
@@ -332,7 +335,7 @@ describe('comments API Lambda', () => {
         httpMethod: 'PUT',
         resource: '/comments/{itemId}/{commentId}',
         pathParameters: {
-          itemId: '/2015/christmas',
+          itemId: ENCODED_ITEM_ID,
           commentId: '2025-01-15T10:00:00.000Z#abc',
         },
         body: JSON.stringify({
@@ -375,7 +378,7 @@ describe('comments API Lambda', () => {
         httpMethod: 'PUT',
         resource: '/comments/{itemId}/{commentId}',
         pathParameters: {
-          itemId: '/2015/christmas',
+          itemId: ENCODED_ITEM_ID,
           commentId: '2025-01-15T10:00:00.000Z#abc',
         },
         body: JSON.stringify({
@@ -443,7 +446,7 @@ describe('comments API Lambda', () => {
         httpMethod: 'DELETE',
         resource: '/comments/{itemId}/{commentId}',
         pathParameters: {
-          itemId: '/2015/christmas',
+          itemId: ENCODED_ITEM_ID,
           commentId: '2025-01-15T10:00:00.000Z#abc',
         },
         requestContext: {
@@ -475,7 +478,7 @@ describe('comments API Lambda', () => {
         httpMethod: 'DELETE',
         resource: '/comments/{itemId}/{commentId}',
         pathParameters: {
-          itemId: '/2015/christmas',
+          itemId: ENCODED_ITEM_ID,
           commentId: '2025-01-15T10:00:00.000Z#abc',
         },
         requestContext: {
@@ -508,7 +511,7 @@ describe('comments API Lambda', () => {
         httpMethod: 'DELETE',
         resource: '/comments/{itemId}/{commentId}',
         pathParameters: {
-          itemId: '/2015/christmas',
+          itemId: ENCODED_ITEM_ID,
           commentId: '2025-01-15T10:00:00.000Z#abc',
         },
         requestContext: {
@@ -530,6 +533,16 @@ describe('comments API Lambda', () => {
 
   describe('DELETE /admin/comments/{commentId}', () => {
     it('should allow admin to delete any comment', async () => {
+      // Mock the comment lookup and update
+      ddbMock.on(GetCommand).resolves({
+        Item: {
+          entityType: 'COMMENT',
+          itemId: '/2015/christmas',
+          commentId: '2025-01-15T10:00:00.000Z#abc',
+          userId: 'user-2',
+          commentText: 'Some comment',
+        },
+      })
       ddbMock.on(UpdateCommand).resolves({})
 
       const event = {
@@ -592,7 +605,7 @@ describe('comments API Lambda', () => {
       const event = {
         httpMethod: 'GET',
         resource: '/comments/{itemId}',
-        pathParameters: { itemId: '/2015/christmas' },
+        pathParameters: { itemId: ENCODED_ITEM_ID },
         requestContext: {},
       }
 
