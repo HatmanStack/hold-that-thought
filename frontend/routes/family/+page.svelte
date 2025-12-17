@@ -6,6 +6,13 @@
   import type { UserProfile } from '$lib/types/profile'
   import { onMount } from 'svelte'
 
+  // SvelteKit passes these props to all pages
+  export let data: unknown = undefined
+  export let params: unknown = undefined
+  // Suppress unused variable warnings
+  void data
+  void params
+
   let users: UserProfile[] = []
   let loading = true
   let error = ''

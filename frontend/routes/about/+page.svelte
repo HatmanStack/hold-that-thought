@@ -2,9 +2,6 @@
   import { PUBLIC_API_GATEWAY_URL } from '$env/static/public'
   import Head from '$lib/components/head.svelte'
 
-  let selectedImage: string | null = null
-  let selectedImageAlt: string | null = null
-
   // Contact form state
   let showContactModal = false
   let contactEmail = ''
@@ -12,16 +9,6 @@
   let sending = false
   let sendError = ''
   let sendSuccess = false
-
-  function openImage(src: string, alt: string) {
-    selectedImage = src
-    selectedImageAlt = alt
-  }
-
-  function closeImage() {
-    selectedImage = null
-    selectedImageAlt = null
-  }
 
   function openContactModal() {
     showContactModal = true
@@ -72,7 +59,6 @@
 
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
-      closeImage()
       closeContactModal()
     }
   }
@@ -100,6 +86,21 @@
       <!-- How It Works Section -->
       <section>
         <h2 class='text-2xl font-semibold mb-4'>How It Works</h2>
+        <div class='bg-base-100 border border-base-300 rounded-lg p-6 mb-4'>
+          <h3 class='font-semibold mb-3'>💭 Chat With Your Family Archive</h3>
+          <p class='text-base-content/80 mb-3'>
+            On the home page, you can have a conversation with your entire family archive—letters, photos, documents, and ancestry records.
+            Ask questions like "What did Grandma write about her garden?" or "When was John Smith born?"
+          </p>
+          <p class='text-base-content/80 mb-3'>
+            The chat assistant searches through everything to find answers, and provides links directly to the original files so you can view the full context.
+            As new content is added to the archive, it automatically becomes part of the conversation.
+          </p>
+          <p class='text-sm text-base-content/60'>
+            Think of it as having a helpful family historian who knows every letter, photo, document, and family tree branch—and can point you right to the source.
+          </p>
+        </div>
+
         <div class='bg-base-100 border border-base-300 rounded-lg p-6 mb-4'>
           <h3 class='font-semibold mb-3'>📤 Upload Letters</h3>
           <p class='text-base-content/80 mb-3'>Upload scanned letters or photos of handwritten correspondence:</p>
@@ -132,46 +133,6 @@
         </div>
       </section>
 
-      <!-- Family Photos Section -->
-      <section class='bg-base-200 rounded-lg p-6 md:p-8'>
-        <h2 class='text-2xl font-semibold mb-6 text-center'>Family Memories</h2>
-
-        <div class='grid gap-4 md:grid-cols-2 lg:grid-cols-2'>
-          <button type='button' class='bg-base-100 rounded-lg overflow-hidden cursor-pointer text-left p-0 aspect-square border-0' on:click={() => openImage('https://lh3.googleusercontent.com/d/1fukAZoTgC7tUhEMXvak2H9KsY5OLLKrY', 'Family memory 1')}>
-            <img
-              src='https://lh3.googleusercontent.com/d/1fukAZoTgC7tUhEMXvak2H9KsY5OLLKrY'
-              alt='Family memory 1'
-              class='w-full h-full object-cover transition-transform duration-300 hover:scale-105'
-              loading='lazy'
-            />
-          </button>
-          <button type='button' class='aspect-square bg-base-100 rounded-lg overflow-hidden cursor-pointer text-left p-0 border-0' on:click={() => openImage('https://lh3.googleusercontent.com/d/1S6nR4utenCA14w6Q6K3uJUtkuZZppUfB', 'Family memory 2')}>
-            <img
-              src='https://lh3.googleusercontent.com/d/1S6nR4utenCA14w6Q6K3uJUtkuZZppUfB'
-              alt='Family memory 2'
-              class='w-full h-full object-cover hover:scale-105 transition-transform duration-300'
-              loading='lazy'
-            />
-          </button>
-          <button type='button' class='aspect-square bg-base-100 rounded-lg overflow-hidden cursor-pointer text-left p-0 border-0' on:click={() => openImage('https://lh3.googleusercontent.com/d/19JL_tiCKAjCoj-m73WEdTFyGWK2NduLT', 'Family memory 3')}>
-            <img
-              src='https://lh3.googleusercontent.com/d/19JL_tiCKAjCoj-m73WEdTFyGWK2NduLT'
-              alt='Family memory 3'
-              class='w-full h-full object-cover hover:scale-105 transition-transform duration-300'
-              loading='lazy'
-            />
-          </button>
-          <button type='button' class='aspect-square bg-base-100 rounded-lg overflow-hidden cursor-pointer text-left p-0 border-0' on:click={() => openImage('https://lh3.googleusercontent.com/d/1J_9F0Yk9YkBBSKSkVsc9e-oWlEMgCaC1', 'Family memory 4')}>
-            <img
-              src='https://lh3.googleusercontent.com/d/1J_9F0Yk9YkBBSKSkVsc9e-oWlEMgCaC1'
-              alt='Family memory 4'
-              class='w-full h-full object-cover hover:scale-105 transition-transform duration-300'
-              loading='lazy'
-            />
-          </button>
-        </div>
-      </section>
-
       <!-- Contact Section -->
       <section class='text-center'>
         <h2 class='text-2xl font-semibold mb-4'>Get In Touch</h2>
@@ -188,40 +149,6 @@
     </div>
   </div>
 </div>
-
-<!-- Image Modal -->
-{#if selectedImage}
-  <button
-    type='button'
-    class='fixed inset-0 bg-black flex items-center justify-center z-50 p-4 w-full h-full border-none bg-opacity-75 cursor-default'
-    on:click={closeImage}
-    on:keydown={handleKeydown}
-    aria-label='Close expanded family photo'
-  >
-    <div
-      class='relative max-w-4xl max-h-full'
-      role='presentation'
-      on:click|stopPropagation={() => {}}
-      on:keydown|stopPropagation={() => {}}
-    >
-      <button
-        class='absolute btn btn-circle btn-sm bg-black bg-opacity-50 border-none z-10 top-4 right-4 text-white hover:bg-opacity-75'
-        on:click|stopPropagation={closeImage}
-        aria-label='Close image'
-      >
-        <svg xmlns='http://www.w3.org/2000/svg' class='h-4 w-4' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
-          <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 18L18 6M6 6l12 12' />
-        </svg>
-      </button>
-
-      <img
-        src={selectedImage}
-        alt={selectedImageAlt || 'Family memory'}
-        class='max-w-full max-h-full rounded-lg shadow-2xl object-contain'
-      />
-    </div>
-  </button>
-{/if}
 
 <!-- Contact Modal -->
 {#if showContactModal}

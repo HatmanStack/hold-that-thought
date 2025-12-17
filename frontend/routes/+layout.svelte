@@ -13,6 +13,8 @@
   import '../app.pcss'
 
   export let data: LayoutData
+  export let params: unknown = undefined
+  void params
 
   let { path, res } = data
 
