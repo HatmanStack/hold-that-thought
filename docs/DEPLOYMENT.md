@@ -29,9 +29,8 @@ This is a monorepo with npm workspaces:
 # Backend (Lambda + API Gateway + DynamoDB)
 npm run deploy
 
-# Frontend
+# Frontend (build for production)
 npm run build
-netlify deploy --prod --dir=frontend/build
 ```
 
 ## Backend Deployment
@@ -97,13 +96,9 @@ npm run build
 
 Output is in `frontend/build/`.
 
-### Deploy to Netlify
+### Deploy Frontend
 
-```bash
-netlify deploy --prod --dir=frontend/build
-```
-
-Or connect your repo to Netlify for automatic deploys on push.
+The built frontend in `frontend/build/` can be deployed to any static hosting provider (S3 + CloudFront, Vercel, etc.).
 
 ### Environment Variables
 

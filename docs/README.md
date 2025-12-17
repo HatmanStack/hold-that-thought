@@ -16,7 +16,7 @@ A family letter-sharing platform built with SvelteKit and AWS serverless infrast
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Frontend (SvelteKit)                      │
-│                   Netlify / S3 + CloudFront                  │
+│                      S3 + CloudFront                         │
 └──────────────────────────┬──────────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────────┐
@@ -41,7 +41,7 @@ A family letter-sharing platform built with SvelteKit and AWS serverless infrast
 ## Tech Stack
 
 - **Frontend**: SvelteKit 2.x, TypeScript, TailwindCSS, DaisyUI
-- **Backend**: AWS Lambda (Node.js 20.x), API Gateway
+- **Backend**: AWS Lambda (Node.js 24.x), API Gateway
 - **Database**: DynamoDB
 - **Storage**: S3, CloudFront CDN
 - **Auth**: Amazon Cognito (Google OAuth + Email/Password)
@@ -63,10 +63,9 @@ A family letter-sharing platform built with SvelteKit and AWS serverless infrast
 ## Testing
 
 ```bash
-npm run check:test           # Run all tests
-npm run check:lint           # ESLint
-npm run check:types          # Svelte type check
-npm run check                # Run all checks
+npm test                     # Run unit tests
+npm run lint                 # ESLint + type check
+npm run check                # Run all checks (lint + tests)
 ```
 
 ## Quick Start
@@ -74,6 +73,7 @@ npm run check                # Run all checks
 ```bash
 # Install dependencies
 npm install
+cd frontend && npm install && cd ..
 
 # Copy environment template
 cp .env.example .env
@@ -82,7 +82,7 @@ cp .env.example .env
 npm run deploy
 
 # Start dev server
-npm start
+npm run dev
 ```
 
 ## Environment Variables
