@@ -121,16 +121,18 @@ Required variables (set in `.env` or hosting platform):
 ### Created by SAM Deploy
 
 - **API Gateway** - REST API with Cognito authorizer
-- **Lambda Functions** - API handler + background processors
+- **Lambda Functions** - ApiFunction, LetterProcessorFunction, ActivityAggregatorFunction, NotificationProcessorFunction
 - **DynamoDB Table** - Single-table design for all data
-- **S3 Bucket** - Media storage with presigned URL access
-- **Cognito User Pool** - Authentication with Google OAuth
-- **SES** - Email notifications (requires verification)
+- **Cognito User Pool** - User authentication with Identity Pool and domain
+
+### Required Parameters (existing resources)
+
+- **S3 Buckets** - Archive bucket, photo bucket, media bucket (must exist before deploy)
 
 ### Manual Setup Required
 
-1. **Cognito Google OAuth** - Add Google as identity provider
-2. **SES Email Verification** - Verify sender email address
+1. **Cognito Google OAuth** - Add Google as identity provider in Cognito console
+2. **SES Email Verification** - Verify sender email address for notifications
 3. **CloudFront** (optional) - CDN for S3 media
 
 ## Cognito Setup

@@ -4,12 +4,13 @@ A family letter-sharing platform built with SvelteKit and AWS serverless infrast
 
 ## Features
 
-- **Letter Archive**: Browse and read family letters from 1999-2016
+- **Chat with Archive**: Ask questions about letters, photos, documents, and ancestry records
+- **Letter Archive**: Browse and read family letters with AI-powered transcription
 - **Comments & Reactions**: Discuss letters with family members
 - **Private Messaging**: Direct messaging between approved users
-- **Media Gallery**: Share photos with the family
+- **Family Directory**: View family member profiles
+- **Media Gallery**: Share photos and documents with the family
 - **PDF Downloads**: Download original letter scans
-- **Search & Tags**: Find letters by content or tags
 
 ## Architecture
 
@@ -25,14 +26,15 @@ A family letter-sharing platform built with SvelteKit and AWS serverless infrast
                            │
 ┌──────────────────────────▼──────────────────────────────────┐
 │                    Lambda Functions                          │
-│  comments-api │ messages-api │ profile-api │ reactions-api  │
-│  media-upload │ pdf-download │ activity-aggregator          │
-│  notification-processor                                      │
+│  ApiFunction (monolith handling all API routes)             │
+│  LetterProcessorFunction (PDF/letter processing)            │
+│  ActivityAggregatorFunction (DynamoDB stream)               │
+│  NotificationProcessorFunction (email notifications)        │
 └──────────────────────────┬──────────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────────┐
 │                        Storage                               │
-│     DynamoDB (Users, Comments, Messages, Reactions)         │
+│     DynamoDB (single-table design for all data)             │
 │     S3 (Letters, Media, Profile Photos)                     │
 │     SES (Email Notifications)                                │
 └─────────────────────────────────────────────────────────────┘
@@ -52,13 +54,19 @@ A family letter-sharing platform built with SvelteKit and AWS serverless infrast
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/comments` | GET/POST | List/create comments on letters |
-| `/comments/{id}` | PUT/DELETE | Update/delete comment |
-| `/reactions` | GET/POST | List/add reactions to comments |
-| `/messages` | GET/POST | List/send direct messages |
-| `/profile` | GET/PUT | Get/update user profile |
-| `/media/upload` | POST | Get presigned URL for uploads |
-| `/pdf/{letterPath}` | GET | Download letter PDF |
+| `/comments/{itemId}` | GET/POST | List/create comments on a letter |
+| `/comments/{itemId}/{commentId}` | PUT/DELETE | Update/delete comment |
+| `/reactions/{commentId}` | GET/POST/DELETE | Get/add/remove reactions |
+| `/messages/conversations` | GET/POST | List conversations / start new |
+| `/messages/{conversationId}` | GET/POST/DELETE | Get/send messages / delete conversation |
+| `/profile/{userId}` | GET | Get user profile |
+| `/profile` | PUT | Update own profile |
+| `/users` | GET | List family members |
+| `/letters` | GET | List all letters |
+| `/letters/{date}` | GET/PUT | Get/update letter content |
+| `/letters/{date}/pdf` | GET | Download letter PDF |
+| `/media/upload-url` | POST | Get presigned URL for media uploads |
+| `/contact` | POST | Send contact form message |
 
 ## Testing
 
