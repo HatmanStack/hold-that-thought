@@ -41,12 +41,21 @@ npm run build
 npm run deploy
 ```
 
-The deploy script will:
-1. Prompt for configuration (region, stack name, OAuth credentials, etc.)
-2. Save configuration to `backend/.env.deploy` for future runs
-3. Generate `samconfig.toml` automatically
-4. Build and deploy the SAM application
-5. Update frontend `.env` with stack outputs
+The deploy script will prompt for:
+- AWS Region
+- Stack Name
+- App Domain (for OAuth callbacks)
+- Allowed Origins (CORS)
+- Google OAuth Client ID & Secret (optional)
+- Google Gemini API Key (for letter processing)
+- DynamoDB Table Name
+- SES From Email (for notifications)
+- S3 Archive Bucket
+
+Configuration is saved to `backend/.env.deploy` for future runs. The script also:
+- Generates `samconfig.toml` automatically
+- Builds and deploys the SAM application
+- Updates frontend `.env` with stack outputs
 
 **Note:** Do not use `sam deploy --guided`. The deploy script handles all configuration interactively and keeps everything in sync.
 
