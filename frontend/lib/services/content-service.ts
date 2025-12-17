@@ -22,7 +22,8 @@ async function getAuthToken(): Promise<string | null> {
       }
       return newAuth.tokens.idToken
     }
-    catch {
+    catch (error) {
+      console.warn('Session refresh failed:', error)
       return null
     }
   }
@@ -125,7 +126,8 @@ export class ContentService {
       await this.getContent(path)
       return true
     }
-    catch {
+    catch (error) {
+      console.warn('Content does not exist:', path, error)
       return false
     }
   }

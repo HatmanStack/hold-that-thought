@@ -39,7 +39,8 @@ export function getStoredTokens(): CognitoTokens | null {
 
     return { idToken, accessToken, refreshToken }
   }
-  catch {
+  catch (error) {
+    console.warn('Failed to get stored tokens:', error)
     return null
   }
 }
@@ -84,7 +85,8 @@ export function decodeJWTPayload(token: string): any {
     )
     return JSON.parse(jsonPayload)
   }
-  catch {
+  catch (error) {
+    console.warn('Failed to decode JWT payload:', error)
     return null
   }
 }

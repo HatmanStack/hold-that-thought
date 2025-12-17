@@ -74,7 +74,8 @@ export async function getContentMetadata(prefix: string = '') {
             frontmatter,
           }
         }
-        catch {
+        catch (error) {
+          console.warn('Failed to load metadata for:', item.key, error)
           return null
         }
       }),

@@ -29,7 +29,8 @@ async function checkAuthentication(): Promise<{ authenticated: boolean, token?: 
       }
       return { authenticated: true, token: newAuth.tokens.idToken }
     }
-    catch {
+    catch (error) {
+      console.warn('Session refresh failed:', error)
       return { authenticated: false }
     }
   }

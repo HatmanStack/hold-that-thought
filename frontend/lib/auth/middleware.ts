@@ -70,7 +70,8 @@ export async function getAuthenticatedUser(event: RequestEvent): Promise<Authent
       picture: payload.picture,
     }
   }
-  catch {
+  catch (error) {
+    console.warn('Failed to verify JWT:', error)
     return null
   }
 }
@@ -106,7 +107,8 @@ export async function isAuthenticated(event: RequestEvent): Promise<boolean> {
     await verifyJWT(token)
     return true
   }
-  catch {
+  catch (error) {
+    console.warn('Token verification failed in isAuthenticated:', error)
     return false
   }
 }

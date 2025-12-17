@@ -1,6 +1,6 @@
 const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3')
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner')
-const { GetCommand, PutCommand, QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb')
+const { GetCommand, PutCommand, QueryCommand, UpdateCommand, BatchGetCommand } = require('@aws-sdk/lib-dynamodb')
 const { v4: uuidv4 } = require('uuid')
 const { docClient, TABLE_NAME, ARCHIVE_BUCKET, PREFIX, keys, sanitizeText, successResponse, errorResponse } = require('../utils')
 
@@ -102,7 +102,40 @@ async function listComments(event, requesterId) {
       return successResponse({ items: [], lastEvaluatedKey: null })
     }
 
-    // Sign profile photo URLs and check user reactions
+    // Batch fetch user reactions for all comments (instead of N+1 queries)
+    const userReactions = new Set()
+    if (requesterId && allItems.length > 0) {
+      const reactionKeys = allItems.map((item) => {
+        const reactionItemId = item.itemId || item.PK?.replace(PREFIX.COMMENT, '')
+        return keys.reaction(reactionItemId, item.SK, requesterId)
+      })
+
+      // BatchGetCommand supports up to 100 keys per request
+      const batchSize = 100
+      for (let i = 0; i < reactionKeys.length; i += batchSize) {
+        const batch = reactionKeys.slice(i, i + batchSize)
+        try {
+          const batchResult = await docClient.send(new BatchGetCommand({
+            RequestItems: {
+              [TABLE_NAME]: {
+                Keys: batch,
+                ProjectionExpression: 'PK, SK',
+              },
+            },
+          }))
+
+          const responses = batchResult.Responses?.[TABLE_NAME] || []
+          for (const reaction of responses) {
+            // Create a unique key to identify the comment this reaction belongs to
+            userReactions.add(`${reaction.PK}#${reaction.SK}`)
+          }
+        } catch (e) {
+          console.warn('Failed to batch fetch reactions:', e.message)
+        }
+      }
+    }
+
+    // Sign profile photo URLs and map comments
     const comments = await Promise.all(allItems.map(async (item) => {
       let signedPhotoUrl = null
       if (item.userPhotoUrl) {
@@ -124,21 +157,10 @@ async function listComments(event, requesterId) {
         }
       }
 
-      // Check if current user has reacted to this comment
-      let userHasReacted = false
-      if (requesterId) {
-        const reactionItemId = item.itemId || item.PK?.replace(PREFIX.COMMENT, '')
-        const reactionKey = keys.reaction(reactionItemId, item.SK, requesterId)
-        try {
-          const reactionResult = await docClient.send(new GetCommand({
-            TableName: TABLE_NAME,
-            Key: reactionKey,
-          }))
-          userHasReacted = !!reactionResult.Item
-        } catch (e) {
-          // Ignore errors checking reactions
-        }
-      }
+      // Check if current user has reacted to this comment (from batch result)
+      const reactionItemId = item.itemId || item.PK?.replace(PREFIX.COMMENT, '')
+      const reactionKey = keys.reaction(reactionItemId, item.SK, requesterId)
+      const userHasReacted = userReactions.has(`${reactionKey.PK}#${reactionKey.SK}`)
 
       return {
         itemId: item.itemId,
