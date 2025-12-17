@@ -480,9 +480,8 @@
           <!-- Family Relationships Section -->
           <div class='space-y-4'>
             <p class='text-sm text-base-content/70'>
-              Define your relationships to people mentioned in the family archive. This helps
-              the chat feature understand context when you ask questions like "What did my
-              grandmother write about?"
+              Define your family relationships. This helps the chat feature understand context
+              when you ask questions like "What did my grandmother write about?"
             </p>
 
             <!-- Warning when exceeding limit -->
@@ -541,7 +540,7 @@
                   <!-- Person's Name -->
                   <div class='form-control' class:md:col-span-2={relationship.type !== 'Other'}>
                     <label class='label py-1' for='rel-name-{relationship.id}'>
-                      <span class='label-text text-xs'>Person's Name (as it appears in archive)</span>
+                      <span class='label-text text-xs'>Person's Name</span>
                     </label>
                     <input
                       id='rel-name-{relationship.id}'
