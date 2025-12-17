@@ -35,47 +35,20 @@ npm run build
 
 ## Backend Deployment
 
-### First-time Setup
-
-```bash
-cd backend
-sam build
-sam deploy --guided
-```
-
-SAM will prompt for:
-- Stack name (e.g., `hold-that-thought-prod`)
-- AWS Region
-- Cognito User Pool ID
-- S3 bucket name for media
-
-Configuration is saved to `samconfig.toml` for subsequent deploys.
-
-### Subsequent Deploys
-
-From repository root:
+### Deploy (First-time or Subsequent)
 
 ```bash
 npm run deploy
 ```
 
-Or manually:
+The deploy script will:
+1. Prompt for configuration (region, stack name, OAuth credentials, etc.)
+2. Save configuration to `backend/.env.deploy` for future runs
+3. Generate `samconfig.toml` automatically
+4. Build and deploy the SAM application
+5. Update frontend `.env` with stack outputs
 
-```bash
-cd backend && sam build && sam deploy
-```
-
-### Environment-specific Deploys
-
-```bash
-cd backend
-
-# Development
-sam deploy --config-env dev
-
-# Production
-sam deploy --config-env prod
-```
+**Note:** Do not use `sam deploy --guided`. The deploy script handles all configuration interactively and keeps everything in sync.
 
 ## Frontend Deployment
 
