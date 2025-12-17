@@ -75,3 +75,4 @@ amplifytools.xcconfig
 .secret-*
 **.sample
 backend/.env.deploy
+pnpm-lock.yaml
