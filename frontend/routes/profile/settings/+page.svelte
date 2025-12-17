@@ -1,9 +1,9 @@
 <script lang='ts'>
-  import type { UserProfile, FamilyRelationship } from '$lib/types/profile'
-  import { RELATIONSHIP_TYPES } from '$lib/types/profile'
+  import type { FamilyRelationship, UserProfile } from '$lib/types/profile'
   import { goto } from '$app/navigation'
   import { currentUser, isAuthenticated } from '$lib/auth/auth-store'
   import { getProfile, updateProfile, uploadProfilePhoto } from '$lib/services/profile-service'
+  import { RELATIONSHIP_TYPES } from '$lib/types/profile'
   import { onMount } from 'svelte'
 
   let profile: UserProfile | null = null
@@ -197,7 +197,7 @@
 
       // Filter out incomplete relationships (missing type or name)
       const validRelationships = familyRelationships.filter(
-        r => r.type && r.name.trim()
+        r => r.type && r.name.trim(),
       )
 
       // Update profile

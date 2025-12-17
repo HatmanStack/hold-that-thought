@@ -1,9 +1,9 @@
 <script lang='ts'>
+  import type { UserProfile } from '$lib/types/profile'
   import { goto } from '$app/navigation'
   import { currentUser } from '$lib/auth/auth-store'
   import Head from '$lib/components/head.svelte'
   import { getAllUsers } from '$lib/services/profile-service'
-  import type { UserProfile } from '$lib/types/profile'
   import { onMount } from 'svelte'
 
   // SvelteKit passes these props to all pages
