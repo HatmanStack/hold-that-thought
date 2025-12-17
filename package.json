@@ -9,7 +9,10 @@
     "auditStatus": "9 moderate vulnerabilities (esbuild) - DEV SERVER ONLY",
     "esbuildNote": "GHSA-67mh-4wv8-2f99: esbuild <=0.24.2 allows cross-origin requests to dev server. Does NOT affect production builds. Fix requires Svelte 5 + Vite 6+ migration.",
     "lastAudit": "2025-12-16",
-    "resolved": ["sharp CVE-2023-4863 (HIGH)", "cookie GHSA-pxg6-pf52-xh8x (MODERATE)"]
+    "resolved": [
+      "sharp CVE-2023-4863 (HIGH)",
+      "cookie GHSA-pxg6-pf52-xh8x (MODERATE)"
+    ]
   },
   "workspaces": [
     "frontend",
@@ -27,6 +30,7 @@
     "test:load": "artillery run tests/load/comments-load.yml && artillery run tests/load/messages-load.yml && artillery run tests/load/profile-load.yml"
   },
   "devDependencies": {
+    "@aws-sdk/client-ses": "^3.953.0",
     "@playwright/test": "^1.56.1",
     "@vitest/coverage-v8": "^2.1.0",
     "artillery": "^2.0.26",
