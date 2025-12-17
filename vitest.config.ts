@@ -12,7 +12,7 @@ export default defineConfig({
     exclude: [
       '**/node_modules/**',
       'frontend',
-      '.svelte-kit',
+      '**/.svelte-kit/**',
       'tests/integration/**',
       '**/.aws-sam/**',
     ],

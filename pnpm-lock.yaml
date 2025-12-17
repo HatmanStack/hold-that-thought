@@ -204,6 +204,10 @@ importers:
       workbox-window:
         specifier: ^7.0.0
         version: 7.4.0
+    optionalDependencies:
+      sharp:
+        specifier: ^0.31.3
+        version: 0.31.3
 
 packages:
 
@@ -12130,7 +12134,7 @@ snapshots:
   buffer@4.9.2:
     dependencies:
       base64-js: 1.5.1
-      ieee754: 1.1.13
+      ieee754: 1.2.1
       isarray: 1.0.0
 
   buffer@5.7.1:

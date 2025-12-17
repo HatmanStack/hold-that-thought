@@ -392,8 +392,9 @@ echo "  Identity Pool ID: $IDENTITY_POOL_ID"
 echo "  Cognito Hosted UI: $COGNITO_HOSTED_UI_URL"
 echo ""
 
-# Update frontend .env file
+# Update frontend .env file (root for backwards compat, frontend/ for Vite)
 FRONTEND_ENV="../.env"
+FRONTEND_DIR_ENV="../frontend/.env"
 
 update_env_var() {
     local key=$1
@@ -443,5 +444,11 @@ else
     echo "Updated frontend .env file"
 fi
 
+# Copy .env to frontend/ directory for Vite to pick up
+cp "$FRONTEND_ENV" "$FRONTEND_DIR_ENV"
+echo "Copied .env to frontend/ for Vite"
+
 echo ""
 echo "Done! Frontend .env has been updated with stack outputs."
+echo "  Root: .env"
+echo "  Vite: frontend/.env"

@@ -181,23 +181,15 @@ return
    * Handle message deletion
    */
   async function handleDeleteMessage(messageId: string) {
-    console.log('[MessageThread] handleDeleteMessage called')
-    console.log('[MessageThread] conversationId:', conversationId)
-    console.log('[MessageThread] messageId:', messageId)
-
     if (!confirm('Delete this message? This cannot be undone.'))
       return
 
-    console.log('[MessageThread] Calling deleteMessage service...')
     const result = await deleteMessage(conversationId, messageId)
-    console.log('[MessageThread] deleteMessage result:', JSON.stringify(result, null, 2))
 
     if (result.success) {
       messages = messages.filter(m => m.messageId !== messageId)
-      console.log('[MessageThread] Message deleted from local state')
     }
     else {
-      console.error('[MessageThread] Delete failed:', result.error)
       alert(result.error || 'Failed to delete message')
     }
   }

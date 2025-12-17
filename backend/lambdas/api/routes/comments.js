@@ -1,6 +1,6 @@
 const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3')
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner')
-const { GetCommand, PutCommand, QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb')
+const { GetCommand, PutCommand, QueryCommand, UpdateCommand, BatchGetCommand } = require('@aws-sdk/lib-dynamodb')
 const { v4: uuidv4 } = require('uuid')
 const { docClient, TABLE_NAME, ARCHIVE_BUCKET, PREFIX, keys, sanitizeText, successResponse, errorResponse } = require('../utils')
 
@@ -30,7 +30,7 @@ async function handle(event, context) {
   const resource = event.resource
 
   if (method === 'GET' && resource === '/comments/{itemId}') {
-    return await listComments(event)
+    return await listComments(event, requesterId)
   }
 
   if (method === 'POST' && resource === '/comments/{itemId}') {
@@ -52,7 +52,7 @@ async function handle(event, context) {
   return errorResponse(404, 'Route not found')
 }
 
-async function listComments(event) {
+async function listComments(event, requesterId) {
   const rawItemId = event.pathParameters?.itemId
   const limit = parseInt(event.queryStringParameters?.limit || '50', 10)
   const lastEvaluatedKey = event.queryStringParameters?.lastEvaluatedKey
@@ -63,7 +63,6 @@ async function listComments(event) {
 
   // Decode base64url itemId from frontend
   const itemId = decodeItemId(rawItemId)
-  console.log('[listComments] decoded itemId:', itemId)
 
   // Try multiple storage formats for backwards compatibility
   // Old data stored with URL-encoded itemId, new data stores plain itemId
@@ -103,7 +102,40 @@ async function listComments(event) {
       return successResponse({ items: [], lastEvaluatedKey: null })
     }
 
-    // Sign profile photo URLs for private bucket access
+    // Batch fetch user reactions for all comments (instead of N+1 queries)
+    const userReactions = new Set()
+    if (requesterId && allItems.length > 0) {
+      const reactionKeys = allItems.map((item) => {
+        const reactionItemId = item.itemId || item.PK?.replace(PREFIX.COMMENT, '')
+        return keys.reaction(reactionItemId, item.SK, requesterId)
+      })
+
+      // BatchGetCommand supports up to 100 keys per request
+      const batchSize = 100
+      for (let i = 0; i < reactionKeys.length; i += batchSize) {
+        const batch = reactionKeys.slice(i, i + batchSize)
+        try {
+          const batchResult = await docClient.send(new BatchGetCommand({
+            RequestItems: {
+              [TABLE_NAME]: {
+                Keys: batch,
+                ProjectionExpression: 'PK, SK',
+              },
+            },
+          }))
+
+          const responses = batchResult.Responses?.[TABLE_NAME] || []
+          for (const reaction of responses) {
+            // Create a unique key to identify the comment this reaction belongs to
+            userReactions.add(`${reaction.PK}#${reaction.SK}`)
+          }
+        } catch (e) {
+          console.warn('Failed to batch fetch reactions:', e.message)
+        }
+      }
+    }
+
+    // Sign profile photo URLs and map comments
     const comments = await Promise.all(allItems.map(async (item) => {
       let signedPhotoUrl = null
       if (item.userPhotoUrl) {
@@ -125,6 +157,11 @@ async function listComments(event) {
         }
       }
 
+      // Check if current user has reacted to this comment (from batch result)
+      const reactionItemId = item.itemId || item.PK?.replace(PREFIX.COMMENT, '')
+      const reactionKey = keys.reaction(reactionItemId, item.SK, requesterId)
+      const userHasReacted = userReactions.has(`${reactionKey.PK}#${reactionKey.SK}`)
+
       return {
         itemId: item.itemId,
         commentId: item.SK,
@@ -136,6 +173,7 @@ async function listComments(event) {
         updatedAt: item.updatedAt,
         isEdited: item.isEdited,
         reactionCount: item.reactionCount || 0,
+        userHasReacted,
       }
     }))
 

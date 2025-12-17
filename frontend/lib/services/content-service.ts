@@ -3,13 +3,6 @@ import { authStore } from '$lib/auth/auth-store'
 import { refreshSession } from '$lib/auth/client'
 import { get } from 'svelte/store'
 
-interface ContentItem {
-  key: string
-  content: string
-  lastModified?: string
-  size?: number
-}
-
 interface ContentListItem {
   key: string
   lastModified: string
@@ -30,7 +23,7 @@ async function getAuthToken(): Promise<string | null> {
       return newAuth.tokens.idToken
     }
     catch (error) {
-      console.warn('Authentication refresh failed:', error)
+      console.warn('Session refresh failed:', error)
       return null
     }
   }
@@ -45,168 +38,99 @@ export class ContentService {
     this.baseUrl = PUBLIC_API_GATEWAY_URL
   }
 
-  /**
-   * Get content from S3 via your existing Lambda
-   */
   async getContent(path: string): Promise<string> {
-    try {
-      console.log('Getting content for path:', path)
+    let s3Key = path
 
-      // Convert route path to S3 key format
-      let s3Key = path
-
-      // Remove leading slash if present
-      if (s3Key.startsWith('/')) {
-        s3Key = s3Key.substring(1)
-      }
-
-      // Add letters/ prefix and +page.svelte.md suffix for S3 storage format
-      if (!s3Key.startsWith('letters/')) {
-        s3Key = `letters/${s3Key}`
-      }
-      if (!s3Key.endsWith('/+page.svelte.md')) {
-        s3Key = `${s3Key}/+page.svelte.md`
-      }
-
-      console.log('Converted to S3 key:', s3Key)
-
-      const response = await fetch(`${this.baseUrl}/pdf-download`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          key: s3Key,
-          type: 'markdown', // Request markdown content from S3
-        }),
-      })
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error(`Content not found: ${path}`)
-        }
-        const errorText = await response.text()
-        console.error('Lambda response error:', response.status, errorText)
-        throw new Error(`Failed to get content: ${response.status}`)
-      }
-
-      const data = await response.json()
-      console.log('Successfully retrieved content from Lambda')
-      return data.content || data.body || data
+    if (s3Key.startsWith('/')) {
+      s3Key = s3Key.substring(1)
     }
-    catch (error) {
-      console.error('Error getting content:', error)
-      throw error
+
+    if (!s3Key.startsWith('letters/')) {
+      s3Key = `letters/${s3Key}`
     }
+    if (!s3Key.endsWith('/+page.svelte.md')) {
+      s3Key = `${s3Key}/+page.svelte.md`
+    }
+
+    const response = await fetch(`${this.baseUrl}/pdf-download`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        key: s3Key,
+        type: 'markdown',
+      }),
+    })
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error(`Content not found: ${path}`)
+      }
+      throw new Error(`Failed to get content: ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data.content || data.body || data
   }
 
-  /**
-   * Save content to S3 via your existing Lambda
-   */
   async saveContent(path: string, content: string): Promise<boolean> {
-    try {
-      console.log('Saving content for path:', path)
-
-      const token = await getAuthToken()
-      if (!token) {
-        throw new Error('Authentication required to save content')
-      }
-
-      // Convert route path to S3 key format
-      let s3Key = path
-
-      // Remove leading slash if present
-      if (s3Key.startsWith('/')) {
-        s3Key = s3Key.substring(1)
-      }
-
-      // Add letters/ prefix and +page.svelte.md suffix for S3 storage format
-      if (!s3Key.startsWith('letters/')) {
-        s3Key = `letters/${s3Key}`
-      }
-      if (!s3Key.endsWith('/+page.svelte.md')) {
-        s3Key = `${s3Key}/+page.svelte.md`
-      }
-
-      console.log('Converted to S3 key for save:', s3Key)
-
-      const response = await fetch(`${this.baseUrl}/pdf-download`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          type: 'markdown',
-          key: s3Key,
-          content,
-        }),
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Save failed:', response.status, errorText)
-        throw new Error(`Failed to save content: ${response.status}`)
-      }
-
-      const result = await response.json()
-      console.log('Content saved successfully:', result)
-      return true
+    const token = await getAuthToken()
+    if (!token) {
+      throw new Error('Authentication required to save content')
     }
-    catch (error) {
-      console.error('Error saving content:', error)
-      throw error
+
+    let s3Key = path
+
+    if (s3Key.startsWith('/')) {
+      s3Key = s3Key.substring(1)
     }
+
+    if (!s3Key.startsWith('letters/')) {
+      s3Key = `letters/${s3Key}`
+    }
+    if (!s3Key.endsWith('/+page.svelte.md')) {
+      s3Key = `${s3Key}/+page.svelte.md`
+    }
+
+    const response = await fetch(`${this.baseUrl}/pdf-download`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        type: 'markdown',
+        key: s3Key,
+        content,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to save content: ${response.status}`)
+    }
+
+    return true
   }
 
-  /**
-   * List content items in a directory (placeholder - would need Lambda enhancement)
-   */
-  async listContent(prefix: string = ''): Promise<ContentListItem[]> {
-    try {
-      console.log('Listing content with prefix:', prefix)
-
-      // For now, return empty array since your Lambda doesn't have list functionality
-      // You could enhance your Lambda to support listing operations
-      console.warn('List functionality not implemented in Lambda yet')
-      return []
-    }
-    catch (error) {
-      console.error('Error listing content:', error)
-      throw error
-    }
+  async listContent(_prefix: string = ''): Promise<ContentListItem[]> {
+    return []
   }
 
-  /**
-   * Delete content from S3 (would need Lambda enhancement)
-   */
-  async deleteContent(path: string): Promise<boolean> {
-    try {
-      console.log('Delete content for path:', path)
-
-      // For now, throw error since your Lambda doesn't have delete functionality
-      // You could enhance your Lambda to support delete operations
-      throw new Error('Delete functionality not implemented in Lambda yet')
-    }
-    catch (error) {
-      console.error('Error deleting content:', error)
-      throw error
-    }
+  async deleteContent(_path: string): Promise<boolean> {
+    throw new Error('Delete functionality not implemented')
   }
 
-  /**
-   * Check if content exists
-   */
   async contentExists(path: string): Promise<boolean> {
     try {
       await this.getContent(path)
       return true
     }
     catch (error) {
+      console.warn('Content does not exist:', path, error)
       return false
     }
   }
 }
 
-// Export singleton instance
 export const contentService = new ContentService()

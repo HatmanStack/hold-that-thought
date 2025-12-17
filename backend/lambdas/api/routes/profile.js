@@ -126,6 +126,7 @@ async function getProfile(event, requesterId, isAdmin) {
       notifyOnMessage: profile.notifyOnMessage !== false,
       notifyOnComment: profile.notifyOnComment !== false,
       theme: profile.theme || null,
+      familyRelationships: profile.familyRelationships || [],
     })
   } catch (error) {
     log.error('get_profile_failed', { userId, error: error.message })
@@ -150,6 +151,40 @@ async function updateProfile(event, requesterId, requesterEmail) {
   if (body.theme !== undefined) {
     if (typeof body.theme !== 'string' || body.theme.length > 50 || !/^[a-z0-9-]+$/.test(body.theme)) {
       return errorResponse(400, 'Invalid theme value')
+    }
+  }
+
+  // Validate and sanitize familyRelationships if provided
+  if (body.familyRelationships !== undefined) {
+    if (!Array.isArray(body.familyRelationships)) {
+      return errorResponse(400, 'familyRelationships must be an array')
+    }
+
+    const now = new Date().toISOString()
+    for (let i = 0; i < body.familyRelationships.length; i++) {
+      const rel = body.familyRelationships[i]
+
+      // Validate required fields
+      if (!rel.id || typeof rel.id !== 'string') {
+        return errorResponse(400, `Relationship at index ${i} is missing required field: id`)
+      }
+      if (!rel.type || typeof rel.type !== 'string') {
+        return errorResponse(400, `Relationship at index ${i} is missing required field: type`)
+      }
+      if (!rel.name || typeof rel.name !== 'string') {
+        return errorResponse(400, `Relationship at index ${i} is missing required field: name`)
+      }
+
+      // Sanitize text fields
+      rel.name = sanitizeText(rel.name, 200)
+      if (rel.customType) {
+        rel.customType = sanitizeText(rel.customType, 100)
+      }
+
+      // Generate createdAt if missing
+      if (!rel.createdAt) {
+        rel.createdAt = now
+      }
     }
   }
 
@@ -188,6 +223,7 @@ async function updateProfile(event, requesterId, requesterEmail) {
         notifyOnMessage: body.notifyOnMessage !== false,
         notifyOnComment: body.notifyOnComment !== false,
         theme: body.theme || null,
+        familyRelationships: body.familyRelationships || [],
         joinedDate: now,
         createdAt: now,
         updatedAt: now,
@@ -211,6 +247,7 @@ async function updateProfile(event, requesterId, requesterEmail) {
         familyRelationship: newProfile.familyRelationship,
         joinedDate: newProfile.joinedDate,
         theme: newProfile.theme,
+        familyRelationships: newProfile.familyRelationships,
       })
     }
 
@@ -219,7 +256,7 @@ async function updateProfile(event, requesterId, requesterEmail) {
     const expressionAttributeNames = {}
     const expressionAttributeValues = {}
 
-    const allowedFields = ['displayName', 'profilePhotoUrl', 'bio', 'familyRelationship', 'generation', 'familyBranch', 'isProfilePrivate', 'contactEmail', 'notifyOnMessage', 'notifyOnComment', 'theme']
+    const allowedFields = ['displayName', 'profilePhotoUrl', 'bio', 'familyRelationship', 'generation', 'familyBranch', 'isProfilePrivate', 'contactEmail', 'notifyOnMessage', 'notifyOnComment', 'theme', 'familyRelationships']
 
     allowedFields.forEach(field => {
       if (body[field] !== undefined) {
@@ -253,6 +290,7 @@ async function updateProfile(event, requesterId, requesterEmail) {
       bio: updated.bio,
       familyRelationship: updated.familyRelationship,
       isProfilePrivate: updated.isProfilePrivate,
+      familyRelationships: updated.familyRelationships || [],
     })
   } catch (error) {
     log.error('update_profile_failed', { requesterId, error: error.message })
@@ -422,28 +460,65 @@ async function batchSignUrls(urls) {
 
 async function listUsers(requesterId) {
   try {
-    // Scan for all user profiles (in production, consider pagination)
-    const result = await docClient.send(new ScanCommand({
-      TableName: TABLE_NAME,
-      FilterExpression: 'entityType = :type AND #status = :active',
-      ExpressionAttributeNames: { '#status': 'status' },
-      ExpressionAttributeValues: {
-        ':type': 'USER_PROFILE',
-        ':active': 'active',
-      },
-      Limit: 100,
-    }))
+    log.info('list_users_start', { requesterId, tableName: TABLE_NAME })
 
-    const items = result.Items || []
+    // Scan for all user profiles - collect all pages since filter happens server-side
+    // and Limit applies to items scanned, not items returned
+    let allItems = []
+    let lastEvaluatedKey = undefined
+
+    do {
+      const scanParams = {
+        TableName: TABLE_NAME,
+        FilterExpression: 'entityType = :type',
+        ExpressionAttributeValues: {
+          ':type': 'USER_PROFILE',
+        },
+      }
+      if (lastEvaluatedKey) {
+        scanParams.ExclusiveStartKey = lastEvaluatedKey
+      }
+
+      const scanResult = await docClient.send(new ScanCommand(scanParams))
+      allItems = allItems.concat(scanResult.Items || [])
+      lastEvaluatedKey = scanResult.LastEvaluatedKey
+
+      log.debug('list_users_scan_page', {
+        pageItems: scanResult.Items?.length || 0,
+        totalSoFar: allItems.length,
+        hasMore: !!lastEvaluatedKey,
+      })
+    } while (lastEvaluatedKey && allItems.length < 500) // Safety cap at 500 users
+
+    const result = { Items: allItems, ScannedCount: allItems.length }
+
+    log.info('list_users_scan_result', {
+      itemCount: result.Items?.length || 0,
+      scannedCount: result.ScannedCount,
+      items: result.Items?.map(u => ({ userId: u.userId, status: u.status, displayName: u.displayName })),
+    })
+
+    // Filter in code: exclude inactive/deleted users (handles missing status field)
+    // Also exclude the requester (can't message yourself)
+    const activeItems = (result.Items || []).filter(user =>
+      user.status !== 'inactive' && user.status !== 'deleted' && user.userId !== requesterId
+    )
+
+    log.info('list_users_after_filter', {
+      activeCount: activeItems.length,
+      filteredOut: (result.Items?.length || 0) - activeItems.length,
+      requesterId,
+    })
 
     // Batch sign all photo URLs (deduped for efficiency)
-    const photoUrls = items.map(u => u.profilePhotoUrl)
+    const photoUrls = activeItems.map(u => u.profilePhotoUrl)
     const signedUrls = await batchSignUrls(photoUrls)
 
-    // Map results using pre-signed URLs
-    const users = items.map(user => ({
+    // Map results with email included for search/display
+    const users = activeItems.map(user => ({
       userId: user.userId,
       displayName: user.displayName || 'Anonymous',
+      email: user.email || '',
       profilePhotoUrl: signedUrls.get(user.profilePhotoUrl) || null,
     }))
 

@@ -277,7 +277,14 @@ Resources:
           TABLE_NAME: !Ref TableName
           ARCHIVE_BUCKET: !Ref ArchiveBucket
           LETTER_PROCESSOR_FUNCTION_NAME: !Ref LetterProcessorFunction
+          SES_FROM_EMAIL: !Ref SesFromEmail
       Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: '*'
         - LambdaInvokePolicy:
             FunctionName: !Ref LetterProcessorFunction
         - DynamoDBCrudPolicy:
@@ -486,6 +493,14 @@ Resources:
           Properties:
             Path: /admin/drafts/{draftId}/publish
             Method: post
+        # Contact (public - no auth required)
+        SendContactMessage:
+          Type: Api
+          Properties:
+            Path: /contact
+            Method: post
+            Auth:
+              Authorizer: NONE
 
   # =============================================================================
   # Background Processors (keep separate - different triggers)

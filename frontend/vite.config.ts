@@ -30,13 +30,7 @@ export default defineConfig({
   ],
   server: {
     fs: {
-      allow: ['frontend', 'static', 'node_modules', '.svelte-kit'],
-    },
-    watch: {
-      // Advanced file watching configuration for complex environments
-      // Uncomment if HMR is failing in Docker, WSL, or complex monorepos
-      // usePolling: true,
-      // interval: 100
+      allow: ['.', 'static', 'node_modules', '.svelte-kit'],
     },
   },
 })

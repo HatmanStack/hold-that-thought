@@ -8,7 +8,7 @@ on:
 
 jobs:
   frontend-lint:
-    name: Frontend Linting & Type Check
+    name: Frontend Lint & Type Check
     runs-on: ubuntu-latest
 
     steps:
@@ -23,17 +23,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
       - name: Setup environment
-        run: cp .env.example .env
+        run: cp .env.example frontend/.env
 
       - name: Generate SvelteKit types
-        run: npx svelte-kit sync
+        run: cd frontend && npx svelte-kit sync
 
       - name: Run lint
-        run: npm run check:lint
+        run: cd frontend && npm run check:lint
 
       - name: Run type check
-        run: npm run check:types
+        run: cd frontend && npm run check:types
 
   tests:
     name: Unit Tests
@@ -57,20 +60,11 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Install root dependencies
+      - name: Install dependencies
         run: npm ci
 
-      - name: Install Lambda test dependencies
-        run: |
-          for dir in backend/lambdas/activity-aggregator backend/lambdas/notification-processor backend/lambdas/letter-processor; do
-            if [ -f "$dir/package.json" ]; then
-              echo "Installing dependencies in $dir"
-              (cd "$dir" && npm ci && npm install --save-dev aws-sdk-client-mock)
-            fi
-          done
-
-      - name: Run unit tests
-        run: npm run check:test -- tests/unit backend/ --reporter=verbose
+      - name: Run all unit tests
+        run: npm test -- --passWithNoTests --reporter=verbose
 
   status-check:
     name: All Checks Passed
@@ -81,8 +75,9 @@ jobs:
     steps:
       - name: Check if all jobs passed
         run: |
-          if [ "${{ needs.frontend-lint.result }}" != "success" ] || [ "${{ needs.tests.result }}" != "success" ]; then
-            echo "❌ Some checks failed"
+          if [ "${{ needs.frontend-lint.result }}" != "success" ] || \
+             [ "${{ needs.tests.result }}" != "success" ]; then
+            echo "Some checks failed"
             exit 1
           fi
-          echo "✅ All checks passed!"
+          echo "All checks passed"
