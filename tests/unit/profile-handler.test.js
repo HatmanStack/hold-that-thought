@@ -293,6 +293,318 @@ describe('profile API Lambda', () => {
     })
   })
 
+  describe('family relationships', () => {
+    it('should save family relationships with profile update', async () => {
+      const relationships = [
+        {
+          id: 'rel-1',
+          type: 'Grandmother (maternal)',
+          name: 'Mary Smith',
+          createdAt: '2025-01-15T10:00:00.000Z',
+        },
+        {
+          id: 'rel-2',
+          type: 'Other',
+          customType: "Mom's cousin",
+          name: 'Bob Jones',
+          createdAt: '2025-01-15T10:01:00.000Z',
+        },
+      ]
+
+      ddbMock.on(GetCommand).resolves({ Item: mockProfile(TEST_USER_UUID) })
+      ddbMock.on(UpdateCommand).resolves({
+        Attributes: {
+          userId: TEST_USER_UUID,
+          displayName: 'Test User',
+          familyRelationships: relationships,
+        },
+      })
+
+      const event = {
+        httpMethod: 'PUT',
+        resource: '/profile',
+        body: JSON.stringify({ familyRelationships: relationships }),
+        requestContext: {
+          authorizer: {
+            claims: { sub: TEST_USER_UUID, email: 'test@example.com' },
+          },
+        },
+      }
+
+      const response = await handler(event)
+
+      expect(response.statusCode).toBe(200)
+
+      // Verify UpdateCommand was called with relationships
+      const updateCalls = ddbMock.commandCalls(UpdateCommand)
+      expect(updateCalls.length).toBeGreaterThan(0)
+
+      const lastCall = updateCalls[updateCalls.length - 1]
+      const values = lastCall.args[0].input.ExpressionAttributeValues
+
+      expect(values[':familyRelationships']).toEqual(relationships)
+    })
+
+    it('should return empty array when no relationships exist', async () => {
+      ddbMock.on(GetCommand).resolves({ Item: mockProfile(TEST_USER_UUID) })
+
+      const event = {
+        httpMethod: 'GET',
+        resource: '/profile/{userId}',
+        pathParameters: { userId: TEST_USER_UUID },
+        requestContext: {
+          authorizer: {
+            claims: { sub: TEST_USER_UUID, email: 'test@example.com' },
+          },
+        },
+      }
+
+      const response = await handler(event)
+
+      expect(response.statusCode).toBe(200)
+      const body = JSON.parse(response.body)
+      expect(body.familyRelationships).toEqual([])
+    })
+
+    it('should return family relationships in profile response', async () => {
+      const relationships = [
+        {
+          id: 'rel-1',
+          type: 'Father',
+          name: 'John Smith',
+          createdAt: '2025-01-15T10:00:00.000Z',
+        },
+      ]
+
+      ddbMock.on(GetCommand).resolves({
+        Item: mockProfile(TEST_USER_UUID, { familyRelationships: relationships }),
+      })
+
+      const event = {
+        httpMethod: 'GET',
+        resource: '/profile/{userId}',
+        pathParameters: { userId: TEST_USER_UUID },
+        requestContext: {
+          authorizer: {
+            claims: { sub: TEST_USER_UUID, email: 'test@example.com' },
+          },
+        },
+      }
+
+      const response = await handler(event)
+
+      expect(response.statusCode).toBe(200)
+      const body = JSON.parse(response.body)
+      expect(body.familyRelationships).toHaveLength(1)
+      expect(body.familyRelationships[0].type).toBe('Father')
+      expect(body.familyRelationships[0].name).toBe('John Smith')
+    })
+
+    it('should accept empty relationships array', async () => {
+      ddbMock.on(GetCommand).resolves({ Item: mockProfile(TEST_USER_UUID) })
+      ddbMock.on(UpdateCommand).resolves({
+        Attributes: {
+          userId: TEST_USER_UUID,
+          displayName: 'Test User',
+          familyRelationships: [],
+        },
+      })
+
+      const event = {
+        httpMethod: 'PUT',
+        resource: '/profile',
+        body: JSON.stringify({ familyRelationships: [] }),
+        requestContext: {
+          authorizer: {
+            claims: { sub: TEST_USER_UUID, email: 'test@example.com' },
+          },
+        },
+      }
+
+      const response = await handler(event)
+
+      expect(response.statusCode).toBe(200)
+    })
+
+    it('should reject relationships missing required fields', async () => {
+      ddbMock.on(GetCommand).resolves({ Item: mockProfile(TEST_USER_UUID) })
+
+      const event = {
+        httpMethod: 'PUT',
+        resource: '/profile',
+        body: JSON.stringify({
+          familyRelationships: [
+            { type: 'Father' }, // missing id and name
+          ],
+        }),
+        requestContext: {
+          authorizer: {
+            claims: { sub: TEST_USER_UUID, email: 'test@example.com' },
+          },
+        },
+      }
+
+      const response = await handler(event)
+
+      expect(response.statusCode).toBe(400)
+      const body = JSON.parse(response.body)
+      expect(body.error).toContain('missing required field')
+    })
+
+    it('should reject relationships with invalid structure (not an array)', async () => {
+      ddbMock.on(GetCommand).resolves({ Item: mockProfile(TEST_USER_UUID) })
+
+      const event = {
+        httpMethod: 'PUT',
+        resource: '/profile',
+        body: JSON.stringify({
+          familyRelationships: 'not-an-array',
+        }),
+        requestContext: {
+          authorizer: {
+            claims: { sub: TEST_USER_UUID, email: 'test@example.com' },
+          },
+        },
+      }
+
+      const response = await handler(event)
+
+      expect(response.statusCode).toBe(400)
+      const body = JSON.parse(response.body)
+      expect(body.error).toContain('must be an array')
+    })
+
+    it('should sanitize relationship name for XSS', async () => {
+      const relationships = [
+        {
+          id: 'rel-1',
+          type: 'Mother',
+          name: '<script>alert("XSS")</script>Mary',
+          createdAt: '2025-01-15T10:00:00.000Z',
+        },
+      ]
+
+      ddbMock.on(GetCommand).resolves({ Item: mockProfile(TEST_USER_UUID) })
+      ddbMock.on(UpdateCommand).resolves({
+        Attributes: {
+          userId: TEST_USER_UUID,
+          displayName: 'Test User',
+          familyRelationships: [{ ...relationships[0], name: 'scriptalertXSS/scriptMary' }],
+        },
+      })
+
+      const event = {
+        httpMethod: 'PUT',
+        resource: '/profile',
+        body: JSON.stringify({ familyRelationships: relationships }),
+        requestContext: {
+          authorizer: {
+            claims: { sub: TEST_USER_UUID, email: 'test@example.com' },
+          },
+        },
+      }
+
+      const response = await handler(event)
+
+      expect(response.statusCode).toBe(200)
+
+      // Verify sanitization in UpdateCommand
+      const updateCalls = ddbMock.commandCalls(UpdateCommand)
+      const lastCall = updateCalls[updateCalls.length - 1]
+      const values = lastCall.args[0].input.ExpressionAttributeValues
+
+      const savedRelationships = values[':familyRelationships']
+      expect(savedRelationships[0].name).not.toContain('<script>')
+      expect(savedRelationships[0].name).not.toContain('</script>')
+    })
+
+    it('should sanitize customType for XSS', async () => {
+      const relationships = [
+        {
+          id: 'rel-1',
+          type: 'Other',
+          customType: '<img src=x onerror="alert(1)">',
+          name: 'Test Person',
+          createdAt: '2025-01-15T10:00:00.000Z',
+        },
+      ]
+
+      ddbMock.on(GetCommand).resolves({ Item: mockProfile(TEST_USER_UUID) })
+      ddbMock.on(UpdateCommand).resolves({
+        Attributes: {
+          userId: TEST_USER_UUID,
+          displayName: 'Test User',
+          familyRelationships: [{ ...relationships[0], customType: 'img srcx onerroralert1' }],
+        },
+      })
+
+      const event = {
+        httpMethod: 'PUT',
+        resource: '/profile',
+        body: JSON.stringify({ familyRelationships: relationships }),
+        requestContext: {
+          authorizer: {
+            claims: { sub: TEST_USER_UUID, email: 'test@example.com' },
+          },
+        },
+      }
+
+      const response = await handler(event)
+
+      expect(response.statusCode).toBe(200)
+
+      // Verify sanitization
+      const updateCalls = ddbMock.commandCalls(UpdateCommand)
+      const lastCall = updateCalls[updateCalls.length - 1]
+      const values = lastCall.args[0].input.ExpressionAttributeValues
+
+      const savedRelationships = values[':familyRelationships']
+      expect(savedRelationships[0].customType).not.toContain('<img')
+      expect(savedRelationships[0].customType).not.toContain('onerror')
+    })
+
+    it('should handle profile creation with relationships', async () => {
+      const relationships = [
+        {
+          id: 'rel-1',
+          type: 'Sibling',
+          name: 'Jane Doe',
+          createdAt: '2025-01-15T10:00:00.000Z',
+        },
+      ]
+
+      ddbMock.on(GetCommand).resolves({ Item: null }) // No existing profile
+      ddbMock.on(PutCommand).resolves({})
+
+      const event = {
+        httpMethod: 'PUT',
+        resource: '/profile',
+        body: JSON.stringify({
+          displayName: 'New User',
+          familyRelationships: relationships,
+        }),
+        requestContext: {
+          authorizer: {
+            claims: { sub: TEST_USER_UUID, email: 'test@example.com' },
+          },
+        },
+      }
+
+      const response = await handler(event)
+
+      expect(response.statusCode).toBe(200)
+
+      // Verify PutCommand was called with relationships
+      const putCalls = ddbMock.commandCalls(PutCommand)
+      expect(putCalls.length).toBeGreaterThan(0)
+
+      const lastCall = putCalls[putCalls.length - 1]
+      const item = lastCall.args[0].input.Item
+
+      expect(item.familyRelationships).toEqual(relationships)
+    })
+  })
+
   describe('GET /profile/{userId}/comments', () => {
     it('should return user comment history', async () => {
       const mockComments = [
