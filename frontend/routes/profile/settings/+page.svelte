@@ -1,5 +1,6 @@
 <script lang='ts'>
-  import type { UserProfile } from '$lib/types/profile'
+  import type { UserProfile, FamilyRelationship } from '$lib/types/profile'
+  import { RELATIONSHIP_TYPES } from '$lib/types/profile'
   import { goto } from '$app/navigation'
   import { currentUser, isAuthenticated } from '$lib/auth/auth-store'
   import { getProfile, updateProfile, uploadProfilePhoto } from '$lib/services/profile-service'
@@ -19,6 +20,10 @@
   let familyBranch = ''
   let isProfilePrivate = false
 
+  // Family relationships (for chat context)
+  let familyRelationships: FamilyRelationship[] = []
+  const RELATIONSHIP_LIMIT_WARNING = 10
+
   // Notification settings
   let contactEmail = ''
   let notifyOnMessage = true
@@ -31,6 +36,35 @@
   let uploadError = ''
 
   $: bioLength = bio.length
+
+  /**
+   * Generate a UUID for new relationships
+   */
+  function generateId(): string {
+    return crypto.randomUUID()
+  }
+
+  /**
+   * Add a new empty relationship
+   */
+  function addRelationship() {
+    familyRelationships = [
+      ...familyRelationships,
+      {
+        id: generateId(),
+        type: '',
+        name: '',
+        createdAt: new Date().toISOString(),
+      },
+    ]
+  }
+
+  /**
+   * Remove a relationship by ID
+   */
+  function removeRelationship(id: string) {
+    familyRelationships = familyRelationships.filter(r => r.id !== id)
+  }
 
   /**
    * Load current user's profile
@@ -62,6 +96,9 @@
       contactEmail = profile.contactEmail || ''
       notifyOnMessage = profile.notifyOnMessage !== false
       notifyOnComment = profile.notifyOnComment !== false
+
+      // Family relationships for chat context
+      familyRelationships = profile.familyRelationships || []
     }
     else {
       error = result.error || 'Failed to load profile'
@@ -158,6 +195,11 @@
         uploading = false
       }
 
+      // Filter out incomplete relationships (missing type or name)
+      const validRelationships = familyRelationships.filter(
+        r => r.type && r.name.trim()
+      )
+
       // Update profile
       const result = await updateProfile({
         displayName: displayName.trim(),
@@ -169,6 +211,7 @@
         contactEmail: contactEmail.trim() || undefined,
         notifyOnMessage,
         notifyOnComment,
+        familyRelationships: validRelationships,
         ...(photoUrl && { profilePhotoUrl: photoUrl }),
       })
 
@@ -430,6 +473,115 @@
               maxlength='100'
               placeholder='e.g., Smith Family, Jones Branch'
             />
+          </div>
+
+          <div class='divider'>My Family Relationships</div>
+
+          <!-- Family Relationships Section -->
+          <div class='space-y-4'>
+            <p class='text-sm text-base-content/70'>
+              Define your relationships to people mentioned in the family archive. This helps
+              the chat feature understand context when you ask questions like "What did my
+              grandmother write about?"
+            </p>
+
+            <!-- Warning when exceeding limit -->
+            {#if familyRelationships.length > RELATIONSHIP_LIMIT_WARNING}
+              <div class='alert alert-warning'>
+                <svg xmlns='http://www.w3.org/2000/svg' class='stroke-current shrink-0 h-5 w-5' fill='none' viewBox='0 0 24 24'>
+                  <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' />
+                </svg>
+                <span class='text-sm'>
+                  Having more than {RELATIONSHIP_LIMIT_WARNING} relationships may affect chat quality.
+                  Consider keeping only your closest family connections.
+                </span>
+              </div>
+            {/if}
+
+            <!-- Relationship List -->
+            {#each familyRelationships as relationship, index (relationship.id)}
+              <div class='flex gap-2 items-start p-3 bg-base-200 rounded-lg'>
+                <div class='flex-1 grid grid-cols-1 md:grid-cols-2 gap-2'>
+                  <!-- Relationship Type -->
+                  <div class='form-control'>
+                    <label class='label py-1' for='rel-type-{relationship.id}'>
+                      <span class='label-text text-xs'>Relationship</span>
+                    </label>
+                    <select
+                      id='rel-type-{relationship.id}'
+                      class='select select-bordered select-sm'
+                      bind:value={relationship.type}
+                      disabled={saving}
+                    >
+                      <option value=''>Select type...</option>
+                      {#each RELATIONSHIP_TYPES as type}
+                        <option value={type}>{type}</option>
+                      {/each}
+                    </select>
+                  </div>
+
+                  <!-- Custom Type (only shown when "Other" is selected) -->
+                  {#if relationship.type === 'Other'}
+                    <div class='form-control'>
+                      <label class='label py-1' for='rel-custom-{relationship.id}'>
+                        <span class='label-text text-xs'>Custom Type</span>
+                      </label>
+                      <input
+                        id='rel-custom-{relationship.id}'
+                        type='text'
+                        class='input input-bordered input-sm'
+                        bind:value={relationship.customType}
+                        disabled={saving}
+                        maxlength='100'
+                        placeholder="e.g., Mom's cousin"
+                      />
+                    </div>
+                  {/if}
+
+                  <!-- Person's Name -->
+                  <div class='form-control' class:md:col-span-2={relationship.type !== 'Other'}>
+                    <label class='label py-1' for='rel-name-{relationship.id}'>
+                      <span class='label-text text-xs'>Person's Name (as it appears in archive)</span>
+                    </label>
+                    <input
+                      id='rel-name-{relationship.id}'
+                      type='text'
+                      class='input input-bordered input-sm'
+                      bind:value={relationship.name}
+                      disabled={saving}
+                      maxlength='200'
+                      placeholder='e.g., Mary Smith'
+                    />
+                  </div>
+                </div>
+
+                <!-- Delete button -->
+                <button
+                  type='button'
+                  class='btn btn-ghost btn-sm btn-square mt-6'
+                  on:click={() => removeRelationship(relationship.id)}
+                  disabled={saving}
+                  aria-label='Remove relationship'
+                >
+                  <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                    <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 18L18 6M6 6l12 12' />
+                  </svg>
+                </button>
+              </div>
+            {/each}
+
+            <!-- Add Relationship Button -->
+            <button
+              type='button'
+              class='btn btn-outline btn-sm'
+              on:click={addRelationship}
+              disabled={saving}
+            >
+              <svg xmlns='http://www.w3.org/2000/svg' class='h-4 w-4 mr-1' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 4v16m8-8H4' />
+              </svg>
+              Add Relationship
+            </button>
           </div>
 
           <div class='divider'>Notifications</div>
