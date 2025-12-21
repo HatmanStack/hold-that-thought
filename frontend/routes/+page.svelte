@@ -2,22 +2,19 @@
   import { browser } from '$app/environment'
   import { goto } from '$app/navigation'
   import { page } from '$app/stores'
+  import { PUBLIC_RAGSTACK_CHAT_URL } from '$env/static/public'
   import { authLoading, isAuthenticated } from '$lib/auth/auth-store'
   import Footer from '$lib/components/footer.svelte'
   import Head from '$lib/components/head.svelte'
   import Post from '$lib/components/post_card.svelte'
   import { posts as storedPosts } from '$lib/stores/posts'
   import { title as storedTitle } from '$lib/stores/title'
-  import { addLetterLambda } from '$lib/utils/s3Client'
   import { onMount, tick } from 'svelte'
   import { fly } from 'svelte/transition'
-  import { PUBLIC_RAGSTACK_CHAT_URL } from '$env/static/public'
 
   let allPosts: Urara.Post[]
   let loaded: boolean
   let [posts, tags, years]: [Urara.Post[], string[], number[]] = [[], [], []]
-  let isProcessing = false
-  let fileInput: HTMLInputElement
   let cognitoConfigured = false
   let developmentMode = false
 
@@ -81,65 +78,6 @@
   // Watch for posts changes and reset pagination
   $: if (posts && posts.length > 0 && displayedPosts.length === 0) {
     resetPagination()
-  }
-
-  async function addLetter() {
-    if (isProcessing)
-      return
-
-    // Create a file input element if it doesn't exist yet
-    if (!fileInput && browser) {
-      fileInput = document.createElement('input')
-      fileInput.type = 'file'
-      fileInput.multiple = true
-      fileInput.accept = 'image/*,.pdf'
-
-      fileInput.onchange = async (e) => {
-        const files = fileInput.files
-        if (!files || files.length === 0) {
-          isProcessing = false
-          return
-        }
-
-        isProcessing = true
-
-        try {
-          // Convert FileList to Array
-          const filesArray = Array.from(files)
-
-          console.log(`Processing batch of ${filesArray.length} files`)
-          filesArray.forEach((file) => {
-            console.log(`- ${file.name} (${Math.round(file.size / 1024)} KB)`)
-          })
-
-          // Send ALL files to addLetterLambda at once as an array
-          const result = await addLetterLambda(filesArray)
-
-          // Inform user of results
-          alert(result)
-        }
-        catch (error) {
-          console.error('Error in file upload process:', error)
-          const message = error instanceof Error ? error.message : 'Unknown error'
-          alert(`Error: ${message}`)
-        }
-        finally {
-          isProcessing = false
-          alert(`Successfully processed file!`)
-          // Reset the file input value so the same files can be selected again if needed
-          fileInput.value = ''
-        }
-      }
-
-      // Append to body to ensure it works in all browsers, but hide it
-      document.body.appendChild(fileInput)
-      fileInput.style.display = 'none'
-    }
-
-    // Trigger the file selection dialog
-    if (fileInput) {
-      fileInput.click()
-    }
   }
 
   onMount(() => {
@@ -237,25 +175,6 @@
 
     <div id='ragstack-chat-container' class='w-full max-w-screen-md mx-auto my-4'></div>
     <div class='flex-none w-full max-w-screen-md mx-auto xl:mx-0'>
-      <!-- <div
-    class='flex justify-center mb-4'
-    in:fly={{ delay: 500, duration: 300, y: -25 }}
-    out:fly={{ duration: 300, y: -25 }}>
-    <button
-      class='btn btn-secondary gap-2'
-      on:click={addLetter}
-      disabled={isProcessing}>
-      {#if isProcessing}
-        <span class="loading loading-spinner loading-xs"></span>
-      {:else}
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-        </svg>
-      {/if}
-      Add Letter
-    </button>
-  </div> -->
-
       {#key posts}
         <main
           class='flex flex-col relative bg-base-100 z-10 md:bg-transparent md:gap-8'
