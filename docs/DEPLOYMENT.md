@@ -121,6 +121,22 @@ Required variables (set in `.env` or hosting platform):
 
 ### Add Google OAuth
 
+#### Google Cloud Console Setup
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials
+2. Create or select an OAuth 2.0 Client ID (Application type: Web application)
+3. Under "Authorized JavaScript origins", add your Cognito Hosted UI URL:
+   ```
+   https://<your-domain-prefix>.auth.<region>.amazoncognito.com
+   ```
+4. Under "Authorized redirect URIs", add the Cognito OAuth callback:
+   ```
+   https://<your-domain-prefix>.auth.<region>.amazoncognito.com/oauth2/idpresponse
+   ```
+5. Save and copy the **Client ID** and **Client Secret** for Cognito setup
+
+#### AWS Cognito Console Setup
+
 1. Go to Cognito Console → User Pool → Sign-in experience
 2. Add identity provider → Google
 3. Enter Google Client ID and Secret

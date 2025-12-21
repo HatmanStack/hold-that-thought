@@ -5,7 +5,6 @@
   import { authLoading, isAuthenticated } from '$lib/auth/auth-store'
   import Footer from '$lib/components/footer.svelte'
   import Head from '$lib/components/head.svelte'
-  import Profile from '$lib/components/index_profile.svelte'
   import Post from '$lib/components/post_card.svelte'
   import { posts as storedPosts } from '$lib/stores/posts'
   import { title as storedTitle } from '$lib/stores/title'
@@ -154,6 +153,8 @@
           if (container) {
             const chat = document.createElement('ragstack-chat')
             chat.setAttribute('conversation-id', 'hold-that-thought')
+            chat.setAttribute('header-text', 'Family Chat')
+            chat.setAttribute('header-subtitle', ' ')
             container.appendChild(chat)
           }
         }
@@ -234,12 +235,6 @@
 
   <div class='flex flex-col flex-nowrap justify-center xl:flex-row xl:flex-wrap h-feed'>
 
-    <div
-      class='flex-1 w-full max-w-screen-md order-first mx-auto xl:mr-0 xl:ml-8 xl:max-w-md'
-      in:fly={{ delay: 500, duration: 300, x: 25 }}
-      out:fly={{ duration: 300, x: 25 }}>
-      <Profile />
-    </div>
     <div id='ragstack-chat-container' class='w-full max-w-screen-md mx-auto my-4'></div>
     <div class='flex-none w-full max-w-screen-md mx-auto xl:mx-0'>
       <!-- <div

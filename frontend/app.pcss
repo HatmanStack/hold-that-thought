@@ -173,4 +173,44 @@ pre.twoslash data-lsp:hover::before {
   @apply content-[attr(lsp)] absolute rounded translate-y-5 bg-[color-mix(in_oklab,oklch(var(--n)),black_7%)] text-neutral-content font-mono whitespace-pre-wrap transition-all px-2 py-1 z-50;
 }
 
+/* RAGStack Chat Widget Theme Integration */
+ragstack-chat::part(header-subtitle) {
+  display: none;
+}
+
+ragstack-chat {
+  /* Background colors */
+  --chat-color-bg: oklch(var(--b1));
+  --chat-color-bg-secondary: oklch(var(--b2));
+
+  /* Text colors */
+  --chat-color-text: oklch(var(--bc));
+  --chat-color-text-secondary: oklch(var(--bc) / 0.6);
+
+  /* Border colors */
+  --chat-color-border: oklch(var(--b3));
+  --chat-color-border-light: oklch(var(--b2));
+
+  /* Primary/accent */
+  --chat-color-primary: oklch(var(--p));
+
+  /* User message bubble */
+  --chat-color-user-bg: oklch(var(--p));
+  --chat-color-user-text: oklch(var(--pc));
+
+  /* Assistant message bubble */
+  --chat-color-assistant-bg: oklch(var(--b2));
+  --chat-color-assistant-text: oklch(var(--bc));
+
+  /* Source citations */
+  --chat-color-source-bg: oklch(var(--b2));
+  --chat-color-source-border: oklch(var(--b3));
+  --chat-color-source-accent: oklch(var(--a));
+
+  /* Border radius matching DaisyUI */
+  --chat-radius-sm: var(--rounded-badge, 2px);
+  --chat-radius-md: var(--rounded-btn, 4px);
+  --chat-radius-lg: var(--rounded-box, 8px);
+}
+
 /* your code here */

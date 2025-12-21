@@ -514,9 +514,20 @@ Resources:
       Environment:
         Variables:
           TABLE_NAME: !Ref TableName
+          USER_PROFILES_TABLE: !Ref TableName
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref TableName
+      Events:
+        DynamoDBStream:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt DynamoDBTable.StreamArn
+            StartingPosition: LATEST
+            BatchSize: 10
+            FilterCriteria:
+              Filters:
+                - Pattern: '{"eventName": ["INSERT"]}'
 
   NotificationProcessorFunction:
     Type: AWS::Serverless::Function

@@ -1,6 +1,7 @@
 const { S3Client, GetObjectCommand, PutObjectCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3')
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner')
 const { ARCHIVE_BUCKET, successResponse, errorResponse } = require('../utils')
+const { incrementMediaUploadCount } = require('../lib/user')
 
 const s3Client = new S3Client({})
 
@@ -82,6 +83,9 @@ async function getUploadUrl(event, requesterId, requesterEmail) {
     })
 
     const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 })
+
+    // Track media upload in user profile
+    await incrementMediaUploadCount(requesterId)
 
     return successResponse({
       presignedUrl,

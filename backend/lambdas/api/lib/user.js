@@ -3,7 +3,7 @@
  * User profile management
  * @module lib/user
  */
-const { GetCommand, PutCommand } = require('@aws-sdk/lib-dynamodb')
+const { GetCommand, PutCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb')
 const { docClient, TABLE_NAME } = require('./database')
 const { keys } = require('./keys')
 const { log } = require('./logger')
@@ -71,6 +71,33 @@ async function ensureProfile(userId, email, groups) {
   }
 }
 
+/**
+ * Increment media upload count for a user
+ * @param {string} userId
+ * @returns {Promise<void>}
+ */
+async function incrementMediaUploadCount(userId) {
+  if (!userId || !TABLE_NAME) return
+
+  const key = keys.userProfile(userId)
+
+  try {
+    await docClient.send(new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: key,
+      UpdateExpression: 'ADD mediaUploadCount :inc SET lastActive = :now',
+      ExpressionAttributeValues: {
+        ':inc': 1,
+        ':now': new Date().toISOString(),
+      },
+    }))
+    log.info('media_upload_count_incremented', { userId })
+  } catch (error) {
+    log.error('increment_media_upload_error', { userId, error: error.message })
+  }
+}
+
 module.exports = {
   ensureProfile,
+  incrementMediaUploadCount,
 }
