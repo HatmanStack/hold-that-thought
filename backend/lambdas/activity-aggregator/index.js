@@ -5,6 +5,12 @@ const client = new DynamoDBClient({})
 const docClient = DynamoDBDocumentClient.from(client)
 const USER_PROFILES_TABLE = process.env.USER_PROFILES_TABLE
 
+// Key builder for user profile (single-table design)
+const userProfileKey = (userId) => ({
+  PK: `USER#${userId}`,
+  SK: 'PROFILE',
+})
+
 exports.handler = async (event) => {
   for (const record of event.Records) {
     try {
@@ -21,30 +27,34 @@ exports.handler = async (event) => {
 }
 
 async function processInsertEvent(record) {
-  const tableName = record.eventSourceARN.split(':table/')[1].split('/')[0]
   const newImage = record.dynamodb.NewImage
+  const entityType = newImage.entityType?.S
 
-  if (tableName.toLowerCase().includes('comment') && !tableName.toLowerCase().includes('reaction')) {
-    const userId = newImage.userId.S
-    await incrementCommentCount(userId)
-    await updateLastActive(userId)
+  if (entityType === 'COMMENT') {
+    const userId = newImage.userId?.S
+    if (userId) {
+      await incrementCommentCount(userId)
+      await updateLastActive(userId)
+    }
   }
-  else if (tableName.toLowerCase().includes('message')) {
+  else if (entityType === 'MESSAGE') {
     const senderId = newImage.senderId?.S
     if (senderId) {
       await updateLastActive(senderId)
     }
   }
-  else if (tableName.toLowerCase().includes('reaction')) {
-    const userId = newImage.userId.S
-    await updateLastActive(userId)
+  else if (entityType === 'REACTION') {
+    const userId = newImage.userId?.S
+    if (userId) {
+      await updateLastActive(userId)
+    }
   }
 }
 
 async function incrementCommentCount(userId) {
   await docClient.send(new UpdateCommand({
     TableName: USER_PROFILES_TABLE,
-    Key: { userId },
+    Key: userProfileKey(userId),
     UpdateExpression: 'ADD commentCount :inc',
     ExpressionAttributeValues: { ':inc': 1 },
   }))
@@ -53,7 +63,7 @@ async function incrementCommentCount(userId) {
 async function updateLastActive(userId) {
   await docClient.send(new UpdateCommand({
     TableName: USER_PROFILES_TABLE,
-    Key: { userId },
+    Key: userProfileKey(userId),
     UpdateExpression: 'SET lastActive = :now',
     ExpressionAttributeValues: { ':now': new Date().toISOString() },
   }))

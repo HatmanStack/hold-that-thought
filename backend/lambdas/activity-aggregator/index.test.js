@@ -12,16 +12,17 @@ beforeEach(() => {
 })
 
 describe('activity-aggregator handler', () => {
-  it('processes INSERT event for comments table and increments comment count', async () => {
+  it('processes INSERT event for COMMENT entityType and increments comment count', async () => {
     ddbMock.on(UpdateCommand).resolves({})
 
     const event = {
       Records: [
         {
           eventName: 'INSERT',
-          eventSourceARN: 'arn:aws:dynamodb:us-east-1:123456789:table/HoldThatThought-Comments/stream/2024-01-01',
+          eventSourceARN: 'arn:aws:dynamodb:us-east-1:123456789:table/HoldThatThought/stream/2024-01-01',
           dynamodb: {
             NewImage: {
+              entityType: { S: 'COMMENT' },
               userId: { S: 'user-123' },
               commentId: { S: 'comment-456' },
               commentText: { S: 'Test comment' },
@@ -36,20 +37,24 @@ describe('activity-aggregator handler', () => {
     expect(result.statusCode).toBe(200)
     const calls = ddbMock.commandCalls(UpdateCommand)
     expect(calls.length).toBe(2)
+    // Verify correct key structure (single-table design)
+    expect(calls[0].args[0].input.Key).toEqual({ PK: 'USER#user-123', SK: 'PROFILE' })
     expect(calls[0].args[0].input.UpdateExpression).toContain('commentCount')
+    expect(calls[1].args[0].input.Key).toEqual({ PK: 'USER#user-123', SK: 'PROFILE' })
     expect(calls[1].args[0].input.UpdateExpression).toContain('lastActive')
   })
 
-  it('processes INSERT event for messages table and updates lastActive', async () => {
+  it('processes INSERT event for MESSAGE entityType and updates lastActive', async () => {
     ddbMock.on(UpdateCommand).resolves({})
 
     const event = {
       Records: [
         {
           eventName: 'INSERT',
-          eventSourceARN: 'arn:aws:dynamodb:us-east-1:123456789:table/HoldThatThought-Messages/stream/2024-01-01',
+          eventSourceARN: 'arn:aws:dynamodb:us-east-1:123456789:table/HoldThatThought/stream/2024-01-01',
           dynamodb: {
             NewImage: {
+              entityType: { S: 'MESSAGE' },
               senderId: { S: 'user-123' },
               messageText: { S: 'Test message' },
             },
@@ -66,16 +71,17 @@ describe('activity-aggregator handler', () => {
     expect(calls[0].args[0].input.UpdateExpression).toContain('lastActive')
   })
 
-  it('processes INSERT event for reactions table and updates lastActive', async () => {
+  it('processes INSERT event for REACTION entityType and updates lastActive', async () => {
     ddbMock.on(UpdateCommand).resolves({})
 
     const event = {
       Records: [
         {
           eventName: 'INSERT',
-          eventSourceARN: 'arn:aws:dynamodb:us-east-1:123456789:table/HoldThatThought-Reactions/stream/2024-01-01',
+          eventSourceARN: 'arn:aws:dynamodb:us-east-1:123456789:table/HoldThatThought/stream/2024-01-01',
           dynamodb: {
             NewImage: {
+              entityType: { S: 'REACTION' },
               userId: { S: 'user-123' },
               commentId: { S: 'comment-456' },
               reactionType: { S: 'like' },
@@ -103,9 +109,10 @@ describe('activity-aggregator handler', () => {
       Records: [
         {
           eventName: 'INSERT',
-          eventSourceARN: 'arn:aws:dynamodb:us-east-1:123456789:table/HoldThatThought-Comments/stream/2024-01-01',
+          eventSourceARN: 'arn:aws:dynamodb:us-east-1:123456789:table/HoldThatThought/stream/2024-01-01',
           dynamodb: {
             NewImage: {
+              entityType: { S: 'COMMENT' },
               userId: { S: 'user-fail' },
               commentId: { S: 'comment-1' },
               commentText: { S: 'Comment 1' },
@@ -114,35 +121,12 @@ describe('activity-aggregator handler', () => {
         },
         {
           eventName: 'INSERT',
-          eventSourceARN: 'arn:aws:dynamodb:us-east-1:123456789:table/HoldThatThought-Messages/stream/2024-01-01',
+          eventSourceARN: 'arn:aws:dynamodb:us-east-1:123456789:table/HoldThatThought/stream/2024-01-01',
           dynamodb: {
             NewImage: {
+              entityType: { S: 'MESSAGE' },
               senderId: { S: 'user-success' },
               messageText: { S: 'Message 2' },
-            },
-          },
-        },
-      ],
-    }
-
-    const result = await handler(event)
-
-    expect(result.statusCode).toBe(200)
-  })
-
-  it('extracts table name from ARN correctly', async () => {
-    ddbMock.on(UpdateCommand).resolves({})
-
-    const event = {
-      Records: [
-        {
-          eventName: 'INSERT',
-          eventSourceARN: 'arn:aws:dynamodb:us-west-2:987654321:table/prod-comments-table/stream/2024-06-15',
-          dynamodb: {
-            NewImage: {
-              userId: { S: 'user-123' },
-              commentId: { S: 'comment-789' },
-              commentText: { S: 'Another comment' },
             },
           },
         },
@@ -159,9 +143,10 @@ describe('activity-aggregator handler', () => {
       Records: [
         {
           eventName: 'MODIFY',
-          eventSourceARN: 'arn:aws:dynamodb:us-east-1:123456789:table/HoldThatThought-Comments/stream/2024-01-01',
+          eventSourceARN: 'arn:aws:dynamodb:us-east-1:123456789:table/HoldThatThought/stream/2024-01-01',
           dynamodb: {
             NewImage: {
+              entityType: { S: 'COMMENT' },
               userId: { S: 'user-123' },
             },
           },
@@ -176,19 +161,16 @@ describe('activity-aggregator handler', () => {
     expect(calls.length).toBe(0)
   })
 
-  it('skips comment-reactions table for comment count increment', async () => {
-    ddbMock.on(UpdateCommand).resolves({})
-
+  it('ignores records without entityType', async () => {
     const event = {
       Records: [
         {
           eventName: 'INSERT',
-          eventSourceARN: 'arn:aws:dynamodb:us-east-1:123456789:table/HoldThatThought-Comment-Reactions/stream/2024-01-01',
+          eventSourceARN: 'arn:aws:dynamodb:us-east-1:123456789:table/HoldThatThought/stream/2024-01-01',
           dynamodb: {
             NewImage: {
               userId: { S: 'user-123' },
-              commentId: { S: 'comment-456' },
-              reactionType: { S: 'like' },
+              someField: { S: 'some value' },
             },
           },
         },
@@ -199,8 +181,29 @@ describe('activity-aggregator handler', () => {
 
     expect(result.statusCode).toBe(200)
     const calls = ddbMock.commandCalls(UpdateCommand)
-    expect(calls.length).toBe(1)
-    expect(calls[0].args[0].input.UpdateExpression).toContain('lastActive')
-    expect(calls[0].args[0].input.UpdateExpression).not.toContain('commentCount')
+    expect(calls.length).toBe(0)
+  })
+
+  it('ignores COMMENT records without userId', async () => {
+    const event = {
+      Records: [
+        {
+          eventName: 'INSERT',
+          eventSourceARN: 'arn:aws:dynamodb:us-east-1:123456789:table/HoldThatThought/stream/2024-01-01',
+          dynamodb: {
+            NewImage: {
+              entityType: { S: 'COMMENT' },
+              commentText: { S: 'Orphan comment' },
+            },
+          },
+        },
+      ],
+    }
+
+    const result = await handler(event)
+
+    expect(result.statusCode).toBe(200)
+    const calls = ddbMock.commandCalls(UpdateCommand)
+    expect(calls.length).toBe(0)
   })
 })
