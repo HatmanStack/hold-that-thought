@@ -444,9 +444,21 @@ else
     echo "Updated frontend .env file"
 fi
 
-# Copy .env to frontend/ directory for Vite to pick up
+# Sync .env to frontend/ directory for Vite, preserving custom vars
+if [ -f "$FRONTEND_DIR_ENV" ]; then
+    # Preserve any custom vars from frontend/.env that aren't in root .env
+    while IFS= read -r line; do
+        # Skip empty lines and comments
+        [[ -z "$line" || "$line" =~ ^# ]] && continue
+        key=$(echo "$line" | cut -d'=' -f1)
+        # If this key doesn't exist in root .env, add it
+        if ! grep -q "^${key}=" "$FRONTEND_ENV" 2>/dev/null; then
+            echo "$line" >> "$FRONTEND_ENV"
+        fi
+    done < "$FRONTEND_DIR_ENV"
+fi
 cp "$FRONTEND_ENV" "$FRONTEND_DIR_ENV"
-echo "Copied .env to frontend/ for Vite"
+echo "Synced .env to frontend/ for Vite (preserving custom vars)"
 
 echo ""
 echo "Done! Frontend .env has been updated with stack outputs."

@@ -7,15 +7,14 @@
   import Head from '$lib/components/head.svelte'
   import Profile from '$lib/components/index_profile.svelte'
   import Post from '$lib/components/post_card.svelte'
-  import { posts as storedPosts, tags as storedTags } from '$lib/stores/posts'
+  import { posts as storedPosts } from '$lib/stores/posts'
   import { title as storedTitle } from '$lib/stores/title'
   import { addLetterLambda } from '$lib/utils/s3Client'
   import { onMount, tick } from 'svelte'
-  import { Icon, Trash } from 'svelte-hero-icons'
   import { fly } from 'svelte/transition'
+  import { PUBLIC_RAGSTACK_CHAT_URL } from '$env/static/public'
 
   let allPosts: Urara.Post[]
-  let allTags: string[]
   let loaded: boolean
   let [posts, tags, years]: [Urara.Post[], string[], number[]] = [[], [], []]
   let isProcessing = false
@@ -33,8 +32,6 @@
   storedTitle.set('')
 
   $: storedPosts.subscribe(storedPosts => (allPosts = storedPosts.filter(post => !post.flags?.includes('unlisted'))))
-
-  $: storedTags.subscribe(storedTags => (allTags = storedTags as string[]))
 
   $: if (posts.length > 1)
     years = [new Date(posts[0].created).getFullYear()]
@@ -148,6 +145,20 @@
 
   onMount(() => {
     if (browser) {
+      // Load ragstack chat widget
+      if (PUBLIC_RAGSTACK_CHAT_URL) {
+        const script = document.createElement('script')
+        script.src = PUBLIC_RAGSTACK_CHAT_URL
+        script.onload = () => {
+          const container = document.getElementById('ragstack-chat-container')
+          if (container) {
+            const chat = document.createElement('ragstack-chat')
+            chat.setAttribute('conversation-id', 'hold-that-thought')
+            container.appendChild(chat)
+          }
+        }
+        document.head.appendChild(script)
+      }
       // Check if Cognito is configured
       import('$lib/auth/cognito-config').then(({ isCognitoConfigured }) => {
         cognitoConfigured = isCognitoConfigured()
@@ -229,37 +240,7 @@
       out:fly={{ duration: 300, x: 25 }}>
       <Profile />
     </div>
-    <div
-      class='flex-1 w-full max-w-screen-md xl:order-last mx-auto xl:ml-0 xl:mr-8 xl:max-w-md'
-      in:fly={{ delay: 500, duration: 300, x: -25 }}
-      out:fly={{ duration: 300, x: -25 }}>
-      {#if allTags && Object.keys(allTags).length > 0}
-        <div class='flex justify-end px-8 pt-4'>
-          <button
-            class='btn btn-sm btn-ghost gap-1'
-            class:hidden={tags.length === 0}
-            on:click={() => tags = []}>
-            <svg xmlns='http://www.w3.org/2000/svg' class='h-4 w-4' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
-              <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 18L18 6M6 6l12 12' />
-            </svg>
-            Clear Tags
-          </button>
-        </div>
-        <div
-          class='flex xl:flex-wrap gap-2 overflow-x-auto overflow-y-hidden my-auto xl:overflow-x-hidden max-h-24 xl:max-h-fit max-w-fit xl:max-w-full pl-8 md:px-0 xl:pl-8 xl:pt-8'>
-          {#each allTags as tag}
-            <button
-              class='btn btn-sm btn-ghost normal-case mt-4 mb-8 border-dotted border-base-content/20 border-2 xl:m-0'
-              class:!btn-secondary={tags.includes(tag)}
-              class:shadow-lg={tags.includes(tag)}
-              id={tag}
-              on:click={() => (tags.includes(tag) ? (tags = tags.filter(tagName => tagName != tag)) : (tags = [...tags, tag]))}>
-              #{tag}
-            </button>
-          {/each}
-        </div>
-      {/if}
-    </div>
+    <div id='ragstack-chat-container' class='w-full max-w-screen-md mx-auto my-4'></div>
     <div class='flex-none w-full max-w-screen-md mx-auto xl:mx-0'>
       <!-- <div
     class='flex justify-center mb-4'
@@ -281,27 +262,6 @@
   </div> -->
 
       {#key posts}
-        <!-- {:else} is not used because there is a problem with the transition -->
-        {#if loaded && posts.length === 0}
-          <div
-            class='bg-base-300 text-base-content shadow-inner text-center md:rounded-box relative z-10 -mb-2 p-10 md:mb-0'
-            in:fly={{ delay: 500, duration: 300, x: 100 }}
-            out:fly={{ duration: 300, x: -100 }}>
-            <div class='prose items-center'>
-              <h2>
-                Not found: [{#each tags as tag, i}
-                  '{tag}'{#if i + 1 < tags.length},{/if}
-                {/each}]
-              </h2>
-              <button class='btn btn-secondary' on:click={() => (tags = [])}>
-                <span class='mr-2'>
-                  <Icon src={Trash} class='w-5 h-5' />
-                </span>
-                tags = []
-              </button>
-            </div>
-          </div>
-        {/if}
         <main
           class='flex flex-col relative bg-base-100 z-10 md:bg-transparent md:gap-8'
           itemprop='mainEntityOfPage'
@@ -372,6 +332,7 @@
       {/key}
     </div>
   </div>
+
 {:else}
   <!-- This should not show due to redirect, but just in case -->
   <div class='flex items-center justify-center min-h-screen'>
