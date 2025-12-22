@@ -93,6 +93,44 @@
             chat.setAttribute('conversation-id', 'hold-that-thought')
             chat.setAttribute('header-text', 'Family Chat')
             chat.setAttribute('header-subtitle', ' ')
+
+            // Function to update chat widget colors from current theme
+            const updateChatTheme = () => {
+              requestAnimationFrame(() => {
+                const style = getComputedStyle(document.documentElement)
+                const bgColor = style.getPropertyValue('--b1').trim()
+                const textColor = style.getPropertyValue('--bc').trim()
+                const primaryColor = style.getPropertyValue('--p').trim()
+                const primaryContent = style.getPropertyValue('--pc').trim()
+                const secondaryBg = style.getPropertyValue('--b2').trim()
+                const borderColor = style.getPropertyValue('--b3').trim()
+
+                if (bgColor)
+chat.setAttribute('background-color', `oklch(${bgColor})`)
+                if (textColor)
+chat.setAttribute('text-color', `oklch(${textColor})`)
+
+                const themeOverrides = {
+                  primaryColor: primaryColor ? `oklch(${primaryColor})` : undefined,
+                  primaryTextColor: primaryContent ? `oklch(${primaryContent})` : undefined,
+                  secondaryBgColor: secondaryBg ? `oklch(${secondaryBg})` : undefined,
+                  borderColor: borderColor ? `oklch(${borderColor})` : undefined,
+                }
+                chat.setAttribute('theme-overrides', JSON.stringify(themeOverrides))
+              })
+            }
+
+            updateChatTheme()
+
+            const observer = new MutationObserver((mutations) => {
+              for (const mutation of mutations) {
+                if (mutation.attributeName === 'data-theme') {
+                  updateChatTheme()
+                }
+              }
+            })
+            observer.observe(document.documentElement, { attributes: true })
+
             container.appendChild(chat)
           }
         }

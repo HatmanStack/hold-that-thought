@@ -7,6 +7,8 @@
   import CommentSection from '$lib/components/comments/CommentSection.svelte'
   import Head from '$lib/components/head.svelte'
   import { getMediaItems, type MediaItem, uploadMedia } from '$lib/services/media-service'
+  import { uploadToRagstack } from '$lib/services/ragstack-upload-service'
+  import { filterResultsByCategory, searchKnowledgeBase, type SearchResult } from '$lib/services/search-service'
   import { onMount } from 'svelte'
 
   export let data: PageData
@@ -19,6 +21,18 @@
   let showModal = false
   let uploading = false
   let uploadError = ''
+
+  // Search state
+  let searchQuery = ''
+  let searchResults: SearchResult[] = []
+  let isSearching = false
+  let searchError = ''
+  let isSearchMode = false
+  let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
+  // All media items cache for search matching
+  const allMediaItems: Map<string, MediaItem> = new Map()
+  let mediaItemsLoaded = false
 
   // Load media items for the selected section
   async function loadMediaItems(section: 'pictures' | 'videos' | 'documents') {
@@ -86,10 +100,23 @@
         throw new Error('File size cannot exceed 300MB')
       }
 
-      await uploadMedia(file)
+      // Upload to both family archive and RAGStack in parallel
+      const [, ragstackResult] = await Promise.allSettled([
+        uploadMedia(file),
+        uploadToRagstack(file),
+      ])
+
+      // Log RAGStack upload result (don't fail if RAGStack fails)
+      if (ragstackResult.status === 'rejected') {
+        console.warn('RAGStack upload failed:', ragstackResult.reason)
+      }
 
       // Reload the media list to ensure proper display with signed URLs
       await loadMediaItems(selectedSection)
+
+      // Clear media items cache so next search will reload
+      mediaItemsLoaded = false
+      allMediaItems.clear()
 
       // Clear the input
       input.value = ''
@@ -141,6 +168,120 @@
       month: 'long',
       day: 'numeric',
     })
+  }
+
+  // Strip timestamp prefix from filename (e.g., "1766429419834-resume.pdf" → "resume.pdf")
+  function stripTimestampPrefix(filename: string): string {
+    const match = filename.match(/^\d+-(.+)$/)
+    return match ? match[1] : filename
+  }
+
+  // Load all media items into cache for search matching
+  async function loadAllMediaItems() {
+    if (mediaItemsLoaded)
+return
+
+    try {
+      const [pictures, videos, documents] = await Promise.all([
+        getMediaItems('pictures'),
+        getMediaItems('videos'),
+        getMediaItems('documents'),
+      ])
+
+      // Index by filename without timestamp prefix (lowercase for case-insensitive matching)
+      const all = [...pictures, ...videos, ...documents]
+      for (const item of all) {
+        if (item.fileSize > 0) {
+          const normalizedFilename = stripTimestampPrefix(item.filename).toLowerCase()
+          allMediaItems.set(normalizedFilename, item)
+        }
+      }
+      mediaItemsLoaded = true
+      console.log('Loaded media items:', allMediaItems.size, 'files')
+    }
+ catch (err) {
+      console.error('Failed to load media items for search:', err)
+    }
+  }
+
+  // Get matched media item for a search result
+  function getMatchedMediaItem(result: SearchResult): MediaItem | undefined {
+    const searchFilename = result.filename.toLowerCase()
+    const matched = allMediaItems.get(searchFilename)
+    console.log('Matching:', searchFilename, '→', matched ? 'FOUND' : 'NOT FOUND')
+    if (!matched) {
+      console.log('Available filenames:', Array.from(allMediaItems.keys()))
+    }
+    return matched
+  }
+
+  // Search functions
+  async function performSearch(query: string) {
+    if (!query.trim()) {
+      clearSearch()
+      return
+    }
+
+    isSearching = true
+    searchError = ''
+    isSearchMode = true
+
+    try {
+      // Load all media items first for matching
+      await loadAllMediaItems()
+
+      const response = await searchKnowledgeBase(query, 50)
+      searchResults = response.results
+    }
+ catch (err) {
+      console.error('Search error:', err)
+      searchError = err instanceof Error ? err.message : 'Search failed'
+      searchResults = []
+    }
+ finally {
+      isSearching = false
+    }
+  }
+
+  function handleSearchInput(event: Event) {
+    const target = event.target as HTMLInputElement
+    searchQuery = target.value
+
+    if (searchDebounceTimer) {
+      clearTimeout(searchDebounceTimer)
+    }
+
+    if (!searchQuery.trim()) {
+      clearSearch()
+      return
+    }
+
+    searchDebounceTimer = setTimeout(() => {
+      performSearch(searchQuery)
+    }, 300)
+  }
+
+  function clearSearch() {
+    searchQuery = ''
+    searchResults = []
+    isSearchMode = false
+    searchError = ''
+    if (searchDebounceTimer) {
+      clearTimeout(searchDebounceTimer)
+    }
+  }
+
+  // Filter search results to only include items that exist in the gallery
+  $: matchedSearchResults = searchResults.filter(r => allMediaItems.has(r.filename.toLowerCase()))
+
+  $: filteredSearchResults = isSearchMode
+    ? filterResultsByCategory(matchedSearchResults, selectedSection)
+    : []
+
+  $: searchCounts = {
+    pictures: filterResultsByCategory(matchedSearchResults, 'pictures').length,
+    videos: filterResultsByCategory(matchedSearchResults, 'videos').length,
+    documents: filterResultsByCategory(matchedSearchResults, 'documents').length,
   }
 
   // Load initial data
@@ -214,7 +355,52 @@
 
   <div class='text-center mb-8'>
     <h1 class='text-4xl font-bold mb-4'>Family Gallery</h1>
+  </div>
 
+  <!-- Search Box -->
+  <div class='max-w-2xl mx-auto mb-8'>
+    <div class='relative'>
+      <input
+        type='text'
+        placeholder='Search photos, videos, and documents...'
+        class='input input-bordered w-full pl-12 pr-12 text-lg'
+        value={searchQuery}
+        on:input={handleSearchInput}
+      />
+      <div class='absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none'>
+        {#if isSearching}
+          <span class='loading loading-spinner loading-sm text-primary'></span>
+        {:else}
+          <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5 text-base-content/50' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+            <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' />
+          </svg>
+        {/if}
+      </div>
+      {#if searchQuery}
+        <button
+          class='absolute inset-y-0 right-0 flex items-center pr-4 text-base-content/50 hover:text-base-content'
+          on:click={clearSearch}
+        >
+          <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+            <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 18L18 6M6 6l12 12' />
+          </svg>
+        </button>
+      {/if}
+    </div>
+    {#if searchError}
+      <div class='alert alert-error mt-2'>
+        <span>{searchError}</span>
+      </div>
+    {/if}
+    {#if isSearchMode && !isSearching}
+      <div class='text-sm text-base-content/60 mt-2 text-center'>
+        {#if matchedSearchResults.length > 0}
+          Found {matchedSearchResults.length} item{matchedSearchResults.length !== 1 ? 's' : ''} for "{searchQuery}"
+        {:else if searchResults.length > 0}
+          No gallery items match "{searchQuery}"
+        {/if}
+      </div>
+    {/if}
   </div>
 
   <!-- Upload Section -->
@@ -250,31 +436,96 @@
   <div class='flex justify-center mb-8'>
     <div class='tabs tabs-boxed'>
       <button
-        class='tab tab-lg'
+        class='tab tab-lg gap-2'
         class:tab-active={selectedSection === 'pictures'}
         on:click={() => changeSection('pictures')}
       >
         📸 Pictures
+        {#if isSearchMode}
+          <span class='badge badge-sm' class:badge-primary={searchCounts.pictures > 0}>{searchCounts.pictures}</span>
+        {/if}
       </button>
       <button
-        class='tab tab-lg'
+        class='tab tab-lg gap-2'
         class:tab-active={selectedSection === 'videos'}
         on:click={() => changeSection('videos')}
       >
         🎥 Videos
+        {#if isSearchMode}
+          <span class='badge badge-sm' class:badge-primary={searchCounts.videos > 0}>{searchCounts.videos}</span>
+        {/if}
       </button>
       <button
-        class='tab tab-lg'
+        class='tab tab-lg gap-2'
         class:tab-active={selectedSection === 'documents'}
         on:click={() => changeSection('documents')}
       >
         📄 Documents
+        {#if isSearchMode}
+          <span class='badge badge-sm' class:badge-primary={searchCounts.documents > 0}>{searchCounts.documents}</span>
+        {/if}
       </button>
     </div>
   </div>
 
+  <!-- Search Results -->
+  {#if isSearchMode}
+    {#if filteredSearchResults.length === 0}
+      <div class='text-center py-12'>
+        <div class='text-6xl mb-4'>🔍</div>
+        <h3 class='text-xl font-semibold mb-2'>No {selectedSection} match your search</h3>
+        <p class='text-base-content/60'>Try different keywords or check other tabs.</p>
+      </div>
+    {:else}
+      <div class='grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'>
+        {#each filteredSearchResults as result, index (result.source + index)}
+          {@const matchedItem = getMatchedMediaItem(result)}
+          {#if matchedItem}
+            <button
+              type='button'
+              class='card bg-base-100 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer text-left p-0 border-0 w-full'
+              on:click={() => openMediaItem(matchedItem)}
+            >
+              <figure class='aspect-square bg-base-200 relative overflow-hidden'>
+                {#if result.category === 'pictures'}
+                  <img src={matchedItem.thumbnailUrl || matchedItem.signedUrl} alt={matchedItem.title} class='w-full h-full object-cover' loading='lazy' />
+                {:else if result.category === 'videos'}
+                  {#if matchedItem.thumbnailUrl}
+                    <div class='relative w-full h-full'>
+                      <img src={matchedItem.thumbnailUrl} alt={matchedItem.title} class='w-full h-full object-cover' loading='lazy' />
+                      <div class='absolute inset-0 flex items-center justify-center bg-black/20'>
+                        <div class='rounded-full p-3 bg-white/90'>
+                          <svg class='w-8 h-8 text-primary' fill='currentColor' viewBox='0 0 24 24'>
+                            <path d='M8 5v14l11-7z' />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  {:else}
+                    <div class='w-full h-full flex items-center justify-center text-base-content/40'>
+                      <div class='text-4xl'>🎥</div>
+                    </div>
+                  {/if}
+                {:else}
+                  <div class='w-full h-full flex items-center justify-center text-base-content/40'>
+                    <div class='text-4xl'>📄</div>
+                  </div>
+                {/if}
+                <div class='absolute badge badge-sm text-white border-none right-2 top-2 bg-black/50'>
+                  {(result.score * 100).toFixed(0)}% match
+                </div>
+              </figure>
+              <div class='card-body p-4'>
+                <h3 class='card-title text-sm line-clamp-1'>{stripTimestampPrefix(matchedItem.title)}</h3>
+                <p class='text-xs text-base-content/70 line-clamp-2'>{result.content}</p>
+              </div>
+            </button>
+          {/if}
+        {/each}
+      </div>
+    {/if}
   <!-- Loading State -->
-  {#if loading}
+  {:else if loading}
     <div class='flex justify-center items-center py-12'>
       <div class='loading loading-spinner loading-lg'></div>
       <span class='ml-4 text-lg'>Loading {selectedSection}...</span>
@@ -361,7 +612,7 @@
           </figure>
 
           <div class='card-body p-4'>
-            <h3 class='card-title text-sm line-clamp-2'>{item.title}</h3>
+            <h3 class='card-title text-sm line-clamp-2'>{stripTimestampPrefix(item.title)}</h3>
             {#if item.description}
               <p class='text-xs text-base-content/70 line-clamp-2'>{item.description}</p>
             {/if}
@@ -381,8 +632,8 @@
     <div class='modal-box max-w-4xl'>
       <div class='flex justify-between items-start mb-4'>
         <div>
-          <h3 class='font-bold text-lg'>{selectedItem.title}</h3>
-          <p class='text-sm text-base-content/70'>{selectedItem.filename}</p>
+          <h3 class='font-bold text-lg'>{stripTimestampPrefix(selectedItem.title)}</h3>
+          <p class='text-sm text-base-content/70'>{stripTimestampPrefix(selectedItem.filename)}</p>
         </div>
         <button class='btn btn-sm btn-circle btn-ghost' on:click={closeModal}>✕</button>
       </div>
