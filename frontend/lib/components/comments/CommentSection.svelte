@@ -116,30 +116,6 @@
 <div class='comment-section mt-8 pt-8 border-t border-base-300' id='comments'>
   <h2 class='font-bold text-2xl mb-6'>Comments</h2>
 
-  <!-- Comment form -->
-  {#if currentUserId}
-    <div class='mb-8'>
-      <CommentForm {itemId} {itemType} {itemTitle} on:commentCreated={handleCommentCreated} />
-    </div>
-  {:else}
-    <div class='alert mb-8 alert-info'>
-      <svg
-        xmlns='http://www.w3.org/2000/svg'
-        fill='none'
-        viewBox='0 0 24 24'
-        class='stroke-current shrink-0 w-6 h-6'
-      >
-        <path
-          stroke-linecap='round'
-          stroke-linejoin='round'
-          stroke-width='2'
-          d='M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
-        />
-      </svg>
-      <span>Please <a href='/auth/login' class='link'>sign in</a> to leave a comment.</span>
-    </div>
-  {/if}
-
   <!-- Comments list -->
   {#if loading}
     <div class='flex justify-center items-center py-12'>
@@ -174,7 +150,7 @@
       <p class='text-base-content/60'>Be the first to share your thoughts!</p>
     </div>
   {:else}
-    <div class='comments-list space-y-0'>
+    <div class='comments-list space-y-0 mb-8'>
       {#each comments as comment (comment.commentId)}
         <Comment
           {comment}
@@ -187,7 +163,7 @@
     </div>
 
     {#if hasMore}
-      <div class='text-center mt-6'>
+      <div class='text-center mb-8'>
         <button
           class='btn btn-outline'
           class:loading={loadingMore}
@@ -198,5 +174,27 @@
         </button>
       </div>
     {/if}
+  {/if}
+
+  <!-- Comment form -->
+  {#if currentUserId}
+    <CommentForm {itemId} {itemType} {itemTitle} on:commentCreated={handleCommentCreated} />
+  {:else}
+    <div class='alert alert-info'>
+      <svg
+        xmlns='http://www.w3.org/2000/svg'
+        fill='none'
+        viewBox='0 0 24 24'
+        class='stroke-current shrink-0 w-6 h-6'
+      >
+        <path
+          stroke-linecap='round'
+          stroke-linejoin='round'
+          stroke-width='2'
+          d='M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
+        />
+      </svg>
+      <span>Please <a href='/auth/login' class='link'>sign in</a> to leave a comment.</span>
+    </div>
   {/if}
 </div>

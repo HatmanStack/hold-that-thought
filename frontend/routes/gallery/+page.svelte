@@ -9,7 +9,7 @@
   import { getMediaItems, type MediaItem, uploadMedia } from '$lib/services/media-service'
   import { uploadToRagstack } from '$lib/services/ragstack-upload-service'
   import { filterResultsByCategory, searchKnowledgeBase, type SearchResult } from '$lib/services/search-service'
-  import { onMount } from 'svelte'
+  import { onDestroy, onMount } from 'svelte'
 
   export let data: PageData
 
@@ -21,6 +21,30 @@
   let showModal = false
   let uploading = false
   let uploadError = ''
+
+  // Caption modal state
+  let showCaptionModal = false
+  let pendingUploadFile: File | null = null
+  let userCaption = ''
+  let previewUrl: string | null = null
+
+  // Create/revoke preview URL when pendingUploadFile changes
+  $: {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl)
+      previewUrl = null
+    }
+    if (pendingUploadFile && pendingUploadFile.type.startsWith('image/')) {
+      previewUrl = URL.createObjectURL(pendingUploadFile)
+    }
+  }
+
+  // Cleanup preview URL on component destroy
+  onDestroy(() => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl)
+    }
+  })
 
   // Search state
   let searchQuery = ''
@@ -83,27 +107,62 @@
     }
   }
 
-  // Handle file upload
-  async function handleFileUpload(event: Event) {
+  // Handle file selection
+  function handleFileSelect(event: Event) {
     const input = event.target as HTMLInputElement
     if (!input.files?.length)
       return
 
+    const file = input.files[0]
+
+    // Validate file size (300MB limit)
+    if (file.size > 300 * 1024 * 1024) {
+      uploadError = 'File size cannot exceed 300MB'
+      input.value = ''
+      return
+    }
+
+    // For images/videos, show caption modal
+    if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+      pendingUploadFile = file
+      userCaption = ''
+      showCaptionModal = true
+      input.value = ''
+    }
+    else {
+      // Documents upload directly
+      performUpload(file)
+      input.value = ''
+    }
+  }
+
+  // Close caption modal
+  function closeCaptionModal() {
+    showCaptionModal = false
+    pendingUploadFile = null
+    userCaption = ''
+  }
+
+  // Submit upload with caption
+  async function submitWithCaption() {
+    if (!pendingUploadFile)
+      return
+    showCaptionModal = false
+    await performUpload(pendingUploadFile, userCaption)
+    pendingUploadFile = null
+    userCaption = ''
+  }
+
+  // Perform the actual upload
+  async function performUpload(file: File, caption?: string) {
     uploading = true
     uploadError = ''
 
     try {
-      const file = input.files[0]
-
-      // Validate file size (300MB limit)
-      if (file.size > 300 * 1024 * 1024) {
-        throw new Error('File size cannot exceed 300MB')
-      }
-
       // Upload to both family archive and RAGStack in parallel
       const [, ragstackResult] = await Promise.allSettled([
         uploadMedia(file),
-        uploadToRagstack(file),
+        uploadToRagstack(file, caption),
       ])
 
       // Log RAGStack upload result (don't fail if RAGStack fails)
@@ -118,10 +177,6 @@
       mediaItemsLoaded = false
       allMediaItems.clear()
 
-      // Clear the input
-      input.value = ''
-
-      // Show success message briefly
       uploadError = ''
     }
     catch (err) {
@@ -149,6 +204,60 @@
   function closeModal() {
     selectedItem = null
     showModal = false
+  }
+
+  // Get current items list (search results or regular media items)
+  function getCurrentItemsList(): MediaItem[] {
+    if (isSearchMode) {
+      return filteredSearchResults
+        .map(r => getMatchedMediaItem(r))
+        .filter((item): item is MediaItem => item !== undefined)
+    }
+    return mediaItems
+  }
+
+  // Navigate to previous/next item in modal (infinite loop)
+  function navigateModal(direction: 'prev' | 'next') {
+    if (!selectedItem)
+      return
+    const items = getCurrentItemsList()
+    if (items.length === 0)
+      return
+    const currentIndex = items.findIndex(item => item.id === selectedItem?.id)
+    if (currentIndex === -1)
+      return
+
+    let newIndex: number
+    if (direction === 'prev') {
+      newIndex = currentIndex === 0 ? items.length - 1 : currentIndex - 1
+    }
+    else {
+      newIndex = currentIndex === items.length - 1 ? 0 : currentIndex + 1
+    }
+    selectedItem = items[newIndex]
+  }
+
+  // Check if navigation is possible (always true if more than 1 item)
+  $: canNavigate = (() => {
+    if (!selectedItem)
+      return false
+    const items = getCurrentItemsList()
+    return items.length > 1
+  })()
+
+  // Handle keyboard navigation in modal
+  function handleKeydown(event: KeyboardEvent) {
+    if (!showModal)
+      return
+    if (event.key === 'ArrowLeft') {
+      navigateModal('prev')
+    }
+    else if (event.key === 'ArrowRight') {
+      navigateModal('next')
+    }
+    else if (event.key === 'Escape') {
+      closeModal()
+    }
   }
 
   // Format file size
@@ -207,12 +316,7 @@ return
   // Get matched media item for a search result
   function getMatchedMediaItem(result: SearchResult): MediaItem | undefined {
     const searchFilename = result.filename.toLowerCase()
-    const matched = allMediaItems.get(searchFilename)
-    console.log('Matching:', searchFilename, '→', matched ? 'FOUND' : 'NOT FOUND')
-    if (!matched) {
-      console.log('Available filenames:', Array.from(allMediaItems.keys()))
-    }
-    return matched
+    return allMediaItems.get(searchFilename)
   }
 
   // Search functions
@@ -271,8 +375,18 @@ return
     }
   }
 
-  // Filter search results to only include items that exist in the gallery
-  $: matchedSearchResults = searchResults.filter(r => allMediaItems.has(r.filename.toLowerCase()))
+  // Filter search results to only include items that exist in the gallery, deduplicated
+  $: matchedSearchResults = (() => {
+    const seen = new Set<string>()
+    return searchResults.filter((r) => {
+      const filename = r.filename.toLowerCase()
+      const item = allMediaItems.get(filename)
+      if (!item || seen.has(item.id))
+        return false
+      seen.add(item.id)
+      return true
+    })
+  })()
 
   $: filteredSearchResults = isSearchMode
     ? filterResultsByCategory(matchedSearchResults, selectedSection)
@@ -333,6 +447,8 @@ return
 </script>
 
 <Head />
+
+<svelte:window on:keydown={handleKeydown} />
 
 <svelte:head>
   <title>Gallery - Hold That Thought</title>
@@ -409,7 +525,7 @@ return
       type='file'
       id='fileUpload'
       class='hidden'
-      on:change={handleFileUpload}
+      on:change={handleFileSelect}
       accept={selectedSection === 'pictures'
         ? 'image/*'
         : selectedSection === 'videos'
@@ -477,7 +593,7 @@ return
         <p class='text-base-content/60'>Try different keywords or check other tabs.</p>
       </div>
     {:else}
-      <div class='grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'>
+      <div class='grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'>
         {#each filteredSearchResults as result, index (result.source + index)}
           {@const matchedItem = getMatchedMediaItem(result)}
           {#if matchedItem}
@@ -557,7 +673,7 @@ return
     </div>
   {:else}
     <!-- Media Grid -->
-    <div class='grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'>
+    <div class='grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'>
       {#each mediaItems as item (item.id)}
         <button
           type='button'
@@ -628,8 +744,32 @@ return
 
 <!-- Media Modal -->
 {#if showModal && selectedItem}
-  <div class='modal modal-open'>
-    <div class='modal-box max-w-4xl'>
+  <!-- svelte-ignore a11y-click-events-have-key-events -->
+  <!-- svelte-ignore a11y-no-static-element-interactions -->
+  <div class='modal modal-open' on:click|self={closeModal}>
+    <div class='modal-box max-w-5xl w-[85vw] max-h-[90vh] overflow-y-auto relative'>
+      <!-- Navigation buttons inside modal -->
+      {#if canNavigate}
+        <button
+          class='btn btn-circle btn-lg bg-base-200/80 hover:bg-base-200 border-base-300 absolute left-4 top-1/3 z-10'
+          on:click|stopPropagation={() => navigateModal('prev')}
+          aria-label='Previous item'
+        >
+          <svg xmlns='http://www.w3.org/2000/svg' class='h-6 w-6' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+            <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M15 19l-7-7 7-7' />
+          </svg>
+        </button>
+        <button
+          class='btn btn-circle btn-lg bg-base-200/80 hover:bg-base-200 border-base-300 absolute right-4 top-1/3 z-10'
+          on:click|stopPropagation={() => navigateModal('next')}
+          aria-label='Next item'
+        >
+          <svg xmlns='http://www.w3.org/2000/svg' class='h-6 w-6' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+            <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 5l7 7-7 7' />
+          </svg>
+        </button>
+      {/if}
+
       <div class='flex justify-between items-start mb-4'>
         <div>
           <h3 class='font-bold text-lg'>{stripTimestampPrefix(selectedItem.title)}</h3>
@@ -640,12 +780,14 @@ return
 
       <div class='mb-4'>
         {#if selectedSection === 'pictures'}
-          <img src={selectedItem.signedUrl} alt={selectedItem.title} class='w-full object-contain rounded-lg max-h-96' loading='lazy' />
+          <img src={selectedItem.signedUrl} alt={selectedItem.title} class='w-full object-contain rounded-lg max-h-[50vh]' loading='lazy' />
         {:else if selectedSection === 'videos'}
-          <video controls class='w-full max-h-96 rounded-lg'>
-            <source src={selectedItem.signedUrl} type={selectedItem.contentType}>
-            Your browser does not support the video tag.
-          </video>
+          {#key selectedItem.id}
+            <video controls class='w-full max-h-[50vh] rounded-lg'>
+              <source src={selectedItem.signedUrl} type={selectedItem.contentType}>
+              Your browser does not support the video tag.
+            </video>
+          {/key}
         {:else}
           <div class='bg-base-200 rounded-lg p-8 text-center'>
             <div class='text-6xl mb-4'>
@@ -659,7 +801,7 @@ return
               {selectedItem.contentType} • {formatFileSize(selectedItem.fileSize)}
             </p>
             <a href={selectedItem.signedUrl} target='_blank' class='btn btn-primary'>
-              📥 Download & View
+              Download & View
             </a>
           </div>
         {/if}
@@ -684,23 +826,67 @@ return
       </div>
 
       <!-- Comments Section -->
-      <div class='max-h-96 overflow-y-auto'>
+      {#key selectedItem.id}
         <CommentSection
           itemId={selectedItem.id}
           itemType='media'
           itemTitle={selectedItem.title}
         />
-      </div>
+      {/key}
 
       <div class='modal-action'>
         <button class='btn' on:click={closeModal}>Close</button>
         <a href={selectedItem.signedUrl} target='_blank' class='btn btn-primary'>
           {#if selectedSection === 'documents'}
-            📥 Download
+            Download
           {:else}
-            🔗 Open Full Size
+            Open Full Size
           {/if}
         </a>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Caption Modal -->
+{#if showCaptionModal && pendingUploadFile}
+  <div class='modal modal-open'>
+    <div class='modal-box'>
+      <h3 class='font-bold text-lg mb-4'>Add a Caption</h3>
+
+      <div class='mb-4'>
+        <p class='text-sm text-base-content/70 mb-2'>
+          File: {pendingUploadFile.name}
+        </p>
+        {#if previewUrl}
+          <img
+            src={previewUrl}
+            alt='Preview'
+            class='w-full max-h-48 object-contain rounded-lg bg-base-200'
+          />
+        {/if}
+      </div>
+
+      <div class='form-control mb-4'>
+        <label class='label' for='caption-input'>
+          <span class='label-text'>Caption (optional)</span>
+        </label>
+        <textarea
+          id='caption-input'
+          class='textarea textarea-bordered h-24'
+          placeholder='Describe this image...'
+          bind:value={userCaption}
+        ></textarea>
+        <label class='label'>
+          <span class='label-text-alt text-base-content/60'>AI will also generate a caption automatically</span>
+        </label>
+      </div>
+
+      <div class='modal-action'>
+        <button class='btn' on:click={closeCaptionModal}>Cancel</button>
+        <button class='btn btn-primary' on:click={submitWithCaption}>
+          Upload
+        </button>
       </div>
     </div>
   </div>

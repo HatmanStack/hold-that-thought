@@ -2,6 +2,7 @@
   import type { LayoutData } from './$types'
   import { browser, dev } from '$app/environment'
   import { authStore } from '$lib/auth/auth-store'
+  import Footer from '$lib/components/footer.svelte'
   import Head from '$lib/components/head_static.svelte'
   import Header from '$lib/components/header.svelte'
   import Transition from '$lib/components/transition.svelte'
@@ -49,3 +50,7 @@
 <Transition {path}>
   <slot />
 </Transition>
+
+<div class='max-w-screen-md mx-auto px-4'>
+  <Footer />
+</div>

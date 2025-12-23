@@ -4,8 +4,8 @@
   import VersionHistory from '$lib/components/VersionHistory.svelte'
   import { type AdjacentLetters, getAdjacentLetters, getLetter, getPdfUrl, getVersions, type Letter, type LetterVersion, revertToVersion } from '$lib/services/letters-service'
   import { title as storedTitle } from '$lib/stores/title'
+  import DOMPurify from 'isomorphic-dompurify'
   import { marked } from 'marked'
-  import sanitizeHtml from 'sanitize-html'
   import { onMount } from 'svelte'
   import { fly } from 'svelte/transition'
 
@@ -41,7 +41,7 @@
     try {
       letter = await getLetter(data.date, $authTokens.idToken)
       if (letter) {
-        storedTitle.set(letter.title)
+        storedTitle.set('')
         // Load adjacent letters for navigation only if letter found
         adjacent = await getAdjacentLetters(data.date, $authTokens.idToken)
       }
@@ -121,13 +121,9 @@
   // Sanitize HTML to prevent XSS
   // Use breaks: true to preserve single line breaks from the original letter
   $: htmlContent = letter
-    ? sanitizeHtml(marked(letter.content, { breaks: true }) as string, {
-        allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2', 'br']),
-        allowedAttributes: {
-          ...sanitizeHtml.defaults.allowedAttributes,
-          img: ['src', 'alt', 'title'],
-          a: ['href', 'target', 'rel'],
-        },
+    ? DOMPurify.sanitize(marked(letter.content, { breaks: true }) as string, {
+        ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'a', 'img', 'blockquote', 'pre', 'code', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td'],
+        ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt', 'title', 'class'],
       })
     : ''
 </script>

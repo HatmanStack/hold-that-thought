@@ -4,8 +4,7 @@
   import { page } from '$app/stores'
   import { PUBLIC_RAGSTACK_CHAT_URL } from '$env/static/public'
   import { authLoading, isAuthenticated } from '$lib/auth/auth-store'
-  import Footer from '$lib/components/footer.svelte'
-  import Head from '$lib/components/head.svelte'
+    import Head from '$lib/components/head.svelte'
   import Post from '$lib/components/post_card.svelte'
   import { posts as storedPosts } from '$lib/stores/posts'
   import { title as storedTitle } from '$lib/stores/title'
@@ -209,10 +208,10 @@ chat.setAttribute('text-color', `oklch(${textColor})`)
     </div>
   {/if}
 
-  <div class='flex flex-col flex-nowrap justify-center xl:flex-row xl:flex-wrap h-feed'>
+  <div class='flex flex-col flex-nowrap justify-center h-feed'>
 
-    <div id='ragstack-chat-container' class='w-full max-w-screen-md mx-auto my-4'></div>
-    <div class='flex-none w-full max-w-screen-md mx-auto xl:mx-0'>
+    <div id='ragstack-chat-container' class='w-full max-w-screen-md mx-auto mt-4 h-[90vh]'></div>
+    <div class='flex-none w-full max-w-screen-md mx-auto'>
       {#key posts}
         <main
           class='flex flex-col relative bg-base-100 z-10 md:bg-transparent md:gap-8'
@@ -273,14 +272,6 @@ chat.setAttribute('text-color', `oklch(${textColor})`)
           </div>
         {/if}
 
-        <div
-          class='sticky bottom-0 md:static md:mt-8'
-          class:hidden={!loaded}
-          in:fly={{ delay: 500, duration: 300, x: posts.length + (1 % 2) ? 100 : -100 }}
-          out:fly={{ duration: 300, x: posts.length + (1 % 2) ? -100 : 100 }}>
-          <div class='divider mt-0 mb-8 hidden lg:flex' />
-          <Footer />
-        </div>
       {/key}
     </div>
   </div>
