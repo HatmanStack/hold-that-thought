@@ -25,62 +25,18 @@ declare global {
   namespace Urara {
     namespace Post {
       type Frontmatter = {
-        /**
-         * the created date of the post.
-         * @remarks auto-generated or set manually
-         */
         created: string
-        /**
-         * post author (overrides the site author)
-         */
         author?: string
 
-        /**
-         * enable some advanced features.
-         * @property hidden - deprecated, transfer to `unlisted`
-         * @property unlisted - hide this post from the homepage and feed.
-         * @property bridgy-fed - add a link to Bridgy Fed in the post. https://fed.brid.gy/
-         * @property bridgy-{target} - add a link to Bridgy in the post. https://brid.gy/publish/{target}
-         */
         flags?: string[]
-        /**
-         * the featured image for article, or image for "photo" / "multi-photo" posts.
-         * @remarks currently only supports string
-         */
         image?: string
-        /**
-         * post layout.
-         */
         layout?: 'article' | 'note' | 'photo' | 'reply'
-        /**
-         * post path.
-         * @remarks auto-generated
-         */
         path: string
-        /**
-         * the published date of the post.
-         */
         published?: string
-        /**
-         * post slug.
-         * @remarks auto-generated
-         */
         slug: string
-        /**
-         * table of contents.
-         * @remarks auto-generated, article-only, set to `false` to disable
-         */
         toc?: false | Toc[]
-        /**
-         * post type.
-         * @remarks auto-generated
-         */
         type: 'article' | 'audio' | 'bookmark' | 'like' | 'note' | 'photo' | 'reply' | 'repost' | 'video'
 
-        /**
-         * the updated date of the post.
-         * @remarks auto-generated or set manually
-         */
         updated: string
       } &
       Omit<FFFBase, 'flags'> &

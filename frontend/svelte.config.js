@@ -17,7 +17,6 @@ const adapter = {
   }),
 }
 
-/** @type {import("@sveltejs/kit").Config} */
 export default {
   extensions: ['.svelte', ...(mdsvexConfig.extensions ?? [])],
   kit: {

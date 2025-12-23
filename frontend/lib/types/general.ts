@@ -35,8 +35,6 @@ export interface FooterConfig {
 export interface DateConfig { locales: string, options: Intl.DateTimeFormatOptions }
 
 export interface FeedConfig {
-  /** WebSub (formerly PubSubHubbub) hubs. one per line */
   hubs?: string[]
-  /** feed entry limit. */
   limit?: number
 }

@@ -1,15 +1,3 @@
-/**
- * Slug Generator for Letter Migration
- * Creates URL-safe slugs from titles for collision handling.
- */
-
-/**
- * Generate a URL-safe slug from a title
- *
- * @param {string} title - The title to convert
- * @param {number} maxWords - Maximum number of words to include (default: 3)
- * @returns {string} URL-safe slug
- */
 export function generateSlug(title, maxWords = 3) {
   if (!title) return ''
 
@@ -34,15 +22,6 @@ export function generateSlug(title, maxWords = 3) {
     .replace(/^-|-$/g, '')
 }
 
-/**
- * Generate a unique filename for a letter based on date
- * Handles collisions by appending slug from title
- *
- * @param {string} date - ISO date string (YYYY-MM-DD)
- * @param {string} title - Original letter title for slug generation
- * @param {Set<string>} existingDates - Set of already-used date prefixes
- * @returns {{md: string, pdf: string}} Filenames for markdown and PDF
- */
 export function generateUniqueFilename(date, title, existingDates) {
   // Try simple date-based name first
   if (!existingDates.has(date)) {

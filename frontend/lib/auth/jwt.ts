@@ -29,9 +29,6 @@ export interface CognitoJWTPayload extends JWTPayload {
   'token_use': 'id' | 'access'
 }
 
-/**
- * Verify and decode a Cognito JWT token
- */
 export async function verifyJWT(token: string): Promise<CognitoJWTPayload> {
   if (!isCognitoConfigured || !JWKS || !COGNITO_ISSUER) {
     throw new Error('Cognito authentication is not configured. Please set PUBLIC_COGNITO_USER_POOL_ID and PUBLIC_AWS_REGION environment variables.')
@@ -50,17 +47,11 @@ export async function verifyJWT(token: string): Promise<CognitoJWTPayload> {
   }
 }
 
-/**
- * Check if user belongs to the ApprovedUsers group
- */
 export function isUserApproved(payload: CognitoJWTPayload): boolean {
   const groups = payload['cognito:groups'] || []
   return groups.includes('ApprovedUsers')
 }
 
-/**
- * Extract JWT token from Authorization header
- */
 export function extractTokenFromHeader(authHeader: string | null): string | null {
   if (!authHeader)
     return null

@@ -11,14 +11,8 @@ interface ProfileCache {
 
 const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
-/**
- * Store for cached user profiles
- */
 export const profileCache = writable<ProfileCache>({})
 
-/**
- * Get a profile from cache or fetch it
- */
 export async function getCachedProfile(userId: string): Promise<UserProfile | null> {
   const cache = get(profileCache)
   const cached = cache[userId]
@@ -53,9 +47,6 @@ export async function getCachedProfile(userId: string): Promise<UserProfile | nu
   return cached?.profile || null
 }
 
-/**
- * Prefetch multiple profiles at once
- */
 export async function prefetchProfiles(userIds: string[]): Promise<void> {
   const cache = get(profileCache)
   const now = Date.now()
@@ -70,17 +61,11 @@ export async function prefetchProfiles(userIds: string[]): Promise<void> {
   await Promise.all(toFetch.map(id => getCachedProfile(id)))
 }
 
-/**
- * Get profile photo URL from cache (synchronous)
- */
 export function getProfilePhotoUrl(userId: string): string | null {
   const cache = get(profileCache)
   return cache[userId]?.profile?.profilePhotoUrl || null
 }
 
-/**
- * Clear profile cache
- */
 export function clearProfileCache(): void {
   profileCache.set({})
 }

@@ -9,10 +9,6 @@ import { get } from 'svelte/store'
 
 const API_BASE = PUBLIC_API_GATEWAY_URL?.replace(/\/+$/, '') || ''
 
-/**
- * Get authorization header with JWT token
- * @throws Error if user is not authenticated or token is missing
- */
 function getAuthHeader(): Record<string, string> {
   const tokens = get(authTokens)
   if (!tokens?.idToken) {
@@ -24,9 +20,6 @@ function getAuthHeader(): Record<string, string> {
   }
 }
 
-/**
- * Get a user's profile by userId
- */
 export async function getProfile(userId: string): Promise<ProfileApiResponse> {
   try {
     const response = await fetch(`${API_BASE}/profile/${encodeURIComponent(userId)}`, {
@@ -72,9 +65,6 @@ export async function getProfile(userId: string): Promise<ProfileApiResponse> {
   }
 }
 
-/**
- * Update the current user's profile
- */
 export async function updateProfile(updates: UpdateProfileRequest): Promise<ProfileApiResponse> {
   try {
     const response = await fetch(`${API_BASE}/profile`, {
@@ -106,9 +96,6 @@ export async function updateProfile(updates: UpdateProfileRequest): Promise<Prof
   }
 }
 
-/**
- * Get a user's comment history
- */
 export async function getCommentHistory(
   userId: string,
   limit: number = 50,
@@ -151,9 +138,6 @@ export async function getCommentHistory(
   }
 }
 
-/**
- * Get all users (for selecting conversation participants)
- */
 export async function getAllUsers(): Promise<ProfileApiResponse> {
   try {
     const response = await fetch(`${API_BASE}/users`, {
@@ -183,10 +167,6 @@ export async function getAllUsers(): Promise<ProfileApiResponse> {
   }
 }
 
-/**
- * Upload a profile photo and get the S3 URL
- * This function gets a presigned URL from the backend and uploads the file to S3
- */
 export async function uploadProfilePhoto(file: File): Promise<{ success: boolean, url?: string, error?: string }> {
   try {
     // Validate file

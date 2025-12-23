@@ -19,9 +19,11 @@
     "backend/lambdas/*"
   ],
   "scripts": {
-    "test": "vitest run",
-    "lint": "cd frontend && npm run check:lint && npm run check:types",
-    "check": "npm run lint && npm run test -- tests/unit backend/ --reporter=verbose",
+    "test": "vitest run --reporter=verbose",
+    "lint": "cd frontend && npm run check:lint -- --max-warnings 0 && npm run check:types",
+    "check": "npm run lint && npm run test",
+    "cleanup": "bash scripts/cleanup.sh --execute",
+    "cleanup:dry": "bash scripts/cleanup.sh --report-only",
     "deploy": "bash backend/scripts/deploy.sh",
     "dev": "cd frontend && npm run dev",
     "build": "cd frontend && npm run build",

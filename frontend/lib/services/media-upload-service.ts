@@ -43,9 +43,6 @@ export const SUPPORTED_FILE_TYPES = {
   },
 }
 
-/**
- * Validate a file before upload
- */
 export function validateFile(file: File): { valid: boolean, message?: string, mediaType?: string } {
   // Check file size (general limit)
   const maxSize = 500 * 1024 * 1024 // 500MB general limit
@@ -88,9 +85,6 @@ export function validateFile(file: File): { valid: boolean, message?: string, me
   }
 }
 
-/**
- * Determine media type based on file extension and MIME type
- */
 export function determineMediaType(file: File): 'pictures' | 'videos' | 'documents' | null {
   const extension = file.name.split('.').pop()?.toLowerCase() || ''
   const mimeType = file.type.toLowerCase()
@@ -104,9 +98,6 @@ export function determineMediaType(file: File): 'pictures' | 'videos' | 'documen
   return null
 }
 
-/**
- * Format file size in human-readable format
- */
 export function formatFileSize(bytes: number): string {
   if (bytes === 0)
     return '0 Bytes'
@@ -116,9 +107,6 @@ export function formatFileSize(bytes: number): string {
   return `${Number.parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`
 }
 
-/**
- * Upload a single file to the gallery
- */
 export async function uploadMediaFile(
   file: File,
   onProgress?: (progress: UploadProgress) => void,
@@ -189,7 +177,7 @@ export async function uploadMediaFile(
             })
           }
         }
-        catch (error) {
+        catch {
           resolve({
             success: false,
             message: 'Failed to parse server response',
@@ -234,9 +222,6 @@ export async function uploadMediaFile(
   }
 }
 
-/**
- * Upload multiple files sequentially
- */
 export async function uploadMultipleFiles(
   files: File[],
   onFileProgress?: (fileIndex: number, progress: UploadProgress) => void,
@@ -268,9 +253,6 @@ export async function uploadMultipleFiles(
   return results
 }
 
-/**
- * Convert File to base64 string
- */
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -285,9 +267,6 @@ function fileToBase64(file: File): Promise<string> {
   })
 }
 
-/**
- * Get upload statistics
- */
 export function getUploadStats(results: UploadResult[]) {
   const successful = results.filter(r => r.success).length
   const failed = results.filter(r => !r.success).length

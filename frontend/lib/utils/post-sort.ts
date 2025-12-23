@@ -1,8 +1,3 @@
-/**
- * Sort posts by their created date in descending order (newest first)
- * @param posts - Array of post objects with metadata
- * @returns - Sorted array of posts
- */
 export function sortPostsByDate(posts: Urara.Post[]): Urara.Post[] {
   return [...posts].sort((a, b) => {
     // Extract dates from the posts
@@ -14,11 +9,6 @@ export function sortPostsByDate(posts: Urara.Post[]): Urara.Post[] {
   })
 }
 
-/**
- * Group posts by year
- * @param posts - Array of post objects with metadata
- * @returns - Object with years as keys and arrays of posts as values
- */
 export function groupPostsByYear(posts: Urara.Post[]): Record<string | number, Urara.Post[]> {
   const sorted = sortPostsByDate(posts)
   const grouped: Record<string | number, Urara.Post[]> = {}

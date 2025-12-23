@@ -9,9 +9,6 @@ import { get } from 'svelte/store'
 
 const API_BASE = PUBLIC_API_GATEWAY_URL?.replace(/\/+$/, '')
 
-/**
- * Encode itemId for URL path - uses base64 to avoid slash issues
- */
 function encodeItemId(itemId: string): string {
   // Decode first in case it's already URL-encoded, then base64
   let decoded: string
@@ -24,10 +21,6 @@ function encodeItemId(itemId: string): string {
   return btoa(decoded).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
-/**
- * Get authorization header with JWT token
- * @throws Error if user is not authenticated or token is missing
- */
 function getAuthHeader(): Record<string, string> {
   const tokens = get(authTokens)
   if (!tokens?.idToken) {
@@ -39,9 +32,6 @@ function getAuthHeader(): Record<string, string> {
   }
 }
 
-/**
- * Get comments for a specific item (letter or media)
- */
 export async function getComments(
   itemId: string,
   limit: number = 50,
@@ -81,9 +71,6 @@ export async function getComments(
   }
 }
 
-/**
- * Create a new comment on an item
- */
 export async function createComment(
   itemId: string,
   text: string,
@@ -126,9 +113,6 @@ export async function createComment(
   }
 }
 
-/**
- * Update an existing comment
- */
 export async function updateComment(
   itemId: string,
   commentId: string,
@@ -170,9 +154,6 @@ export async function updateComment(
   }
 }
 
-/**
- * Delete a comment (soft delete)
- */
 export async function deleteComment(
   itemId: string,
   commentId: string,
@@ -209,9 +190,6 @@ export async function deleteComment(
   }
 }
 
-/**
- * Admin delete a comment
- */
 export async function adminDeleteComment(commentId: string): Promise<CommentApiResponse> {
   try {
     // Ensure commentId is URL-encoded

@@ -65,14 +65,10 @@ export async function saveMarkdownContent(content: string): Promise<boolean> {
     if (!localResponse.ok) {
       throw new Error(`Failed to save locally: ${localResponse.status}`)
     }
-
-    console.log('Successfully saved content locally')
-
     // Try to save to S3 as backup
     try {
       const token = await ensureAuthenticated()
 
-      console.log('Attempting S3 backup...')
       const s3Response = await fetch(`${PUBLIC_API_GATEWAY_URL}/pdf-download`, {
         method: 'POST',
         headers: {
@@ -94,8 +90,7 @@ export async function saveMarkdownContent(content: string): Promise<boolean> {
         })
       }
       else {
-        const responseData = await s3Response.json()
-        console.log('S3 backup successful:', responseData)
+        await s3Response.text()
       }
     }
     catch (s3Error) {
@@ -197,9 +192,6 @@ export async function downloadSourcePdf(): Promise<void> {
     const filename = pathParts.length > 0
       ? `${pathParts[pathParts.length - 1]}.pdf`
       : 'letter.pdf'
-
-    console.log('Using filename:', filename)
-
     const link = document.createElement('a')
     link.href = blobUrl
     link.download = filename

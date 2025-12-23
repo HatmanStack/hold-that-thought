@@ -1,9 +1,5 @@
 // Profile type definitions for the user profile system
 
-/**
- * Represents a user's relationship to someone in the family archive.
- * Used to provide context for chat queries (e.g., "What did my grandmother write about?")
- */
 export interface FamilyRelationship {
   id: string // UUID for stable identification
   type: string // Predefined type or "Other"
@@ -12,10 +8,6 @@ export interface FamilyRelationship {
   createdAt: string // ISO timestamp
 }
 
-/**
- * Predefined relationship types organized by category.
- * The "Other" option allows custom entries.
- */
 export const RELATIONSHIP_TYPES = [
   // Immediate family
   'Mother',

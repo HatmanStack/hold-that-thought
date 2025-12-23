@@ -1,4 +1,5 @@
-import type { AuthState, AuthTokens, User } from './auth-store'
+import type { AuthTokens, User } from './auth-store'
+import { get } from 'svelte/store'
 import { authStore } from './auth-store'
 import { cognitoAuth } from './cognito-client'
 
@@ -75,14 +76,7 @@ export class AuthService {
   }
 
   async refreshTokens() {
-    const currentState = await new Promise<AuthState>((resolve) => {
-      let unsubscribe: (() => void) | undefined
-      unsubscribe = authStore.subscribe((state) => {
-        if (unsubscribe)
-          unsubscribe()
-        resolve(state)
-      })
-    })
+    const currentState = get(authStore)
 
     if (!currentState.tokens?.refreshToken) {
       throw new Error('No refresh token available')
@@ -120,14 +114,7 @@ export class AuthService {
   }
 
   async signOut() {
-    const currentState = await new Promise<AuthState>((resolve) => {
-      let unsubscribe: (() => void) | undefined
-      unsubscribe = authStore.subscribe((state) => {
-        if (unsubscribe)
-          unsubscribe()
-        resolve(state)
-      })
-    })
+    const currentState = get(authStore)
 
     if (currentState.tokens?.accessToken) {
       try {
@@ -161,28 +148,19 @@ export class AuthService {
     }
   }
 
-  // Get current access token, refreshing if necessary
   async getValidAccessToken(): Promise<string | null> {
-    const currentState = await new Promise<AuthState>((resolve) => {
-      let unsubscribe: (() => void) | undefined
-      unsubscribe = authStore.subscribe((state) => {
-        if (unsubscribe)
-          unsubscribe()
-        resolve(state)
-      })
-    })
+    const currentState = get(authStore)
 
     if (!currentState.tokens) {
       return null
     }
 
-    // Check if token is about to expire (within 5 minutes)
     if (currentState.tokens.expiresAt - Date.now() < 5 * 60 * 1000) {
       try {
         const newTokens = await this.refreshTokens()
         return newTokens.accessToken
       }
-      catch (error) {
+      catch {
         return null
       }
     }

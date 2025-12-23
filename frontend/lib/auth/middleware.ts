@@ -12,10 +12,6 @@ export interface AuthenticatedUser {
   picture?: string
 }
 
-/**
- * Authenticate and authorize a request
- * Throws SvelteKit error if authentication/authorization fails
- */
 export async function requireApprovedUser(event: RequestEvent): Promise<AuthenticatedUser> {
   const authHeader = event.request.headers.get('Authorization')
   const token = extractTokenFromHeader(authHeader)
@@ -28,7 +24,7 @@ export async function requireApprovedUser(event: RequestEvent): Promise<Authenti
   try {
     payload = await verifyJWT(token)
   }
-  catch (err) {
+  catch {
     throw error(401, 'Invalid or expired token')
   }
 
@@ -47,10 +43,6 @@ export async function requireApprovedUser(event: RequestEvent): Promise<Authenti
   }
 }
 
-/**
- * Get authenticated user without group requirement
- * Returns user if authenticated, null otherwise
- */
 export async function getAuthenticatedUser(event: RequestEvent): Promise<AuthenticatedUser | null> {
   const authHeader = event.request.headers.get('Authorization')
   const token = extractTokenFromHeader(authHeader)
@@ -76,10 +68,6 @@ export async function getAuthenticatedUser(event: RequestEvent): Promise<Authent
   }
 }
 
-/**
- * Optional authentication - returns user if authenticated, null otherwise
- * Does not throw errors for missing/invalid tokens or configuration
- */
 export async function getOptionalUser(event: RequestEvent): Promise<AuthenticatedUser | null> {
   try {
     return await requireApprovedUser(event)
@@ -93,9 +81,6 @@ export async function getOptionalUser(event: RequestEvent): Promise<Authenticate
   }
 }
 
-/**
- * Check if request has valid authentication (without group check)
- */
 export async function isAuthenticated(event: RequestEvent): Promise<boolean> {
   const authHeader = event.request.headers.get('Authorization')
   const token = extractTokenFromHeader(authHeader)

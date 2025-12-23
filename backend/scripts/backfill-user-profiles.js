@@ -1,20 +1,5 @@
 #!/usr/bin/env node
 
-/**
- * Backfill User Profiles Script
- *
- * This script migrates existing users from Cognito User Pool to the UserProfiles DynamoDB table.
- * It's idempotent - safe to run multiple times.
- *
- * Usage:
- *   node scripts/backfill-user-profiles.js
- *
- * Environment variables required:
- *   - USER_POOL_ID: Cognito User Pool ID
- *   - USER_PROFILES_TABLE: DynamoDB table name (default: hold-that-thought-user-profiles)
- *   - AWS_REGION: AWS region (default: us-east-1)
- */
-
 const {
   CognitoIdentityProviderClient,
   ListUsersCommand,
@@ -42,17 +27,11 @@ const cognitoClient = new CognitoIdentityProviderClient({ region: AWS_REGION })
 const ddbClient = new DynamoDBClient({ region: AWS_REGION })
 const docClient = DynamoDBDocumentClient.from(ddbClient)
 
-/**
- * Get attribute value from Cognito user attributes
- */
 function getAttribute(user, attributeName) {
   const attr = user.Attributes?.find(a => a.Name === attributeName)
   return attr?.Value || null
 }
 
-/**
- * Fetch all users from Cognito (with pagination support)
- */
 async function fetchAllCognitoUsers() {
   const users = []
   let paginationToken
@@ -68,15 +47,11 @@ async function fetchAllCognitoUsers() {
     users.push(...(response.Users || []))
     paginationToken = response.PaginationToken
 
-    console.log(`Fetched ${response.Users?.length || 0} users (total: ${users.length})`)
   } while (paginationToken)
 
   return users
 }
 
-/**
- * Check if user profile already exists in DynamoDB
- */
 async function profileExists(userId) {
   try {
     const command = new GetCommand({
@@ -93,9 +68,6 @@ async function profileExists(userId) {
   }
 }
 
-/**
- * Create user profile in DynamoDB
- */
 async function createUserProfile(cognitoUser) {
   const userId = getAttribute(cognitoUser, 'sub')
   const email = getAttribute(cognitoUser, 'email')
@@ -109,7 +81,6 @@ async function createUserProfile(cognitoUser) {
 
   // Check if profile already exists
   if (await profileExists(userId)) {
-    console.log(`Profile already exists for ${email} (${userId})`)
     return false
   }
 
@@ -147,12 +118,10 @@ async function createUserProfile(cognitoUser) {
     })
 
     await docClient.send(command)
-    console.log(`✓ Created profile for ${email} (${userId})`)
     return true
   }
   catch (error) {
     if (error.name === 'ConditionalCheckFailedException') {
-      console.log(`Profile already exists for ${email} (${userId})`)
       return false
     }
 
@@ -161,32 +130,17 @@ async function createUserProfile(cognitoUser) {
   }
 }
 
-/**
- * Main function
- */
 async function main() {
-  console.log('='.repeat(60))
-  console.log('User Profile Backfill Script')
-  console.log('='.repeat(60))
-  console.log(`User Pool ID: ${USER_POOL_ID}`)
-  console.log(`DynamoDB Table: ${USER_PROFILES_TABLE}`)
-  console.log(`AWS Region: ${AWS_REGION}`)
-  console.log('='.repeat(60))
-  console.log()
 
   try {
     // Fetch all Cognito users
-    console.log('Fetching users from Cognito...')
     const cognitoUsers = await fetchAllCognitoUsers()
-    console.log(`Found ${cognitoUsers.length} users in Cognito\n`)
 
     if (cognitoUsers.length === 0) {
-      console.log('No users found in Cognito User Pool')
       return
     }
 
     // Process each user
-    console.log('Creating user profiles...\n')
     let created = 0
     let existing = 0
     let errors = 0
@@ -205,15 +159,6 @@ async function main() {
     }
 
     // Summary
-    console.log()
-    console.log('='.repeat(60))
-    console.log('Summary')
-    console.log('='.repeat(60))
-    console.log(`Total users: ${cognitoUsers.length}`)
-    console.log(`Created: ${created}`)
-    console.log(`Already existed: ${existing}`)
-    console.log(`Errors: ${errors}`)
-    console.log('='.repeat(60))
   }
   catch (error) {
     console.error('Fatal error:', error)
@@ -224,7 +169,6 @@ async function main() {
 // Run the script
 main()
   .then(() => {
-    console.log('\nBackfill completed successfully!')
     process.exit(0)
   })
   .catch((error) => {

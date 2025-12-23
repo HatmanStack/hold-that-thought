@@ -57,16 +57,10 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json()
 }
 
-/**
- * Extract draft ID from PK (e.g., "DRAFT#abc123" -> "abc123")
- */
 export function extractDraftId(pk: string): string {
   return pk.replace('DRAFT#', '')
 }
 
-/**
- * List all drafts (admin only)
- */
 export async function listDrafts(authToken: string): Promise<Draft[]> {
   const response = await fetch(`${API_URL}/admin/drafts`, {
     method: 'GET',
@@ -80,9 +74,6 @@ export async function listDrafts(authToken: string): Promise<Draft[]> {
   return data.drafts
 }
 
-/**
- * Get a single draft by ID (admin only)
- */
 export async function getDraft(draftId: string, authToken: string): Promise<Draft> {
   const response = await fetch(`${API_URL}/admin/drafts/${encodeURIComponent(draftId)}`, {
     method: 'GET',
@@ -95,9 +86,6 @@ export async function getDraft(draftId: string, authToken: string): Promise<Draf
   return handleResponse<Draft>(response)
 }
 
-/**
- * Delete a draft (admin only)
- */
 export async function deleteDraft(draftId: string, authToken: string): Promise<void> {
   const response = await fetch(`${API_URL}/admin/drafts/${encodeURIComponent(draftId)}`, {
     method: 'DELETE',
@@ -110,9 +98,6 @@ export async function deleteDraft(draftId: string, authToken: string): Promise<v
   await handleResponse<{ message: string }>(response)
 }
 
-/**
- * Publish a draft as a letter (admin only)
- */
 export async function publishDraft(draftId: string, finalData: PublishData, authToken: string): Promise<PublishResponse> {
   const response = await fetch(`${API_URL}/admin/drafts/${encodeURIComponent(draftId)}/publish`, {
     method: 'POST',
@@ -126,9 +111,6 @@ export async function publishDraft(draftId: string, finalData: PublishData, auth
   return handleResponse<PublishResponse>(response)
 }
 
-/**
- * Get presigned URL for viewing draft PDF
- */
 export async function getDraftPdfUrl(s3Key: string, authToken: string): Promise<string> {
   const response = await fetch(`${API_URL}/download/presigned-url?key=${encodeURIComponent(s3Key)}`, {
     method: 'GET',
@@ -142,9 +124,6 @@ export async function getDraftPdfUrl(s3Key: string, authToken: string): Promise<
   return data.downloadUrl
 }
 
-/**
- * Format draft status for display
- */
 export function formatDraftStatus(status: Draft['status']): { label: string, color: string } {
   switch (status) {
     case 'PROCESSING':

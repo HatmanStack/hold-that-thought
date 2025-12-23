@@ -24,11 +24,6 @@
     showMarkdownHelp = !showMarkdownHelp
   }
 
-  function closeModal() {
-    isOpen = false
-    dispatch('close') // Notify parent component that modal is closed
-  }
-
   $: if (isOpen) {
     editableContent = content
   }

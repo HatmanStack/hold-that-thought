@@ -7,11 +7,7 @@ export async function GET({ url }) {
     if (!path) {
       return new Response('Path parameter is required', { status: 400 })
     }
-
-    console.log('GET content request for path:', path)
-
     const content = await contentService.getContent(path)
-    console.log('Successfully retrieved content from S3, length:', content.length)
 
     return json({ content })
   }
@@ -28,7 +24,6 @@ export async function GET({ url }) {
 
 export async function POST({ request }) {
   const timestamp = new Date().toISOString()
-  console.log(`[${timestamp}] POST content request received`)
 
   try {
     const { path, content, type } = await request.json()
@@ -37,15 +32,9 @@ export async function POST({ request }) {
       console.error(`[${timestamp}] Missing required fields:`, { path, contentLength: content?.length })
       return new Response('Path and content are required', { status: 400 })
     }
-
-    console.log(`[${timestamp}] POST content request for path:`, path)
-    console.log(`[${timestamp}] Content length:`, content.length)
-    console.log(`[${timestamp}] Content type:`, type)
-
     const success = await contentService.saveContent(path, content)
 
     if (success) {
-      console.log(`[${timestamp}] Successfully saved content to S3`)
       return json({
         success: true,
         path,
@@ -67,20 +56,15 @@ export async function POST({ request }) {
 
 export async function DELETE({ url }) {
   const timestamp = new Date().toISOString()
-  console.log(`[${timestamp}] DELETE content request received`)
 
   try {
     const path = url.searchParams.get('path')
     if (!path) {
       return new Response('Path parameter is required', { status: 400 })
     }
-
-    console.log(`[${timestamp}] DELETE content request for path:`, path)
-
     const success = await contentService.deleteContent(path)
 
     if (success) {
-      console.log(`[${timestamp}] Successfully deleted content from S3`)
       return json({
         success: true,
         path,

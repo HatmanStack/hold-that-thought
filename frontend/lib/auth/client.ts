@@ -22,9 +22,6 @@ export interface UserInfo {
   picture?: string
 }
 
-/**
- * Get stored tokens from localStorage
- */
 export function getStoredTokens(): CognitoTokens | null {
   if (!browser)
     return null
@@ -45,9 +42,6 @@ export function getStoredTokens(): CognitoTokens | null {
   }
 }
 
-/**
- * Store tokens in localStorage
- */
 export function storeTokens(tokens: CognitoTokens): void {
   if (!browser)
     return
@@ -57,9 +51,6 @@ export function storeTokens(tokens: CognitoTokens): void {
   localStorage.setItem('cognito_refresh_token', tokens.refreshToken)
 }
 
-/**
- * Clear stored tokens
- */
 export function clearTokens(): void {
   if (!browser)
     return
@@ -69,10 +60,6 @@ export function clearTokens(): void {
   localStorage.removeItem('cognito_refresh_token')
 }
 
-/**
- * Decode JWT payload (client-side only, for display purposes)
- * Note: This doesn't verify the token - server-side verification is still required
- */
 export function decodeJWTPayload(token: string): any {
   try {
     const base64Url = token.split('.')[1]
@@ -91,9 +78,6 @@ export function decodeJWTPayload(token: string): any {
   }
 }
 
-/**
- * Get user info from stored ID token (client-side only)
- */
 export function getUserInfo(): UserInfo | null {
   const tokens = getStoredTokens()
   if (!tokens)
@@ -114,17 +98,11 @@ export function getUserInfo(): UserInfo | null {
   }
 }
 
-/**
- * Check if user is in ApprovedUsers group (client-side)
- */
 export function isUserApproved(): boolean {
   const userInfo = getUserInfo()
   return userInfo?.groups.includes('ApprovedUsers') ?? false
 }
 
-/**
- * Make authenticated API request
- */
 export async function authenticatedFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const tokens = getStoredTokens()
   if (!tokens) {
@@ -140,9 +118,6 @@ export async function authenticatedFetch(url: string, options: RequestInit = {})
   })
 }
 
-/**
- * Refresh the session using the refresh token
- */
 export async function refreshSession(): Promise<void> {
   const tokens = getStoredTokens()
   if (!tokens?.refreshToken) {

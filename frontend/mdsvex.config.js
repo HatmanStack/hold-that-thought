@@ -49,7 +49,6 @@ function remarkUraraSpoiler() {
     })
 }
 
-/** @type {import("mdsvex").MdsvexOptions} */
 export default {
   extensions: ['.svelte.md', '.md'],
   highlight: {

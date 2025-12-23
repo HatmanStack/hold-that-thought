@@ -1,8 +1,3 @@
-/**
- * S3 Operations for Letter Migration
- * Utilities for listing, copying, and uploading files to S3.
- */
-
 import {
   S3Client,
   ListObjectsV2Command,
@@ -14,11 +9,6 @@ import {
 // S3 client configuration - uses default credentials from environment
 const s3Client = new S3Client({})
 
-/**
- * Convert a readable stream to string
- * @param {ReadableStream} stream - The readable stream
- * @returns {Promise<string>} The string content
- */
 async function streamToString(stream) {
   const chunks = []
   for await (const chunk of stream) {
@@ -27,13 +17,6 @@ async function streamToString(stream) {
   return Buffer.concat(chunks).toString('utf-8')
 }
 
-/**
- * List all letter folders under a given prefix
- *
- * @param {string} bucket - S3 bucket name
- * @param {string} prefix - Prefix to list under (e.g., 'letters/')
- * @returns {Promise<string[]>} Array of folder paths
- */
 export async function listLetterFolders(bucket, prefix) {
   const folders = []
   let continuationToken = undefined
@@ -62,13 +45,6 @@ export async function listLetterFolders(bucket, prefix) {
   return folders
 }
 
-/**
- * Get markdown and PDF files from a letter folder
- *
- * @param {string} bucket - S3 bucket name
- * @param {string} folderPath - Full folder path (e.g., 'letters/Family Letter/')
- * @returns {Promise<{markdown: string|null, pdfKey: string|null, folderName: string}>}
- */
 export async function getLetterFiles(bucket, folderPath) {
   // List files in folder
   const command = new ListObjectsV2Command({
@@ -119,14 +95,6 @@ export async function getLetterFiles(bucket, folderPath) {
   }
 }
 
-/**
- * Copy a file from one location to another (can be same or different bucket)
- *
- * @param {string} sourceBucket - Source bucket name
- * @param {string} sourceKey - Source object key
- * @param {string} destBucket - Destination bucket name
- * @param {string} destKey - Destination object key
- */
 export async function copyFile(sourceBucket, sourceKey, destBucket, destKey) {
   // URL-encode the source key to handle special characters (spaces, etc.)
   const encodedSourceKey = encodeURIComponent(sourceKey)
@@ -139,14 +107,6 @@ export async function copyFile(sourceBucket, sourceKey, destBucket, destKey) {
   await s3Client.send(command)
 }
 
-/**
- * Upload string content to S3
- *
- * @param {string} bucket - Destination bucket name
- * @param {string} key - Object key
- * @param {string} content - String content to upload
- * @param {string} contentType - MIME content type (e.g., 'text/markdown')
- */
 export async function uploadContent(bucket, key, content, contentType) {
   const command = new PutObjectCommand({
     Bucket: bucket,
@@ -158,13 +118,6 @@ export async function uploadContent(bucket, key, content, contentType) {
   await s3Client.send(command)
 }
 
-/**
- * List all files under a prefix (recursive)
- *
- * @param {string} bucket - S3 bucket name
- * @param {string} prefix - Prefix to list under
- * @returns {Promise<Array<{key: string, size: number}>>} Array of file info
- */
 export async function listAllFiles(bucket, prefix) {
   const files = []
   let continuationToken = undefined

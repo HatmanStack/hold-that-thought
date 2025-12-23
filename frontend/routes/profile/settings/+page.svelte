@@ -498,7 +498,7 @@
             {/if}
 
             <!-- Relationship List -->
-            {#each familyRelationships as relationship, index (relationship.id)}
+            {#each familyRelationships as relationship (relationship.id)}
               <div class='flex gap-2 items-start p-3 bg-base-200 rounded-lg'>
                 <div class='flex-1 grid grid-cols-1 md:grid-cols-2 gap-2'>
                   <!-- Relationship Type -->

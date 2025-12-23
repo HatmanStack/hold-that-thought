@@ -11,10 +11,6 @@ import { get } from 'svelte/store'
 
 const API_BASE = PUBLIC_API_GATEWAY_URL?.replace(/\/+$/, '') || ''
 
-/**
- * Get authorization header with JWT token
- * @throws Error if user is not authenticated or token is missing
- */
 function getAuthHeader(): Record<string, string> {
   const tokens = get(authTokens)
   if (!tokens?.idToken) {
@@ -26,9 +22,6 @@ function getAuthHeader(): Record<string, string> {
   }
 }
 
-/**
- * Get all conversations for the current user
- */
 export async function getConversations(
   limit: number = 50,
   lastKey?: string,
@@ -67,9 +60,6 @@ export async function getConversations(
   }
 }
 
-/**
- * Get messages for a specific conversation
- */
 export async function getMessages(
   conversationId: string,
   limit: number = 50,
@@ -114,9 +104,6 @@ export async function getMessages(
   }
 }
 
-/**
- * Create a new conversation with initial message
- */
 export async function createConversation(
   participantIds: string[],
   messageText: string,
@@ -158,9 +145,6 @@ export async function createConversation(
   }
 }
 
-/**
- * Send a message in an existing conversation
- */
 export async function sendMessage(
   conversationId: string,
   messageText: string,
@@ -204,9 +188,6 @@ export async function sendMessage(
   }
 }
 
-/**
- * Mark a conversation as read (reset unread count)
- */
 export async function markAsRead(conversationId: string): Promise<ConversationApiResponse> {
   try {
     const response = await fetch(
@@ -240,9 +221,6 @@ export async function markAsRead(conversationId: string): Promise<ConversationAp
   }
 }
 
-/**
- * Delete a message
- */
 export async function deleteMessage(
   conversationId: string,
   messageId: string,
@@ -278,9 +256,6 @@ export async function deleteMessage(
   }
 }
 
-/**
- * Delete an entire conversation (Creator only)
- */
 export async function deleteConversation(
   conversationId: string,
 ): Promise<ConversationApiResponse> {
@@ -316,9 +291,6 @@ export async function deleteConversation(
   }
 }
 
-/**
- * Upload an attachment and get presigned URL
- */
 export async function uploadAttachment(file: File): Promise<UploadAttachmentResponse> {
   try {
     // Step 1: Get presigned URL from backend

@@ -1,11 +1,4 @@
 #!/usr/bin/env node
-/**
- * Populate DynamoDB from letter archive JSON files
- *
- * Reads letter.json files from S3 archive and populates DynamoDB table.
- * Used when creating a new stack or restoring from backup.
- */
-
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb'
 import { S3Client, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3'
@@ -22,9 +15,6 @@ async function streamToString(stream) {
   return Buffer.concat(chunks).toString('utf-8')
 }
 
-/**
- * List all letter.json files in archive
- */
 async function listLetterJsonFiles(bucket, prefix) {
   const files = []
   let continuationToken = undefined
@@ -53,9 +43,6 @@ async function listLetterJsonFiles(bucket, prefix) {
   return files
 }
 
-/**
- * Read letter JSON from S3
- */
 async function readLetterJson(bucket, key) {
   const command = new GetObjectCommand({
     Bucket: bucket,
@@ -67,11 +54,6 @@ async function readLetterJson(bucket, key) {
   return JSON.parse(content)
 }
 
-/**
- * Create DynamoDB item from letter data
- * @param {Object} letterData - Parsed JSON data
- * @param {string} jsonKey - S3 key of the JSON file (used to derive pdfKey)
- */
 function createDynamoItem(letterData, jsonKey) {
   const now = new Date().toISOString()
   // Derive pdfKey from jsonKey: letters/2008-05-20/2008-05-20.json -> letters/2008-05-20/2008-05-20.pdf
@@ -95,9 +77,6 @@ function createDynamoItem(letterData, jsonKey) {
   }
 }
 
-/**
- * Main function
- */
 async function main() {
   const args = process.argv.slice(2)
 
@@ -114,16 +93,10 @@ async function main() {
     if (args[i] === '--table') tableName = args[++i]
   }
 
-  console.log('Populating DynamoDB from archive...')
-  console.log(`Source: s3://${bucket}/${prefix}`)
-  console.log(`Table: ${tableName}`)
   if (dryRun) console.log('DRY RUN - no items will be written')
-  console.log('')
 
   // List letter JSON files
-  console.log('Listing letter.json files...')
   const jsonFiles = await listLetterJsonFiles(bucket, prefix)
-  console.log(`Found ${jsonFiles.length} letters\n`)
 
   // Process each letter
   let successful = 0
@@ -134,7 +107,6 @@ async function main() {
       const letterData = await readLetterJson(bucket, jsonKey)
 
       if (verbose) {
-        console.log(`Processing: ${letterData.date} - ${letterData.title}`)
       }
 
       if (!dryRun) {
@@ -146,7 +118,6 @@ async function main() {
       }
 
       if (verbose) {
-        console.log(`  ✓ ${dryRun ? 'Would populate' : 'Populated'}`)
       }
 
       successful++
@@ -156,10 +127,6 @@ async function main() {
     }
   }
 
-  console.log('\nPopulation complete:')
-  console.log(`  Total: ${jsonFiles.length}`)
-  console.log(`  Successful: ${successful}`)
-  console.log(`  Failed: ${failed}`)
 }
 
 main().catch(err => {
