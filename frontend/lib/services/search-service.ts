@@ -76,7 +76,6 @@ export async function searchKnowledgeBase(
   }
 
   const json = await response.json()
-  console.log('Search raw response:', json)
 
   if (json.errors) {
     throw new Error(json.errors[0]?.message || 'GraphQL error')
@@ -84,15 +83,12 @@ export async function searchKnowledgeBase(
 
   const data = json.data?.searchKnowledgeBase
   const results = data?.results || []
-  console.log('Search results count:', results.length)
-  console.log('Search results:', results)
 
   const categorizedResults = results.map((result: SearchResult) => ({
     ...result,
     filename: extractFilename(result.source),
     category: categorizeResult(result.source),
   }))
-  console.log('Categorized results:', categorizedResults)
 
   return {
     query,

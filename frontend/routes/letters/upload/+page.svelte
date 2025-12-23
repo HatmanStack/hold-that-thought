@@ -3,8 +3,7 @@
   import AuthGuard from '$lib/components/auth/AuthGuard.svelte'
   import LetterUploader from '$lib/components/letters/LetterUploader.svelte'
 
-  function handleUploadComplete(event: CustomEvent<{ uploadId: string }>) {
-    console.log('Upload complete, uploadId:', event.detail.uploadId)
+  function handleUploadComplete(_event: CustomEvent<{ uploadId: string }>) {
   }
 
   function handleUploadError(event: CustomEvent<{ error: string }>) {

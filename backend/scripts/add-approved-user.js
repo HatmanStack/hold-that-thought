@@ -1,17 +1,5 @@
 #!/usr/bin/env node
 
-/**
- * Script to add users to the ApprovedUsers group in Cognito
- *
- * Usage:
- *   node scripts/add-approved-user.js user@example.com
- *   node scripts/add-approved-user.js user1@example.com user2@example.com
- *
- * Environment variables required:
- *   - PUBLIC_COGNITO_USER_POOL_ID
- *   - PUBLIC_AWS_REGION
- */
-
 import { AdminAddUserToGroupCommand, AdminGetUserCommand, CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider'
 import { config } from 'dotenv'
 
@@ -31,7 +19,6 @@ const usernames = process.argv.slice(2)
 
 if (usernames.length === 0) {
   console.error('❌ Error: Please provide at least one username/email')
-  console.log('Usage: node scripts/add-approved-user.js user@example.com')
   process.exit(1)
 }
 
@@ -52,7 +39,6 @@ async function addUserToGroup(username) {
       GroupName: GROUP_NAME,
     }))
 
-    console.log(`✅ Successfully added ${username} to ${GROUP_NAME} group`)
     return true
   }
   catch (error) {
@@ -70,9 +56,6 @@ async function addUserToGroup(username) {
 }
 
 async function main() {
-  console.log(`🔧 Adding users to ${GROUP_NAME} group in user pool: ${USER_POOL_ID}`)
-  console.log(`📍 Region: ${AWS_REGION}`)
-  console.log('')
 
   let successCount = 0
 
@@ -81,10 +64,6 @@ async function main() {
     if (success)
       successCount++
   }
-
-  console.log('')
-  console.log(`📊 Summary: ${successCount}/${usernames.length} users added successfully`)
-
   if (successCount < usernames.length) {
     process.exit(1)
   }

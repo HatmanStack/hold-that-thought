@@ -5,10 +5,6 @@ import { get } from 'svelte/store'
 
 const API_BASE = PUBLIC_API_GATEWAY_URL?.replace(/\/+$/, '')
 
-/**
- * Get authorization header with JWT token
- * @throws Error if user is not authenticated or token is missing
- */
 function getAuthHeader(): Record<string, string> {
   const tokens = get(authTokens)
   if (!tokens?.idToken) {
@@ -20,9 +16,6 @@ function getAuthHeader(): Record<string, string> {
   }
 }
 
-/**
- * Get all reactions for a comment
- */
 export async function getReactions(commentId: string): Promise<ReactionApiResponse> {
   try {
     const response = await fetch(`${API_BASE}/reactions/${encodeURIComponent(commentId)}`, {
@@ -52,9 +45,6 @@ export async function getReactions(commentId: string): Promise<ReactionApiRespon
   }
 }
 
-/**
- * Toggle reaction on a comment (add if not exists, remove if exists)
- */
 export async function toggleReaction(commentId: string, itemId: string): Promise<ReactionApiResponse> {
   try {
     const response = await fetch(`${API_BASE}/reactions/${encodeURIComponent(commentId)}`, {

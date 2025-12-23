@@ -41,9 +41,6 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json()
 }
 
-/**
- * Validate a file for letter upload
- */
 export function validateLetterFile(file: File): { valid: boolean, message?: string } {
   if (file.size === 0) {
     return { valid: false, message: 'File is empty' }
@@ -66,9 +63,6 @@ export function validateLetterFile(file: File): { valid: boolean, message?: stri
   return { valid: true }
 }
 
-/**
- * Format file size in human-readable format
- */
 export function formatFileSize(bytes: number): string {
   if (bytes === 0)
     return '0 Bytes'
@@ -78,9 +72,6 @@ export function formatFileSize(bytes: number): string {
   return `${Number.parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`
 }
 
-/**
- * Request presigned URLs for uploading letter files
- */
 export async function requestUploadUrls(files: File[], authToken: string): Promise<UploadRequestResponse> {
   const response = await fetch(`${API_URL}/letters/upload-request`, {
     method: 'POST',
@@ -97,9 +88,6 @@ export async function requestUploadUrls(files: File[], authToken: string): Promi
   return handleResponse<UploadRequestResponse>(response)
 }
 
-/**
- * Upload a single file to S3 using a presigned URL
- */
 export async function uploadFileToS3(
   file: File,
   presignedUrl: string,
@@ -142,9 +130,6 @@ export async function uploadFileToS3(
   })
 }
 
-/**
- * Trigger backend processing after files are uploaded
- */
 export async function triggerProcessing(uploadId: string, authToken: string): Promise<{ message: string }> {
   const response = await fetch(`${API_URL}/letters/process/${uploadId}`, {
     method: 'POST',
@@ -157,9 +142,6 @@ export async function triggerProcessing(uploadId: string, authToken: string): Pr
   return handleResponse<{ message: string }>(response)
 }
 
-/**
- * Upload multiple letter files and trigger processing
- */
 export async function uploadLetterFiles(
   files: File[],
   authToken: string,

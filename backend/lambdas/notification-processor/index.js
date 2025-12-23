@@ -42,9 +42,6 @@ async function processInsertEvent(record) {
   }
 }
 
-/**
- * Fetch user profile from DynamoDB
- */
 async function getUserProfile(userId) {
   try {
     const result = await docClient.send(new GetCommand({
@@ -62,17 +59,10 @@ async function getUserProfile(userId) {
   }
 }
 
-/**
- * Get notification email for a user (contactEmail or fallback to email)
- */
 function getNotificationEmail(profile) {
   return profile?.contactEmail || profile?.email
 }
 
-/**
- * Process message notification
- * Sends email to all participants except the sender
- */
 async function processMessageNotification(newImage) {
   const conversationId = newImage.conversationId?.S
   const senderId = newImage.senderId?.S
@@ -81,7 +71,6 @@ async function processMessageNotification(newImage) {
   const participants = newImage.participants?.SS || []
 
   if (!senderId || participants.length === 0) {
-    console.log('Missing senderId or participants, skipping notification')
     return
   }
 
@@ -93,19 +82,16 @@ async function processMessageNotification(newImage) {
       const profile = await getUserProfile(recipientId)
 
       if (!profile) {
-        console.log(`No profile found for user ${recipientId}, skipping`)
         continue
       }
 
       // Check notification preference
       if (profile.notifyOnMessage === false) {
-        console.log(`User ${recipientId} has message notifications disabled`)
         continue
       }
 
       const email = getNotificationEmail(profile)
       if (!email) {
-        console.log(`No email for user ${recipientId}, skipping`)
         continue
       }
 
@@ -134,7 +120,6 @@ async function processMessageNotification(newImage) {
       `
 
       await sendEmail(email, subject, bodyHtml)
-      console.log(`Message notification sent to ${maskEmail(email)}`)
     }
     catch (err) {
       console.error(`Error sending message notification to ${recipientId}: ${err.message}`)
@@ -142,10 +127,6 @@ async function processMessageNotification(newImage) {
   }
 }
 
-/**
- * Process comment notification
- * Notify all users who have previously commented on this item
- */
 async function processCommentNotification(newImage) {
   const itemId = newImage.itemId?.S
   const itemType = newImage.itemType?.S || 'letter'
@@ -158,12 +139,10 @@ async function processCommentNotification(newImage) {
   const previousCommenters = newImage.previousCommenters?.L?.map(item => item.S) || []
 
   if (!commenterId) {
-    console.log('Missing commenterId, skipping notification')
     return
   }
 
   if (previousCommenters.length === 0) {
-    console.log('No previous commenters to notify')
     return
   }
 
@@ -185,18 +164,15 @@ async function processCommentNotification(newImage) {
       const profile = await getUserProfile(previousUserId)
 
       if (!profile) {
-        console.log(`No profile found for user ${previousUserId}, skipping`)
         continue
       }
 
       if (profile.notifyOnComment === false) {
-        console.log(`User ${previousUserId} has comment notifications disabled`)
         continue
       }
 
       const email = getNotificationEmail(profile)
       if (!email) {
-        console.log(`No email for user ${previousUserId}, skipping`)
         continue
       }
 
@@ -225,19 +201,14 @@ async function processCommentNotification(newImage) {
 
       await sendEmail(email, subject, bodyHtml)
       notifiedUsers.add(previousUserId)
-      console.log(`Comment notification sent to previous commenter ${maskEmail(email)}`)
     }
     catch (err) {
       console.error(`Error sending notification to ${previousUserId}: ${err.message}`)
     }
   }
 
-  console.log(`Notified ${notifiedUsers.size} previous commenters`)
 }
 
-/**
- * Escape HTML to prevent XSS in emails
- */
 function escapeHtml(text) {
   if (!text) return ''
   return text

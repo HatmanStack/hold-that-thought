@@ -1,14 +1,3 @@
-/**
- * Frontmatter Stripper for Letter Migration
- * Removes YAML frontmatter from markdown files.
- */
-
-/**
- * Strip YAML frontmatter from markdown content
- *
- * @param {string} content - Markdown content with optional frontmatter
- * @returns {string} Content without frontmatter, preserving body content
- */
 export function stripFrontmatter(content) {
   if (!content) return ''
 
@@ -34,13 +23,6 @@ export function stripFrontmatter(content) {
   return content.slice(closingIndex).trimStart()
 }
 
-/**
- * Extract frontmatter fields as an object
- * Simple YAML parser for common frontmatter patterns.
- *
- * @param {string} content - Markdown content with optional frontmatter
- * @returns {Object} Parsed frontmatter fields, or empty object if none
- */
 export function extractFrontmatter(content) {
   if (!content) return {}
 

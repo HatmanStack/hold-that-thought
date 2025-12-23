@@ -9,7 +9,6 @@
 
   let letters: LetterListItem[] = []
   let nextCursor: string | null = null
-  let loading = true
   let loadingMore = false
   let error = ''
 
@@ -25,7 +24,6 @@
 
   async function loadLetters() {
     if (!$authTokens?.idToken) {
-      loading = false
       return
     }
 
@@ -36,11 +34,9 @@
       // Wait for DOM to update, then set letters so in:fly animations trigger
       await tick()
       letters = result.items
-      loading = false
     }
     catch (e) {
       error = e instanceof Error ? e.message : 'Failed to load letters'
-      loading = false
     }
   }
 

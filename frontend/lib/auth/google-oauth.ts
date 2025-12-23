@@ -92,12 +92,11 @@ export class GoogleOAuthService {
       )
       return JSON.parse(jsonPayload)
     }
-    catch (error) {
+    catch {
       return null
     }
   }
 
-  // Handle OAuth callback and set authentication state
   async handleOAuthCallback(code: string, redirectUri?: string): Promise<{ success: boolean, user?: User, error?: Error }> {
     authStore.setLoading(true)
 

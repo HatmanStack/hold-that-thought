@@ -1,9 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
 
-/**
- * Playwright configuration for Hold That Thought E2E tests
- * Tests run against the dev server or a specified base URL
- */
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,

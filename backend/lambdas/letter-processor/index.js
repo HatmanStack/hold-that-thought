@@ -11,7 +11,6 @@ const TABLE_NAME = process.env.TABLE_NAME
 const ARCHIVE_BUCKET = process.env.ARCHIVE_BUCKET
 
 exports.handler = async (event) => {
-  console.log('Processing event:', JSON.stringify(event))
   const { uploadId, requesterId } = event
   
   if (!uploadId) throw new Error('Missing uploadId')
@@ -42,7 +41,6 @@ exports.handler = async (event) => {
             return idxA - idxB
         })
         
-    console.log(`Found ${objects.length} files to merge`)
 
     // 2. Download files
     const files = []
@@ -61,7 +59,6 @@ exports.handler = async (event) => {
     
     // 3. Merge
     const combinedPdf = await mergeFiles(files)
-    console.log('PDF merged successfully')
     
     // 4. Upload Combined
     const combinedKey = `temp/${uploadId}/combined.pdf`
@@ -73,9 +70,7 @@ exports.handler = async (event) => {
     }))
     
     // 5. Gemini Parse
-    console.log('Starting Gemini parsing...')
     const parsedData = await parseLetter(combinedPdf)
-    console.log('Gemini parsing complete')
     
     // 6. Save Draft
     await ddb.send(new PutCommand({

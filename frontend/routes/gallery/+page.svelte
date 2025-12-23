@@ -306,7 +306,6 @@ return
         }
       }
       mediaItemsLoaded = true
-      console.log('Loaded media items:', allMediaItems.size, 'files')
     }
  catch (err) {
       console.error('Failed to load media items for search:', err)

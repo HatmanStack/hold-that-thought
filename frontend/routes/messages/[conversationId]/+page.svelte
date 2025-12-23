@@ -48,7 +48,7 @@
         alert(result.error || 'Failed to delete conversation')
       }
     }
-    catch (error) {
+    catch {
       alert('Failed to delete conversation')
     }
     finally {

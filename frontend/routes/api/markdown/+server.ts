@@ -8,16 +8,11 @@ export async function GET({ url }) {
     if (!path) {
       return new Response('Path parameter is required', { status: 400 })
     }
-
-    console.log('GET request for path:', path)
-
     // Read from src/routes directory (live content)
     const srcRoutesPath = join(process.cwd(), 'src/routes', path.slice(1), '+page.svelte.md')
-    console.log('Reading from:', srcRoutesPath)
 
     try {
       const content = await fs.readFile(srcRoutesPath, 'utf-8')
-      console.log('Successfully read file, content length:', content.length)
       return json({ content })
     }
     catch (error) {
@@ -33,7 +28,6 @@ export async function GET({ url }) {
 
 export async function POST({ request }) {
   const timestamp = new Date().toISOString()
-  console.log(`[${timestamp}] POST request received`)
 
   try {
     const { path, content } = await request.json()
@@ -42,18 +36,10 @@ export async function POST({ request }) {
       console.error(`[${timestamp}] Missing required fields:`, { path, contentLength: content?.length })
       return new Response('Path and content are required', { status: 400 })
     }
-
-    console.log(`[${timestamp}] POST request for path:`, path)
-    console.log(`[${timestamp}] Content length:`, content.length)
-
     try {
       // Save to src/routes directory (where displayed content is served from)
       const srcRoutesPath = join(process.cwd(), 'src/routes', path.slice(1), '+page.svelte.md')
       const srcRoutesDirPath = join(process.cwd(), 'src/routes', path.slice(1))
-
-      console.log(`[${timestamp}] Writing to src/routes:`, srcRoutesPath)
-      console.log(`[${timestamp}] Content preview:`, `${content.substring(0, 100)}...`)
-
       // Ensure directory exists
       await fs.mkdir(srcRoutesDirPath, { recursive: true })
 
@@ -62,8 +48,7 @@ export async function POST({ request }) {
         await fs.unlink(srcRoutesPath)
         await new Promise(resolve => setTimeout(resolve, 50))
       }
-      catch (e) {
-        // File might not exist, that's ok
+      catch {
       }
 
       // Write to src/routes where displayed content is served from
@@ -72,16 +57,12 @@ export async function POST({ request }) {
       // Force file system change detection by updating timestamps
       const now = new Date()
       await fs.utimes(srcRoutesPath, now, now)
-
-      console.log(`[${timestamp}] Successfully wrote file to src/routes`)
-
       // Verify the file was written correctly
       const verifyContent = await fs.readFile(srcRoutesPath, 'utf-8')
       if (verifyContent !== content) {
         console.error(`[${timestamp}] Content verification failed`)
         throw new Error('Content verification failed')
       }
-      console.log(`[${timestamp}] Content verified successfully in src/routes`)
 
       // Return success with metadata
       return json({

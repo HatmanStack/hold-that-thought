@@ -1,13 +1,9 @@
 import type { FFFFlavoredFrontmatter } from 'fff-flavored-frontmatter'
 
 interface GenPostsOptions {
-  /** hide posts with 'unlisted' flag */
   filterUnlisted?: boolean
-  /** import.meta.glob<Urara.Post.Module> https://vitejs.dev/guide/features.html#glob-import */
   modules?: { [path: string]: Urara.Post.Module }
-  /** set to true to output html */
   postHtml?: boolean
-  /** limit a certain number of posts */
   postLimit?: number
 }
 
@@ -15,11 +11,6 @@ type GenPostsFunction = (options?: GenPostsOptions) => Urara.Post[]
 
 type GenTagsFunction = (posts: Urara.Post[]) => string[]
 
-/**
- * Detect Post Type
- * @param fm - post frontmatter
- * @returns - post type string
- */
 export function typeOfPost(fm: FFFFlavoredFrontmatter): 'article' | 'audio' | 'bookmark' | 'like' | 'note' | 'photo' | 'reply' | 'repost' | 'video' {
   return fm.title
     ? 'article'
@@ -40,11 +31,6 @@ export function typeOfPost(fm: FFFFlavoredFrontmatter): 'article' | 'audio' | 'b
                   : 'note'
 }
 
-/**
- * Generate Posts List
- * @param options - An optional configuration object
- * @returns - posts list
- */
 export const genPosts: GenPostsFunction = ({
   filterUnlisted = false,
   modules = import.meta.glob<Urara.Post.Module>('/src/routes/**/*.{md,svelte.md}', { eager: true }),
@@ -63,7 +49,6 @@ export const genPosts: GenPostsFunction = ({
               .replace(/[\r\n]/g, '')
               .match(/<main [^>]+>(.*?)<\/main>/gi)?.[0]
               .replace(/<main [^>]+>(.*?)<\/main>/gi, '$1')
-            // .replace(/( class=")(.*?)(")/gi, '')
               .replace(/( style=")(.*?)(")/gi, '')
               .replace(/(<span>)(.*?)(<\/span>)/gi, '$2')
               .replace(/(<main>)(.*?)(<\/main>)/gi, '$2')
@@ -71,47 +56,13 @@ export const genPosts: GenPostsFunction = ({
       type: typeOfPost(module.metadata),
     }))
     .filter((post, index) => (!filterUnlisted || !post.flags?.includes('unlisted')) && (!postLimit || index < postLimit))
-    .map((post): Urara.Post => {
-      const p = post as Urara.Post
-      if (p.created) {
-        try {
-          const date = new Date(p.created)
-          p._parsedDate = date.toISOString() // Add a safely parsed date for debugging
-          // Also log some info about suspicious dates
-          const year = date.getFullYear()
-          if (year < 1900 || year > new Date().getFullYear() + 1) {
-            console.warn(`Suspicious year ${year} for post ${p.path || p._filePath}: ${p.created} -> ${p._parsedDate}`)
-          }
-        }
-        catch (e) {
-          console.error(`Failed to parse date for ${p.path || p._filePath}: ${p.created}`)
-          p._parsedDate = 'invalid'
-        }
-      }
-      else {
-        console.warn(`No date for ${p.path || p._filePath}`)
-        p._parsedDate = 'missing'
-      }
-      return p
-    })
+    .map((post): Urara.Post => post as Urara.Post)
     .sort((a, b) => {
-      // Ensure we have valid dates
-      try {
-        const dateA = a.created ? new Date(a.created).getTime() : 0
-        const dateB = b.created ? new Date(b.created).getTime() : 0
-        return dateB - dateA
-      }
-      catch (error) {
-        console.error('Error sorting posts by date:', error, { postA: a.path, dateA: a.created, postB: b.path, dateB: b.created })
-        return 0
-      }
+      const dateA = a.created ? new Date(a.created).getTime() : 0
+      const dateB = b.created ? new Date(b.created).getTime() : 0
+      return dateB - dateA
     })
 
-/**
- * Generate Tags List
- * @param posts - posts list
- * @returns - tags list
- */
 export const genTags: GenTagsFunction = posts => [
   ...new Set(posts.reduce((acc, posts) => (posts.tags ? [...acc, ...posts.tags] : acc), ['']).slice(1)),
 ]

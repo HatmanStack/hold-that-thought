@@ -1,8 +1,3 @@
-/**
- * Date Parser for Letter Migration
- * Extracts dates from letter content in various formats.
- */
-
 const MONTHS = {
   january: 1, jan: 1,
   february: 2, feb: 2,
@@ -22,11 +17,6 @@ const MONTHS = {
 const MIN_YEAR = 1950
 const MAX_YEAR = 2025
 
-/**
- * Strip frontmatter from markdown content (helper for date extraction)
- * @param {string} content - Markdown content
- * @returns {string} Content without frontmatter
- */
 function stripFrontmatterForParsing(content) {
   if (!content) return ''
 
@@ -45,23 +35,10 @@ function stripFrontmatterForParsing(content) {
   return content.slice(secondDelimiter + 3).trimStart()
 }
 
-/**
- * Pad number with leading zeros
- * @param {number} num - Number to pad
- * @param {number} size - Desired size
- * @returns {string} Padded number string
- */
 function padZero(num, size = 2) {
   return String(num).padStart(size, '0')
 }
 
-/**
- * Validate and normalize a date
- * @param {number} year - Year
- * @param {number} month - Month (1-12)
- * @param {number} day - Day (1-31)
- * @returns {string|null} ISO date string (YYYY-MM-DD) or null if invalid
- */
 function normalizeDate(year, month, day) {
   // Basic bounds check
   if (year < MIN_YEAR || year > MAX_YEAR) return null
@@ -77,22 +54,12 @@ function normalizeDate(year, month, day) {
   return `${year}-${padZero(month)}-${padZero(day)}`
 }
 
-/**
- * Parse month name to number
- * @param {string} monthStr - Month name (full or abbreviated)
- * @returns {number|null} Month number (1-12) or null
- */
 function parseMonth(monthStr) {
   if (!monthStr) return null
   const normalized = monthStr.toLowerCase().replace(/\.$/, '') // Remove trailing period
   return MONTHS[normalized] || null
 }
 
-/**
- * Extract date from frontmatter 'created' field
- * @param {string} content - Full markdown content
- * @returns {string|null} ISO date string or null
- */
 function extractDateFromFrontmatter(content) {
   if (!content || !content.startsWith('---')) return null
 
@@ -114,23 +81,6 @@ function extractDateFromFrontmatter(content) {
   return null
 }
 
-/**
- * Extract date from markdown content
- * First checks frontmatter 'created' field, then searches the first 10 lines
- * of body content for date patterns.
- *
- * Supported formats:
- * - Frontmatter: created: '2001-09-14'
- * - "Feb. 10. 2016" (abbreviated month with periods)
- * - "February 10, 2016" (full month name)
- * - "Feb 10, 2016" (abbreviated month without period)
- * - "2/10/2016" or "02/10/2016" (numeric US format)
- * - "10 February 2016" (European style)
- * - "2016-02-10" (ISO format)
- *
- * @param {string} content - Full markdown content including frontmatter
- * @returns {string|null} ISO date string (YYYY-MM-DD) or null if no valid date found
- */
 export function extractDate(content) {
   if (!content) return null
 
@@ -199,11 +149,6 @@ export function extractDate(content) {
   return null
 }
 
-/**
- * Validate that a date string is within the acceptable range
- * @param {string} dateStr - ISO date string (YYYY-MM-DD)
- * @returns {boolean} True if date is valid and within range
- */
 export function isValidDate(dateStr) {
   if (!dateStr || typeof dateStr !== 'string') return false
 

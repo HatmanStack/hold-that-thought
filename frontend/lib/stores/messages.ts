@@ -1,14 +1,8 @@
 import { getConversations } from '$lib/services/message-service'
 import { writable } from 'svelte/store'
 
-/**
- * Store for total unread message count
- */
 export const unreadCount = writable(0)
 
-/**
- * Update the unread count by fetching all conversations
- */
 export async function updateUnreadCount(): Promise<void> {
   try {
     const result = await getConversations()

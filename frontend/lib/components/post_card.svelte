@@ -8,7 +8,7 @@
   import Status from '$lib/components/post_status.svelte'
   import Image from '$lib/components/prose/img.svelte'
   import { post as postConfig } from '$lib/config/post'
-  import { getMarkdownContent, saveMarkdownContent } from '$lib/services/markdown'
+  import { saveMarkdownContent } from '$lib/services/markdown'
   import { posts as storedPosts } from '$lib/stores/posts'
   import { title as storedTitle } from '$lib/stores/title'
   import { downloadSourcePdf } from '$lib/utils/s3Client'
@@ -16,7 +16,7 @@
   let isDownloading = false
   let isModifying = false
   let isEditorOpen = false
-  let markdownContent = ''
+  const markdownContent = ''
   export let post: Urara.Post
   export let preview: boolean = false
   export let loading: 'eager' | 'lazy' = 'lazy'
@@ -35,26 +35,6 @@
       next = storedPosts.slice(index + 1).find(post => !post.flags?.includes('unlisted'))
       storedTitle.set(post.title ?? post.path.slice(1))
     })
-  }
-
-  async function openMarkdownEditor() {
-    isModifying = true
-    try {
-      if (post.path) {
-        markdownContent = await getMarkdownContent(post.path)
-        if (!markdownContent) {
-          throw new Error('Failed to load content')
-        }
-        isEditorOpen = true
-      }
-    }
-    catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error'
-      alert(`Failed to load content: ${message}`)
-    }
-    finally {
-      isModifying = false
-    }
   }
 
   async function handleSave(event: CustomEvent<string>) {
@@ -204,19 +184,6 @@
           Download Original Letter
         </button>
 
-        <!-- <button
-          class='btn btn-sm btn-outline gap-2 ml-2'
-          disabled={isDownloading || isModifying}
-          on:click={openMarkdownEditor}>
-          {#if isModifying}
-            <span class="loading loading-spinner loading-xs"></span>
-          {:else}
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-            </svg>
-          {/if}
-          Modify Letter
-        </button> -->
       </div>
     {/if}
     <MarkdownEditorModal

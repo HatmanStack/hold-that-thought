@@ -160,12 +160,6 @@ export interface AdjacentLetters {
   next: LetterListItem | null
 }
 
-/**
- * Get adjacent letters (prev/next) for navigation
- * Letters are sorted newest first, so:
- * - prev = older letter (next in list)
- * - next = newer letter (previous in list)
- */
 export async function getAdjacentLetters(
   currentDate: string,
   authToken: string,

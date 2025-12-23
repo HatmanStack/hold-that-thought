@@ -1,0 +1,58 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": ["vitest.config.ts", "playwright.config.ts"],
+      "project": ["tests/**/*.{js,ts}"]
+    },
+    "frontend": {
+      "entry": [
+        "routes/**/+*.{ts,js,svelte}",
+        "lib/**/*.{ts,js,svelte}",
+        "hooks.server.ts",
+        "app.d.ts",
+        "svelte.config.js",
+        "vite.config.ts",
+        "tailwind.config.ts",
+        "mdsvex.config.js",
+        "eslint.config.ts"
+      ],
+      "project": ["**/*.{ts,js,svelte}"],
+      "ignore": [".svelte-kit/**", "build/**"],
+      "paths": {
+        "$app/*": [".svelte-kit/types/src/routes/*"],
+        "$lib/*": ["lib/*"],
+        "./$types": [".svelte-kit/types/src/routes/$types.d.ts"]
+      }
+    },
+    "backend/lambdas/api": {
+      "entry": ["index.js", "routes/*.js", "lib/*.js"],
+      "project": ["**/*.js"]
+    },
+    "backend/lambdas/activity-aggregator": {
+      "entry": ["index.js"],
+      "project": ["**/*.js"]
+    },
+    "backend/lambdas/letter-processor": {
+      "entry": ["index.js"],
+      "project": ["**/*.js"]
+    },
+    "backend/lambdas/notification-processor": {
+      "entry": ["index.js"],
+      "project": ["**/*.js"]
+    }
+  },
+  "ignore": [
+    "**/node_modules/**",
+    "**/.svelte-kit/**",
+    "**/build/**",
+    "**/.aws-sam/**",
+    "**/tests/**"
+  ],
+  "ignoreDependencies": [
+    "workbox-build",
+    "workbox-window",
+    "@playwright/test",
+    "artillery"
+  ]
+}
