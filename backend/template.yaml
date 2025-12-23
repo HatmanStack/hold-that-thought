@@ -131,6 +131,13 @@ Resources:
         - openid
         - profile
       AllowedOAuthFlowsUserPoolClient: true
+      AccessTokenValidity: 4
+      IdTokenValidity: 4
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
 
   UserPoolClientWithGoogle:
     Type: AWS::Cognito::UserPoolClient
@@ -159,6 +166,13 @@ Resources:
         - openid
         - profile
       AllowedOAuthFlowsUserPoolClient: true
+      AccessTokenValidity: 4
+      IdTokenValidity: 4
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
 
   UserPoolDomain:
     Type: AWS::Cognito::UserPoolDomain
