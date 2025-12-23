@@ -53,5 +53,6 @@
   "ignoreDependencies": [
     "workbox-build",
     "workbox-window"
-  ]
+  ],
+  "playwright": false
 }
