@@ -16,6 +16,7 @@
     ".svelte-kit/non-ambient.d.ts",
     ".svelte-kit/types/**/$types.d.ts",
     "app.d.ts",
+    "postcss-lightningcss.d.ts",
     "routes/**/*.js",
     "routes/**/*.ts",
     "routes/**/*.svelte",
