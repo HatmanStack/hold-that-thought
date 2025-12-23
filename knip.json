@@ -2,8 +2,9 @@
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "workspaces": {
     ".": {
-      "entry": ["vitest.config.ts", "playwright.config.ts"],
-      "project": ["tests/**/*.{js,ts}"]
+      "entry": ["vitest.config.ts"],
+      "project": ["tests/**/*.{js,ts}"],
+      "ignore": ["playwright.config.ts"]
     },
     "frontend": {
       "entry": [
@@ -51,8 +52,6 @@
   ],
   "ignoreDependencies": [
     "workbox-build",
-    "workbox-window",
-    "@playwright/test",
-    "artillery"
+    "workbox-window"
   ]
 }
