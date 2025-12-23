@@ -209,10 +209,10 @@ chat.setAttribute('text-color', `oklch(${textColor})`)
     </div>
   {/if}
 
-  <div class='flex flex-col flex-nowrap justify-center xl:flex-row xl:flex-wrap h-feed'>
+  <div class='flex flex-col flex-nowrap justify-center h-feed'>
 
     <div id='ragstack-chat-container' class='w-full max-w-screen-md mx-auto my-4'></div>
-    <div class='flex-none w-full max-w-screen-md mx-auto xl:mx-0'>
+    <div class='flex-none w-full max-w-screen-md mx-auto'>
       {#key posts}
         <main
           class='flex flex-col relative bg-base-100 z-10 md:bg-transparent md:gap-8'
