@@ -7,25 +7,11 @@ const CREATE_UPLOAD_URL = `mutation CreateUploadUrl($filename: String!) {
   }
 }`
 
-const CREATE_IMAGE_UPLOAD_URL = `mutation CreateImageUploadUrl($filename: String!) {
-  createImageUploadUrl(filename: $filename) {
+const CREATE_IMAGE_UPLOAD_URL = `mutation CreateImageUploadUrl($filename: String!, $autoProcess: Boolean, $userCaption: String) {
+  createImageUploadUrl(filename: $filename, autoProcess: $autoProcess, userCaption: $userCaption) {
     uploadUrl
     imageId
-    s3Uri
     fields
-  }
-}`
-
-const GENERATE_CAPTION = `mutation GenerateCaption($imageS3Uri: String!) {
-  generateCaption(imageS3Uri: $imageS3Uri) {
-    caption
-  }
-}`
-
-const SUBMIT_IMAGE = `mutation SubmitImage($input: SubmitImageInput!) {
-  submitImage(input: $input) {
-    success
-    message
   }
 }`
 
@@ -57,25 +43,14 @@ async function graphqlRequest(query: string, variables: Record<string, unknown>)
 }
 
 export async function uploadDocumentToRagstack(file: File): Promise<void> {
-  // 1. Get presigned URL
   const data = await graphqlRequest(CREATE_UPLOAD_URL, { filename: file.name })
-  console.log('RAGStack createUploadUrl response:', data)
-
   const { uploadUrl, fields } = data.createUploadUrl
-  console.log('uploadUrl:', uploadUrl)
-  console.log('fields type:', typeof fields)
-  console.log('fields value:', fields)
 
-  // 2. Upload to S3 - fields come double-encoded from GraphQL
   const form = new FormData()
   let parsedFields = JSON.parse(fields)
-  // Double-encoded: parse again if still a string
   if (typeof parsedFields === 'string') {
-    console.log('Fields were double-encoded, parsing again...')
     parsedFields = JSON.parse(parsedFields)
   }
-  console.log('parsedFields type:', typeof parsedFields)
-  console.log('parsedFields keys:', Object.keys(parsedFields))
 
   Object.entries(parsedFields).forEach(([k, v]) => form.append(k, v as string))
   form.append('file', file)
@@ -83,36 +58,27 @@ export async function uploadDocumentToRagstack(file: File): Promise<void> {
   const uploadResponse = await fetch(uploadUrl, { method: 'POST', body: form })
 
   if (!uploadResponse.ok) {
-    const errorText = await uploadResponse.text()
-    console.error('RAGStack upload error:', errorText)
     throw new Error(`Failed to upload document to RAGStack: ${uploadResponse.status}`)
   }
-
-  console.log('RAGStack document upload successful')
 }
 
 export async function uploadImageToRagstack(
   file: File,
   userCaption?: string,
-): Promise<void> {
-  // 1. Get presigned URL
-  const data = await graphqlRequest(CREATE_IMAGE_UPLOAD_URL, { filename: file.name })
-  console.log('RAGStack createImageUploadUrl response:', data)
+): Promise<string> {
+  const data = await graphqlRequest(CREATE_IMAGE_UPLOAD_URL, {
+    filename: file.name,
+    autoProcess: true,
+    userCaption: userCaption || '',
+  })
 
-  const { uploadUrl, imageId, s3Uri, fields } = data.createImageUploadUrl
-  console.log('uploadUrl:', uploadUrl)
-  console.log('imageId:', imageId)
-  console.log('s3Uri:', s3Uri)
-  console.log('fields type:', typeof fields)
+  const { uploadUrl, imageId, fields } = data.createImageUploadUrl
 
-  // 2. Upload to S3 - fields come double-encoded from GraphQL
   const form = new FormData()
   let parsedFields = JSON.parse(fields)
   if (typeof parsedFields === 'string') {
-    console.log('Fields were double-encoded, parsing again...')
     parsedFields = JSON.parse(parsedFields)
   }
-  console.log('parsedFields keys:', Object.keys(parsedFields))
 
   Object.entries(parsedFields).forEach(([k, v]) => form.append(k, v as string))
   form.append('file', file)
@@ -120,35 +86,10 @@ export async function uploadImageToRagstack(
   const uploadResponse = await fetch(uploadUrl, { method: 'POST', body: form })
 
   if (!uploadResponse.ok) {
-    const errorText = await uploadResponse.text()
-    console.error('RAGStack image upload error:', errorText)
-    throw new Error('Failed to upload image to RAGStack')
+    throw new Error('Failed to upload image to RAGStack S3')
   }
 
-  console.log('RAGStack image upload successful, generating caption...')
-
-  // 3. Generate AI caption
-  let aiCaption = ''
-  try {
-    const captionData = await graphqlRequest(GENERATE_CAPTION, { imageS3Uri: s3Uri })
-    aiCaption = captionData.generateCaption?.caption || ''
-    console.log('AI caption:', aiCaption)
-  }
-  catch (err) {
-    console.warn('Failed to generate AI caption:', err)
-  }
-
-  // 4. Submit with caption (triggers processing)
-  console.log('Submitting image with caption...')
-  await graphqlRequest(SUBMIT_IMAGE, {
-    input: {
-      imageId,
-      userCaption: userCaption || file.name,
-      aiCaption,
-    },
-  })
-
-  console.log('RAGStack image processing complete')
+  return imageId
 }
 
 export async function uploadToRagstack(file: File, userCaption?: string): Promise<void> {

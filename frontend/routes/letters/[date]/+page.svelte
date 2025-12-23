@@ -41,7 +41,7 @@
     try {
       letter = await getLetter(data.date, $authTokens.idToken)
       if (letter) {
-        storedTitle.set(letter.title)
+        storedTitle.set('')
         // Load adjacent letters for navigation only if letter found
         adjacent = await getAdjacentLetters(data.date, $authTokens.idToken)
       }
