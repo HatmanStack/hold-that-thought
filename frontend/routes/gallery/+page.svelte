@@ -9,7 +9,7 @@
   import { getMediaItems, type MediaItem, uploadMedia } from '$lib/services/media-service'
   import { uploadToRagstack } from '$lib/services/ragstack-upload-service'
   import { filterResultsByCategory, searchKnowledgeBase, type SearchResult } from '$lib/services/search-service'
-  import { onMount } from 'svelte'
+  import { onDestroy, onMount } from 'svelte'
 
   export let data: PageData
 
@@ -26,6 +26,25 @@
   let showCaptionModal = false
   let pendingUploadFile: File | null = null
   let userCaption = ''
+  let previewUrl: string | null = null
+
+  // Create/revoke preview URL when pendingUploadFile changes
+  $: {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl)
+      previewUrl = null
+    }
+    if (pendingUploadFile && pendingUploadFile.type.startsWith('image/')) {
+      previewUrl = URL.createObjectURL(pendingUploadFile)
+    }
+  }
+
+  // Cleanup preview URL on component destroy
+  onDestroy(() => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl)
+    }
+  })
 
   // Search state
   let searchQuery = ''
@@ -763,10 +782,12 @@ return
         {#if selectedSection === 'pictures'}
           <img src={selectedItem.signedUrl} alt={selectedItem.title} class='w-full object-contain rounded-lg max-h-[50vh]' loading='lazy' />
         {:else if selectedSection === 'videos'}
-          <video controls class='w-full max-h-[50vh] rounded-lg'>
-            <source src={selectedItem.signedUrl} type={selectedItem.contentType}>
-            Your browser does not support the video tag.
-          </video>
+          {#key selectedItem.id}
+            <video controls class='w-full max-h-[50vh] rounded-lg'>
+              <source src={selectedItem.signedUrl} type={selectedItem.contentType}>
+              Your browser does not support the video tag.
+            </video>
+          {/key}
         {:else}
           <div class='bg-base-200 rounded-lg p-8 text-center'>
             <div class='text-6xl mb-4'>
@@ -805,11 +826,13 @@ return
       </div>
 
       <!-- Comments Section -->
-      <CommentSection
-        itemId={selectedItem.id}
-        itemType='media'
-        itemTitle={selectedItem.title}
-      />
+      {#key selectedItem.id}
+        <CommentSection
+          itemId={selectedItem.id}
+          itemType='media'
+          itemTitle={selectedItem.title}
+        />
+      {/key}
 
       <div class='modal-action'>
         <button class='btn' on:click={closeModal}>Close</button>
@@ -835,9 +858,9 @@ return
         <p class='text-sm text-base-content/70 mb-2'>
           File: {pendingUploadFile.name}
         </p>
-        {#if pendingUploadFile.type.startsWith('image/')}
+        {#if previewUrl}
           <img
-            src={URL.createObjectURL(pendingUploadFile)}
+            src={previewUrl}
             alt='Preview'
             class='w-full max-h-48 object-contain rounded-lg bg-base-200'
           />
