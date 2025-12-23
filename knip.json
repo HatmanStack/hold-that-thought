@@ -3,8 +3,7 @@
   "workspaces": {
     ".": {
       "entry": ["vitest.config.ts"],
-      "project": ["tests/**/*.{js,ts}"],
-      "ignore": ["playwright.config.ts"]
+      "project": ["tests/**/*.{js,ts}"]
     },
     "frontend": {
       "entry": [
@@ -48,7 +47,8 @@
     "**/.svelte-kit/**",
     "**/build/**",
     "**/.aws-sam/**",
-    "**/tests/**"
+    "**/tests/**",
+    "playwright.config.ts"
   ],
   "ignoreDependencies": [
     "workbox-build",
