@@ -101,7 +101,7 @@
   class:-translate-y-32={!pin && scrollY > 0}
   id='header'>
   {#if !search}
-    <div class='navbar' in:fly={{ delay: 300, duration: 300, x: -50 }} out:fly={{ duration: 300, x: -50 }}>
+    <div class='navbar max-w-screen-xl mx-auto' in:fly={{ delay: 300, duration: 300, x: -50 }} out:fly={{ duration: 300, x: -50 }}>
       <div class='navbar-start'>
         {#if headerConfig.nav}
           <Nav nav={headerConfig.nav} {path} {pin} {scrollY} {title} />
@@ -161,7 +161,7 @@
       </div>
     </div>
   {:else}
-    <div class='navbar' in:fly={{ delay: 300, duration: 300, x: 50 }} out:fly={{ duration: 300, x: 50 }}>
+    <div class='navbar max-w-screen-xl mx-auto' in:fly={{ delay: 300, duration: 300, x: 50 }} out:fly={{ duration: 300, x: 50 }}>
       <Search />
       <button class='btn btn-square btn-ghost' on:click={() => (search = !search)} tabindex='0'>
         <Icon src={XMark} class='w-6 h-6' />
