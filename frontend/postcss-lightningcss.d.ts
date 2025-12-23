@@ -1,5 +1,6 @@
 declare module 'postcss-lightningcss' {
   import type { PluginCreator } from 'postcss'
+
   interface Options {
     browsers?: string
     lightningcssOptions?: {
