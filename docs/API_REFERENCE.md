@@ -50,7 +50,7 @@ Create comment.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | itemId | string (base64url) | Yes | Path param |
-| commentText | string | Yes | Body, max 10000 chars |
+| commentText | string | Yes | Body, max 2000 chars |
 | itemType | string | No | Content type identifier |
 | itemTitle | string | No | Content title |
 

@@ -90,7 +90,7 @@ export async function saveMarkdownContent(content: string): Promise<boolean> {
         })
       }
       else {
-        await s3Response.json()
+        await s3Response.text()
       }
     }
     catch (s3Error) {

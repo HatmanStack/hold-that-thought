@@ -2,21 +2,16 @@
   import { browser } from '$app/environment'
   import CommentSection from '$lib/components/comments/CommentSection.svelte'
   import Comment from '$lib/components/post_comment.svelte'
-  import MarkdownEditorModal from '$lib/components/post_editor.svelte'
   import Pagination from '$lib/components/post_pagination.svelte'
   import Reply from '$lib/components/post_reply.svelte'
   import Status from '$lib/components/post_status.svelte'
   import Image from '$lib/components/prose/img.svelte'
   import { post as postConfig } from '$lib/config/post'
-  import { saveMarkdownContent } from '$lib/services/markdown'
   import { posts as storedPosts } from '$lib/stores/posts'
   import { title as storedTitle } from '$lib/stores/title'
   import { downloadSourcePdf } from '$lib/utils/s3Client'
 
   let isDownloading = false
-  let isModifying = false
-  let isEditorOpen = false
-  const markdownContent = ''
   export let post: Urara.Post
   export let preview: boolean = false
   export let loading: 'eager' | 'lazy' = 'lazy'
@@ -37,31 +32,6 @@
     })
   }
 
-  async function handleSave(event: CustomEvent<string>) {
-    isModifying = true
-    try {
-      const updatedContent = event.detail
-      if (!updatedContent) {
-        throw new Error('No content to save')
-      }
-
-      const success = await saveMarkdownContent(post.path, updatedContent)
-
-      if (success) {
-        window.location.reload()
-      }
-      else {
-        throw new Error('Save returned false')
-      }
-    }
-    catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error'
-      alert(`Failed to save content: ${message}`)
-    }
-    finally {
-      isModifying = false
-    }
-  }
 </script>
 
 <svelte:element
@@ -159,7 +129,7 @@
 
         <button
           class='btn btn-sm btn-outline gap-2'
-          disabled={isDownloading || isModifying}
+          disabled={isDownloading}
           on:click={async () => {
             isDownloading = true
             try {
@@ -186,13 +156,6 @@
 
       </div>
     {/if}
-    <MarkdownEditorModal
-      bind:isOpen={isEditorOpen}
-      content={markdownContent}
-      title={`Edit: ${post.title || post.path}`}
-      on:save={handleSave}
-      on:close={() => isEditorOpen = false}
-    />
   </div>
   {#if !preview}
     {#if (prev || next) && !post.flags?.includes('pagination-disabled') && !post.flags?.includes('unlisted')}
