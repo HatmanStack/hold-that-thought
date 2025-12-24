@@ -29,6 +29,7 @@ export default defineConfig({
     imagetools(),
     sveltekit(),
     pwa({
+      base: '/',
       manifest: false,
       registerType: 'autoUpdate',
       scope: '/',

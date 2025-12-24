@@ -11,6 +11,13 @@ Family letter-sharing platform. SvelteKit + AWS serverless.
 | [DEPLOYMENT.md](./DEPLOYMENT.md) | AWS deployment, Cognito setup, troubleshooting |
 | [DOC_STYLE_GUIDE.md](./DOC_STYLE_GUIDE.md) | Documentation standards |
 
+## Tools
+
+| Tool | Purpose |
+|------|---------|
+| [Ancestry/](../Ancestry/) | Chrome extension to export family tree data from Ancestry.com to JSON |
+| [RAGStack-Lambda](https://github.com/HatmanStack/RAGStack-Lambda) | RAG-powered chat and search for family content |
+
 ## Architecture
 
 ```
@@ -70,6 +77,18 @@ PUBLIC_COGNITO_HOSTED_UI_DOMAIN
 ```
 
 Without Cognito config: read-only mode (gallery only).
+
+### RAGStack Integration (optional)
+
+To enable AI-powered chat and search, deploy [RAGStack-Lambda](https://github.com/HatmanStack/RAGStack-Lambda) and configure:
+
+```
+PUBLIC_RAGSTACK_CHAT_URL=https://<cloudfront>/ragstack-chat.js
+PUBLIC_RAGSTACK_GRAPHQL_URL=https://<appsync-id>.appsync-api.<region>.amazonaws.com/graphql
+PUBLIC_RAGSTACK_API_KEY=<appsync-api-key>
+```
+
+Get these values from RAGStack-Lambda's CloudFormation outputs after deployment.
 
 ## License
 
