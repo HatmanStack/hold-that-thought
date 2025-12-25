@@ -498,10 +498,9 @@ async function listUsers(requesterId) {
       items: result.Items?.map(u => ({ userId: u.userId, status: u.status, displayName: u.displayName })),
     })
 
-    // Filter in code: exclude inactive/deleted users (handles missing status field)
-    // Also exclude the requester (can't message yourself)
+    // Filter in code: exclude inactive/deleted users, private profiles, and the requester
     const activeItems = (result.Items || []).filter(user =>
-      user.status !== 'inactive' && user.status !== 'deleted' && user.userId !== requesterId
+      user.status !== 'inactive' && user.status !== 'deleted' && !user.isProfilePrivate && user.userId !== requesterId
     )
 
     log.info('list_users_after_filter', {
