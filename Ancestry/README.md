@@ -87,8 +87,8 @@ Creates `ancestry_export/{personId}.json` for each person (~2KB each):
 Use the included script to download images after export:
 
 ```bash
-node download-images.js [export-dir] [output-dir] [cookies-file]
-node download-images.js ./ancestry_export ./images ./cookies.json
+node download-images.cjs [export-dir] [output-dir] [cookies-file]
+node download-images.cjs ./ancestry_export ./images ./cookies.json
 ```
 
 **Cookies file**: Export your Ancestry cookies as JSON to authenticate downloads:
@@ -119,4 +119,4 @@ Or load your GEDCOM file - the Tree ID is extracted automatically.
 | `manifest.json` | Chrome extension manifest (MV3) |
 | `popup.html/js` | Extension popup - opens exporter |
 | `exporter.html/js` | Main UI and scraping/parsing logic |
-| `download-images.js` | Node.js script to download images |
+| `download-images.cjs` | Node.js script to download images |

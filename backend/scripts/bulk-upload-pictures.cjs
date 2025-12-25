@@ -197,6 +197,16 @@ async function main() {
   let ragstackFailed = 0
   let startFound = !START_FROM // If no start-from, start immediately
 
+  // Pre-compute total files to process (with captions, after START_FROM)
+  let countStarted = !START_FROM
+  const totalToProcess = files.filter(f => {
+    if (!countStarted) {
+      if (f === START_FROM) countStarted = true
+      else return false
+    }
+    return !!captions[f]
+  }).length
+
   if (START_FROM) {
     console.log(`Resuming from: ${START_FROM}`)
     console.log('')
@@ -229,7 +239,7 @@ async function main() {
     }
 
     try {
-      process.stdout.write(`[${uploaded + 1}/${files.length - skipped}] ${filename.substring(0, 35).padEnd(35)}`)
+      process.stdout.write(`[${uploaded + 1}/${totalToProcess}] ${filename.substring(0, 35).padEnd(35)}`)
 
       // Upload to S3 (family archive)
       await uploadToS3(filePath, filename)

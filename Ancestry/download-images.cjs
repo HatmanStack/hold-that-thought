@@ -59,8 +59,13 @@ function loadCookies(cookiesFile) {
   }
 }
 
-function downloadImage(url, outputPath, cookies) {
+function downloadImage(url, outputPath, cookies, maxRedirects = 5) {
   return new Promise((resolve, reject) => {
+    if (maxRedirects <= 0) {
+      reject(new Error('Too many redirects'));
+      return;
+    }
+
     const urlObj = new URL(url);
 
     const options = {
@@ -80,10 +85,15 @@ function downloadImage(url, outputPath, cookies) {
 
     const req = https.request(options, (res) => {
       if (res.statusCode === 302 || res.statusCode === 301) {
-        // Follow redirect
+        res.resume(); // Consume response body to free up connection
         const redirectUrl = res.headers.location;
         if (redirectUrl) {
-          downloadImage(redirectUrl.startsWith('http') ? redirectUrl : `https://${urlObj.hostname}${redirectUrl}`, outputPath, cookies)
+          downloadImage(
+            redirectUrl.startsWith('http') ? redirectUrl : `https://${urlObj.hostname}${redirectUrl}`,
+            outputPath,
+            cookies,
+            maxRedirects - 1
+          )
             .then(resolve)
             .catch(reject);
           return;
