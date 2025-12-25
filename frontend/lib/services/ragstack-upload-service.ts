@@ -96,11 +96,12 @@ export async function uploadToRagstack(file: File, userCaption?: string): Promis
   const isImage = file.type.startsWith('image/')
   const isVideo = file.type.startsWith('video/')
 
-  if (isImage) {
-    await uploadImageToRagstack(file, userCaption)
+  if (isVideo) {
+    // Videos only go to S3 archive, not RAGStack
+    return
   }
-  else if (isVideo) {
-    // Videos treated as images in RAGStack (for thumbnail/caption)
+
+  if (isImage) {
     await uploadImageToRagstack(file, userCaption)
   }
   else {

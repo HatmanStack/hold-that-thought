@@ -7,8 +7,8 @@ const docClient = DynamoDBDocumentClient.from(dynamoClient)
 const sesClient = new SESClient({})
 
 const TABLE_NAME = process.env.TABLE_NAME
-const SES_FROM_EMAIL = process.env.SES_FROM_EMAIL || 'noreply@holdthatthought.family'
-const BASE_URL = process.env.BASE_URL || 'https://holdthatthought.family'
+const SES_FROM_EMAIL = process.env.SES_FROM_EMAIL
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 
 const PREFIX = {
   USER: 'USER#',

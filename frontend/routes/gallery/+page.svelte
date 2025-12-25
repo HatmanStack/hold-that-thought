@@ -52,7 +52,6 @@
   let isSearching = false
   let searchError = ''
   let isSearchMode = false
-  let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
   // All media items cache for search matching
   const allMediaItems: Map<string, MediaItem> = new Map()
@@ -350,18 +349,15 @@ return
     const target = event.target as HTMLInputElement
     searchQuery = target.value
 
-    if (searchDebounceTimer) {
-      clearTimeout(searchDebounceTimer)
-    }
-
     if (!searchQuery.trim()) {
       clearSearch()
-      return
     }
+  }
 
-    searchDebounceTimer = setTimeout(() => {
+  function handleSearchKeydown(event: KeyboardEvent) {
+    if (event.key === 'Enter' && searchQuery.trim()) {
       performSearch(searchQuery)
-    }, 300)
+    }
   }
 
   function clearSearch() {
@@ -369,9 +365,6 @@ return
     searchResults = []
     isSearchMode = false
     searchError = ''
-    if (searchDebounceTimer) {
-      clearTimeout(searchDebounceTimer)
-    }
   }
 
   // Filter search results to only include items that exist in the gallery, deduplicated
@@ -477,10 +470,11 @@ return
     <div class='relative'>
       <input
         type='text'
-        placeholder='Search photos, videos, and documents...'
+        placeholder='Search photos, videos, and documents... (press Enter)'
         class='input input-bordered w-full pl-12 pr-12 text-lg'
         value={searchQuery}
         on:input={handleSearchInput}
+        on:keydown={handleSearchKeydown}
       />
       <div class='absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none'>
         {#if isSearching}

@@ -124,11 +124,21 @@
           </ul>
         </div>
 
-        <div class='bg-base-100 border border-base-300 rounded-lg p-6'>
+        <div class='bg-base-100 border border-base-300 rounded-lg p-6 mb-4'>
           <h3 class='font-semibold mb-3'>💬 Comments & Reactions</h3>
           <p class='text-base-content/80'>
             Family members can comment on letters, share memories, and react to content.
             Private messaging is also available for more personal conversations.
+          </p>
+        </div>
+
+        <div class='bg-base-100 border border-base-300 rounded-lg p-6'>
+          <h3 class='font-semibold mb-3'>📬 Email Notifications</h3>
+          <p class='text-base-content/80 mb-3'>
+            You'll receive email notifications when someone comments on your content or sends you a message.
+          </p>
+          <p class='text-base-content/80 mb-3'>
+            <strong>Note:</strong> These emails may land in your spam folder. To ensure you receive them, create a filter in your email client to always allow messages from our notification address.
           </p>
         </div>
       </section>

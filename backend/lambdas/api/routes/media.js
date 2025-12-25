@@ -109,18 +109,31 @@ async function listMedia(event, requesterId) {
   try {
     const prefix = `media/${category}/`
 
-    const response = await s3Client.send(new ListObjectsV2Command({
-      Bucket: ARCHIVE_BUCKET,
-      Prefix: prefix,
-      MaxKeys: 100,
-    }))
+    // Paginate through all results
+    const allContents = []
+    let continuationToken = undefined
 
-    if (!response.Contents) {
+    do {
+      const response = await s3Client.send(new ListObjectsV2Command({
+        Bucket: ARCHIVE_BUCKET,
+        Prefix: prefix,
+        MaxKeys: 1000,
+        ContinuationToken: continuationToken,
+      }))
+
+      if (response.Contents) {
+        allContents.push(...response.Contents)
+      }
+
+      continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined
+    } while (continuationToken)
+
+    if (allContents.length === 0) {
       return successResponse([])
     }
 
     const mediaItems = await Promise.all(
-      response.Contents.map(async (item) => {
+      allContents.map(async (item) => {
         const signedUrl = await getSignedUrl(
           s3Client,
           new GetObjectCommand({ Bucket: ARCHIVE_BUCKET, Key: item.Key }),

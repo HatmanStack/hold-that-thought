@@ -46,7 +46,7 @@ Parameters:
   SesFromEmail:
     Type: String
     Description: Email address to send notifications from (domain must be verified in SES)
-    Default: noreply@holdthatthought.family
+    Default: ''
 
   GeminiApiKey:
     Type: String
@@ -554,7 +554,7 @@ Resources:
         Variables:
           TABLE_NAME: !Ref TableName
           SES_FROM_EMAIL: !Ref SesFromEmail
-          BASE_URL: https://holdthatthought.family
+          BASE_URL: !Sub 'https://${AppDomain}'
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref TableName

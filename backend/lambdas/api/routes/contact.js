@@ -2,7 +2,7 @@ const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses')
 const { successResponse, errorResponse } = require('../utils')
 
 const sesClient = new SESClient({})
-const SES_FROM_EMAIL = process.env.SES_FROM_EMAIL || 'noreply@holdthatthought.family'
+const SES_FROM_EMAIL = process.env.SES_FROM_EMAIL
 
 function escapeHtml(text) {
   if (!text) return ''
