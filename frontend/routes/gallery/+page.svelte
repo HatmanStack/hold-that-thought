@@ -744,20 +744,20 @@ return
       <!-- Navigation buttons inside modal -->
       {#if canNavigate}
         <button
-          class='btn btn-circle btn-lg bg-base-200/80 hover:bg-base-200 border-base-300 absolute left-4 top-1/3 z-10'
+          class='btn btn-circle btn-sm md:btn-lg bg-base-200/80 hover:bg-base-200 border-base-300 absolute left-1 md:left-4 top-1/3 z-10'
           on:click|stopPropagation={() => navigateModal('prev')}
           aria-label='Previous item'
         >
-          <svg xmlns='http://www.w3.org/2000/svg' class='h-6 w-6' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+          <svg xmlns='http://www.w3.org/2000/svg' class='h-4 w-4 md:h-6 md:w-6' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
             <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M15 19l-7-7 7-7' />
           </svg>
         </button>
         <button
-          class='btn btn-circle btn-lg bg-base-200/80 hover:bg-base-200 border-base-300 absolute right-4 top-1/3 z-10'
+          class='btn btn-circle btn-sm md:btn-lg bg-base-200/80 hover:bg-base-200 border-base-300 absolute right-1 md:right-4 top-1/3 z-10'
           on:click|stopPropagation={() => navigateModal('next')}
           aria-label='Next item'
         >
-          <svg xmlns='http://www.w3.org/2000/svg' class='h-6 w-6' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+          <svg xmlns='http://www.w3.org/2000/svg' class='h-4 w-4 md:h-6 md:w-6' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
             <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 5l7 7-7 7' />
           </svg>
         </button>
