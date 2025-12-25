@@ -254,10 +254,45 @@ else
     echo "Archive bucket exists: ${ARCHIVE_BUCKET}"
 fi
 
+# Pre-flight: Check for orphaned resources that would cause CloudFormation to fail
+echo ""
+echo "==================================="
+echo "Step 2: Pre-flight Resource Check"
+echo "==================================="
+
+# Check if DynamoDB table exists outside CloudFormation
+EXISTING_TABLE=$(aws dynamodb describe-table --table-name "$TABLE_NAME" --region "$AWS_REGION" 2>/dev/null || true)
+if [ -n "$EXISTING_TABLE" ]; then
+    # Check if it's managed by our stack
+    STACK_EXISTS=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$AWS_REGION" 2>/dev/null || true)
+    if [ -z "$STACK_EXISTS" ]; then
+        echo "WARNING: DynamoDB table '$TABLE_NAME' exists but is not managed by stack '$STACK_NAME'"
+        ITEM_COUNT=$(aws dynamodb scan --table-name "$TABLE_NAME" --region "$AWS_REGION" --select COUNT --query 'Count' --output text 2>/dev/null || echo "0")
+
+        if [ "$ITEM_COUNT" = "0" ]; then
+            echo "  Table is empty. Deleting to allow CloudFormation to create it..."
+            aws dynamodb delete-table --table-name "$TABLE_NAME" --region "$AWS_REGION" >/dev/null 2>&1
+            echo "  Waiting for table deletion..."
+            aws dynamodb wait table-not-exists --table-name "$TABLE_NAME" --region "$AWS_REGION" 2>/dev/null || sleep 10
+            echo "  Table deleted."
+        else
+            echo "  Table contains $ITEM_COUNT items."
+            echo ""
+            echo "ERROR: Cannot proceed - table has data but isn't managed by CloudFormation."
+            echo "Options:"
+            echo "  1. Use a different TABLE_NAME in deployment config"
+            echo "  2. Manually delete the table if data is not needed"
+            echo "  3. Import the table into CloudFormation (advanced)"
+            exit 1
+        fi
+    fi
+fi
+echo "Pre-flight checks passed."
+
 # Check letter archive exists
 echo ""
 echo "==================================="
-echo "Step 2: Verify Letter Archive"
+echo "Step 3: Verify Letter Archive"
 echo "==================================="
 
 LETTER_COUNT=$(aws s3 ls "s3://$ARCHIVE_BUCKET/letters/" --recursive 2>/dev/null | grep -E "\.json$" | wc -l || echo "0")

@@ -29,12 +29,14 @@ export default defineConfig({
     imagetools(),
     sveltekit(),
     pwa({
+      base: '/',
       manifest: false,
       registerType: 'autoUpdate',
       scope: '/',
       workbox: {
         globIgnores: ['**/sw*', '**/workbox-*'],
-        globPatterns: ['posts.json', '**/*.{js,css,html,svg,ico,png,webp,avif}'],
+        globPatterns: ['posts.json', '**/*.{js,css,svg,ico,png,webp,avif}'],
+        navigateFallback: null,
       },
     }),
   ],

@@ -20,6 +20,9 @@ const adapter = {
 export default {
   extensions: ['.svelte', ...(mdsvexConfig.extensions ?? [])],
   kit: {
+    paths: {
+      relative: false,
+    },
     files: {
       assets: 'static',
       lib: 'lib',
