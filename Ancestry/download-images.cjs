@@ -142,25 +142,18 @@ async function main() {
     const personId = path.basename(file, '.json');
     const data = JSON.parse(fs.readFileSync(path.join(EXPORT_DIR, file), 'utf-8'));
 
-    // Collect all image URLs
+    // Collect media gallery images (skip primaryImage - it's a cropped duplicate)
     const images = [];
 
-    // Primary image
-    if (data.primaryImage?.url) {
-      images.push({
-        url: data.primaryImage.url,
-        filename: `${personId}_primary.jpg`
-      });
-    }
-
-    // Media gallery images
     if (data.media?.length > 0) {
       data.media.forEach((m, i) => {
         const url = m.downloadUrl || m.thumbnailUrl;
         if (url) {
+          // Use personId_N format (1-indexed) so we can identify who's in the picture
+          const suffix = data.media.length === 1 ? '' : `_${i + 1}`;
           images.push({
             url: url.startsWith('http') ? url : `https://www.ancestry.com${url}`,
-            filename: `${personId}_${m.id || i}.${m.ext || 'jpg'}`
+            filename: `${personId}${suffix}.${m.ext || 'jpg'}`
           });
         }
       });
