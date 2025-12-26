@@ -1,4 +1,4 @@
-<img align="center" src="htt_banner_resized.png" alt="Hold That Thought - Banner">
+<img align="center" src="htt_banner.jpg" alt="Hold That Thought - Banner">
 
 <p align="center">
 <a href="https://github.com/HatmanStack/hold-that-thought/actions"><img src="https://github.com/HatmanStack/hold-that-thought/workflows/CI/badge.svg" alt="CI Status" /></a>
