@@ -3,6 +3,7 @@ const { successResponse, errorResponse } = require('../utils')
 
 const sesClient = new SESClient({})
 const SES_FROM_EMAIL = process.env.SES_FROM_EMAIL
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL
 
 function escapeHtml(text) {
   if (!text) return ''
@@ -60,9 +61,14 @@ async function handle(event, context) {
       </div>
     `
 
+    if (!ADMIN_EMAIL) {
+      console.error('ADMIN_EMAIL not configured')
+      return errorResponse(500, 'Contact form not configured')
+    }
+
     await sesClient.send(new SendEmailCommand({
       Source: SES_FROM_EMAIL,
-      Destination: { ToAddresses: [SES_FROM_EMAIL] },
+      Destination: { ToAddresses: [ADMIN_EMAIL] },
       Message: {
         Subject: { Data: subject },
         Body: { Html: { Data: bodyHtml } },

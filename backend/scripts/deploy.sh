@@ -132,9 +132,17 @@ echo "Enter the email address to send notifications from."
 echo "The domain must be verified in SES."
 echo ""
 
-DEFAULT_SES_FROM="${SES_FROM_EMAIL:-noreply@holdthatthought.family}"
+DEFAULT_SES_FROM="${SES_FROM_EMAIL:-}"
 read -p "From Email [$DEFAULT_SES_FROM]: " input_ses_from
 SES_FROM_EMAIL="${input_ses_from:-$DEFAULT_SES_FROM}"
+
+echo ""
+echo "Enter the admin email for contact form submissions."
+echo ""
+
+DEFAULT_ADMIN="${ADMIN_EMAIL:-}"
+read -p "Admin Email [$DEFAULT_ADMIN]: " input_admin
+ADMIN_EMAIL="${input_admin:-$DEFAULT_ADMIN}"
 
 echo ""
 echo "--- S3 Archive Bucket ---"
@@ -163,6 +171,7 @@ GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET
 GEMINI_API_KEY=$GEMINI_API_KEY
 TABLE_NAME=$TABLE_NAME
 SES_FROM_EMAIL=$SES_FROM_EMAIL
+ADMIN_EMAIL=$ADMIN_EMAIL
 ARCHIVE_BUCKET=$ARCHIVE_BUCKET
 LETTERS_DB_POPULATED=$LETTERS_DB_POPULATED
 EOF
@@ -171,7 +180,7 @@ echo "Configuration saved to $ENV_DEPLOY_FILE"
 
 # Generate samconfig.toml so `sam deploy` without arguments uses correct config
 DEPLOY_BUCKET="sam-deploy-hold-that-thought-${AWS_REGION}"
-PARAM_OVERRIDES_TOML="AllowedOrigins=$ALLOWED_ORIGINS AppDomain=$APP_DOMAIN TableName=$TABLE_NAME SesFromEmail=$SES_FROM_EMAIL ArchiveBucket=$ARCHIVE_BUCKET GeminiApiKey=$GEMINI_API_KEY"
+PARAM_OVERRIDES_TOML="AllowedOrigins=$ALLOWED_ORIGINS AppDomain=$APP_DOMAIN TableName=$TABLE_NAME SesFromEmail=$SES_FROM_EMAIL AdminEmail=$ADMIN_EMAIL ArchiveBucket=$ARCHIVE_BUCKET GeminiApiKey=$GEMINI_API_KEY"
 if [ -n "$GOOGLE_CLIENT_ID" ]; then
     PARAM_OVERRIDES_TOML="$PARAM_OVERRIDES_TOML GoogleClientId=$GOOGLE_CLIENT_ID GoogleClientSecret=$GOOGLE_CLIENT_SECRET"
 fi
@@ -321,6 +330,7 @@ PARAM_OVERRIDES="AllowedOrigins=$ALLOWED_ORIGINS"
 PARAM_OVERRIDES="$PARAM_OVERRIDES AppDomain=$APP_DOMAIN"
 PARAM_OVERRIDES="$PARAM_OVERRIDES TableName=$TABLE_NAME"
 PARAM_OVERRIDES="$PARAM_OVERRIDES SesFromEmail=$SES_FROM_EMAIL"
+PARAM_OVERRIDES="$PARAM_OVERRIDES AdminEmail=$ADMIN_EMAIL"
 PARAM_OVERRIDES="$PARAM_OVERRIDES ArchiveBucket=$ARCHIVE_BUCKET"
 PARAM_OVERRIDES="$PARAM_OVERRIDES GeminiApiKey=$GEMINI_API_KEY"
 

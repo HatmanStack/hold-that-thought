@@ -48,6 +48,11 @@ Parameters:
     Description: Email address to send notifications from (domain must be verified in SES)
     Default: ''
 
+  AdminEmail:
+    Type: String
+    Description: Admin email address for contact form submissions
+    Default: ''
+
   GeminiApiKey:
     Type: String
     Description: Google Gemini API Key
@@ -293,6 +298,7 @@ Resources:
           ARCHIVE_BUCKET: !Ref ArchiveBucket
           LETTER_PROCESSOR_FUNCTION_NAME: !Ref LetterProcessorFunction
           SES_FROM_EMAIL: !Ref SesFromEmail
+          ADMIN_EMAIL: !Ref AdminEmail
       Policies:
         - Statement:
             - Effect: Allow
