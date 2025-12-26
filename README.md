@@ -15,8 +15,10 @@
 </p>
 
 <p align="center">
-<b>Sharing letters, one typo at a time<br><a href="https://float-app.fun/">Hold That Thought »</a></b>
+<b>Sharing letters, one typo at a time<br><a href="https://family.hatstack.fun/">Hold That Thought »</a></b>
 </p>
+
+A private family platform for sharing letters, photos, and memories. Upload scanned letters with AI-powered transcription and browse a shared media gallery. All media is embedded in a RAG backend for semantic search and connected to a chat client for conversational access to your family's content.
 
 ## Structure
 
@@ -47,13 +49,30 @@ npm run dev                    # Start dev server
 ## Scripts
 
 ```bash
-npm run dev      # Start frontend dev server
-npm run build    # Build frontend for production
-npm run deploy   # Deploy backend (SAM)
-npm test         # Run unit tests
-npm run lint     # ESLint + type check
-npm run check    # Run all checks (lint + tests)
+npm run dev       # Start frontend dev server
+npm run build     # Build frontend for production
+npm run deploy    # Deploy backend (SAM)
+npm test          # Run unit tests
+npm run test:e2e  # Run Playwright E2E tests
+npm run test:load # Run Artillery load tests
+npm run lint      # ESLint + type check
+npm run check     # Run all checks (lint + tests)
 ```
+
+## RAGStack Integration
+
+Optional AI-powered search and chat. Deploy [RAGStack-Lambda](https://github.com/HatmanStack/RAGStack-Lambda) and configure:
+
+```bash
+PUBLIC_RAGSTACK_CHAT_URL=https://<cloudfront>/ragstack-chat.js
+PUBLIC_RAGSTACK_GRAPHQL_URL=https://<appsync-id>.appsync-api.<region>.amazonaws.com/graphql
+PUBLIC_RAGSTACK_API_KEY=<appsync-api-key>
+```
+
+Features enabled:
+- **Chat widget** on homepage (AI assistant for family content)
+- **Semantic search** across indexed media
+- **Auto-indexing** of gallery uploads to knowledge base
 
 ## Deployment
 

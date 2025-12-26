@@ -88,6 +88,7 @@
   theme?: string
   familyRelationships?: object
   mediaUploadCount: number
+  status: 'active' | 'inactive' | 'deleted'  // listUsers filters non-active
   groups: string[]
   createdAt: string    // ISO8601
   updatedAt: string    // ISO8601

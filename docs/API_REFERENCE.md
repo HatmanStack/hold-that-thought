@@ -17,7 +17,7 @@ List comments on an item.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| itemId | string (base64url) | Yes | Encoded item identifier |
+| itemId | string | Yes | Item identifier (base64url or plain) |
 | limit | number | No | Max 100, default 20 |
 | lastEvaluatedKey | string | No | Pagination cursor |
 
@@ -49,7 +49,7 @@ Create comment.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| itemId | string (base64url) | Yes | Path param |
+| itemId | string | Yes | Path param (base64url or plain) |
 | commentText | string | Yes | Body, max 2000 chars |
 | itemType | string | No | Content type identifier |
 | itemTitle | string | No | Content title |
@@ -306,6 +306,7 @@ Get user profile.
   "generation": "string",
   "familyBranch": "string",
   "isProfilePrivate": "boolean",
+  "mediaUploadCount": "number",
   "createdAt": "ISO8601"
 }
 ```

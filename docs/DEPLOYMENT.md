@@ -184,37 +184,3 @@ npm run check:types   # Svelte type check
 npm run lint:fix      # Auto-fix lint issues
 ```
 
-## Troubleshooting
-
-### Lambda Timeout
-
-Increase timeout in `backend/template.yaml`:
-```yaml
-Globals:
-  Function:
-    Timeout: 30
-```
-
-### CORS Errors
-
-Check API Gateway CORS settings and `AllowedOrigins` parameter in template.yaml.
-
-### Auth Failures
-
-1. Verify Cognito User Pool ID and Client ID in `.env`
-2. Check user is in ApprovedUsers group
-3. Verify JWT token is being sent in Authorization header
-
-### DynamoDB Errors
-
-Check Lambda execution role has DynamoDB permissions for the table.
-
-### Build Failures
-
-```bash
-# Clear caches and reinstall
-rm -rf node_modules frontend/node_modules
-rm package-lock.json frontend/package-lock.json
-npm install
-cd frontend && npm install
-```
