@@ -1,8 +1,8 @@
-import { PUBLIC_GALLERY_API_URL } from '$env/static/public'
+import { PUBLIC_API_GATEWAY_URL } from '$env/static/public'
 import { getStoredTokens } from '$lib/auth/client'
 
 // Upload API Configuration
-const UPLOAD_API_BASE_URL = PUBLIC_GALLERY_API_URL || 'https://your-gallery-api-id.execute-api.us-east-1.amazonaws.com/prod'
+const UPLOAD_API_BASE_URL = PUBLIC_API_GATEWAY_URL || ''
 
 export interface UploadResult {
   success: boolean
