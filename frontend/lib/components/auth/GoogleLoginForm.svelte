@@ -1,7 +1,7 @@
 <script lang='ts'>
-  import { googleOAuth } from '$lib/auth/google-oauth'
   import { authService } from '$lib/auth/auth-service'
   import { isGuestLoginEnabled } from '$lib/auth/cognito-config'
+  import { googleOAuth } from '$lib/auth/google-oauth'
 
   let error = ''
   let guestLoading = false
