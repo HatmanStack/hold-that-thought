@@ -165,6 +165,21 @@ aws cognito-idp admin-add-user-to-group \
   --group-name ApprovedUsers
 ```
 
+### Guest Access (Optional)
+
+One-click guest login for demos and showcases. Creates a pre-configured user that visitors can use without registration.
+
+```bash
+# Create the guest user (requires ApprovedUsers group to exist)
+cd backend && node scripts/create-guest-user.js
+
+# Add to .env
+PUBLIC_GUEST_EMAIL=guest@showcase.demo
+PUBLIC_GUEST_PASSWORD=GuestDemo123!
+```
+
+When both env vars are set, a "Continue as Guest" button appears on the login page. Leave empty to disable guest access.
+
 ## Development Workflow
 
 ```bash

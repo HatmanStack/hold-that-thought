@@ -1,7 +1,12 @@
 <script lang='ts'>
   import { googleOAuth } from '$lib/auth/google-oauth'
+  import { authService } from '$lib/auth/auth-service'
+  import { isGuestLoginEnabled } from '$lib/auth/cognito-config'
 
   let error = ''
+  let guestLoading = false
+
+  const guestEnabled = isGuestLoginEnabled()
 
   async function handleGoogleLogin() {
     try {
@@ -19,17 +24,50 @@
       error = err instanceof Error ? err.message : 'Google login failed'
     }
   }
+
+  async function handleGuestLogin() {
+    guestLoading = true
+    error = ''
+    try {
+      await authService.signInAsGuest()
+    }
+    catch (err) {
+      error = err instanceof Error ? err.message : 'Guest login failed'
+    }
+    finally {
+      guestLoading = false
+    }
+  }
 </script>
 
 <div class='w-full bg-base-100 card mx-auto shadow-xl max-w-md'>
   <div class='card-body'>
     <h2 class='justify-center mb-4 card-title'>Sign In</h2>
 
-    <!-- Google OAuth Only -->
     <div class='space-y-4'>
+      {#if guestEnabled}
+        <button
+          type='button'
+          class='w-full btn btn-primary gap-2 text-lg py-4 h-auto'
+          on:click={handleGuestLogin}
+          disabled={guestLoading}
+        >
+          {#if guestLoading}
+            <span class='loading loading-spinner'></span>
+            Signing in...
+          {:else}
+            <svg class='w-6 h-6' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'>
+              <path d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2' />
+              <circle cx='12' cy='7' r='4' />
+            </svg>
+            Continue as Guest
+          {/if}
+        </button>
+        <div class='divider'>or</div>
+      {/if}
       <button
         type='button'
-        class='w-full btn btn-primary gap-2 text-lg py-4 h-auto'
+        class='w-full btn btn-outline gap-2 text-lg py-4 h-auto'
         on:click={handleGoogleLogin}
       >
         <svg class='w-6 h-6' viewBox='0 0 24 24'>

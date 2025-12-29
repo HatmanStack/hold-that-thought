@@ -35,8 +35,17 @@ export default defineConfig({
       scope: '/',
       workbox: {
         globIgnores: ['**/sw*', '**/workbox-*'],
-        globPatterns: ['posts.json', '**/*.{js,css,svg,ico,png,webp,avif}'],
+        globPatterns: ['**/*.{js,css,html,svg,ico,png,webp,avif}'],
         navigateFallback: null,
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/.*\.(js|css|html|svg|ico|png|webp|avif)$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'assets-cache',
+            },
+          },
+        ],
       },
     }),
   ],

@@ -475,6 +475,15 @@ PUBLIC_API_GATEWAY_URL=$API_URL
 
 # Archive Bucket
 PUBLIC_ARCHIVE_BUCKET=$ARCHIVE_BUCKET
+
+# RAGStack Integration (optional - set values to enable)
+PUBLIC_RAGSTACK_CHAT_URL=
+PUBLIC_RAGSTACK_GRAPHQL_URL=
+PUBLIC_RAGSTACK_API_KEY=
+
+# Guest Login (optional - set values to enable one-click guest access)
+PUBLIC_GUEST_EMAIL=
+PUBLIC_GUEST_PASSWORD=
 EOF
     echo "Created frontend .env file"
 else

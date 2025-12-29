@@ -2,6 +2,7 @@ import type { AuthTokens, User } from './auth-store'
 import { get } from 'svelte/store'
 import { authStore } from './auth-store'
 import { cognitoAuth } from './cognito-client'
+import { cognitoConfig } from './cognito-config'
 
 // JWT token decoder (simple implementation)
 function decodeJWT(token: string) {
@@ -166,6 +167,14 @@ export class AuthService {
     }
 
     return currentState.tokens.accessToken
+  }
+
+  async signInAsGuest() {
+    const { guestEmail, guestPassword } = cognitoConfig
+    if (!guestEmail || !guestPassword) {
+      throw new Error('Guest login not configured')
+    }
+    return this.signIn(guestEmail, guestPassword)
   }
 }
 

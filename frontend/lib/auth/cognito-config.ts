@@ -6,6 +6,8 @@ import {
   PUBLIC_COGNITO_IDENTITY_POOL_ID,
   PUBLIC_COGNITO_USER_POOL_CLIENT_ID,
   PUBLIC_COGNITO_USER_POOL_ID,
+  PUBLIC_GUEST_EMAIL,
+  PUBLIC_GUEST_PASSWORD,
 } from '$env/static/public'
 
 // AWS Cognito Configuration
@@ -17,6 +19,12 @@ export const cognitoConfig = {
   apiGatewayUrl: PUBLIC_API_GATEWAY_URL || '',
   hostedUIUrl: PUBLIC_COGNITO_HOSTED_UI_URL || '',
   hostedUIDomain: PUBLIC_COGNITO_HOSTED_UI_DOMAIN || '',
+  guestEmail: PUBLIC_GUEST_EMAIL || '',
+  guestPassword: PUBLIC_GUEST_PASSWORD || '',
+}
+
+export function isGuestLoginEnabled(): boolean {
+  return !!(cognitoConfig.guestEmail && cognitoConfig.guestPassword)
 }
 
 // Check if Cognito is properly configured (not placeholder values)

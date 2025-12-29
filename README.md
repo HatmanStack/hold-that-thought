@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-<b>Sharing letters, one typo at a time<br><a href="https://family.hatstack.fun/">Hold That Thought »</a></b>
+<b>Sharing letters, one typo at a time<br><a href="https://showcase-htt.hatstack.fun/">Hold That Thought »</a></b>
 </p>
 
 A private family platform for sharing letters, photos, and memories. Upload scanned letters with AI-powered transcription and browse a shared media gallery. All media is embedded in a RAG backend for semantic search and connected to a chat client for conversational access to your family's content.
@@ -73,6 +73,8 @@ Features enabled:
 - **Chat widget** on homepage (AI assistant for family content)
 - **Semantic search** across indexed media
 - **Auto-indexing** of gallery uploads to knowledge base
+
+To see a demo of the RAGStack deployment powering this site, visit [RAGStack-Lambda](https://github.com/HatmanStack/RAGStack-Lambda).
 
 ## Deployment
 
