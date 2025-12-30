@@ -6,9 +6,8 @@ import {
   PUBLIC_COGNITO_IDENTITY_POOL_ID,
   PUBLIC_COGNITO_USER_POOL_CLIENT_ID,
   PUBLIC_COGNITO_USER_POOL_ID,
-  PUBLIC_GUEST_EMAIL,
-  PUBLIC_GUEST_PASSWORD,
 } from '$env/static/public'
+import { env } from '$env/dynamic/public'
 
 // AWS Cognito Configuration
 export const cognitoConfig = {
@@ -19,8 +18,9 @@ export const cognitoConfig = {
   apiGatewayUrl: PUBLIC_API_GATEWAY_URL || '',
   hostedUIUrl: PUBLIC_COGNITO_HOSTED_UI_URL || '',
   hostedUIDomain: PUBLIC_COGNITO_HOSTED_UI_DOMAIN || '',
-  guestEmail: PUBLIC_GUEST_EMAIL || '',
-  guestPassword: PUBLIC_GUEST_PASSWORD || '',
+  // Guest login uses dynamic env (optional, won't fail build if missing)
+  guestEmail: env.PUBLIC_GUEST_EMAIL || '',
+  guestPassword: env.PUBLIC_GUEST_PASSWORD || '',
 }
 
 export function isGuestLoginEnabled(): boolean {
