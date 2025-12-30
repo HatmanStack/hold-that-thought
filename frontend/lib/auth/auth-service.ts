@@ -26,7 +26,16 @@ function decodeJWT(token: string) {
 export class AuthService {
   private refreshTimer: NodeJS.Timeout | null = null
 
-  async signIn(email: string, password: string) {
+  async signIn(email: string, password: string): Promise<{
+    success: true
+    user: User
+    tokens: AuthTokens
+  } | {
+    success: false
+    challengeName: 'NEW_PASSWORD_REQUIRED'
+    session: string
+    email: string
+  }> {
     authStore.setLoading(true)
 
     try {
@@ -34,6 +43,17 @@ export class AuthService {
 
       if (!result.success) {
         throw result.error
+      }
+
+      // Check for NEW_PASSWORD_REQUIRED challenge (first login with temp password)
+      if (result.data?.ChallengeName === 'NEW_PASSWORD_REQUIRED' && result.data?.Session) {
+        authStore.setLoading(false)
+        return {
+          success: false,
+          challengeName: 'NEW_PASSWORD_REQUIRED',
+          session: result.data.Session,
+          email,
+        }
       }
 
       const authResult = result.data?.AuthenticationResult
@@ -175,6 +195,82 @@ export class AuthService {
       throw new Error('Guest login not configured')
     }
     return this.signIn(guestEmail, guestPassword)
+  }
+
+  async completeNewPasswordChallenge(email: string, newPassword: string, session: string) {
+    authStore.setLoading(true)
+
+    try {
+      const result = await cognitoAuth.respondToNewPasswordChallenge(email, newPassword, session)
+
+      if (!result.success) {
+        throw result.error
+      }
+
+      const authResult = result.data?.AuthenticationResult
+      if (!authResult?.AccessToken || !authResult?.IdToken || !authResult?.RefreshToken) {
+        throw new Error('Invalid authentication response')
+      }
+
+      const idTokenPayload = decodeJWT(authResult.IdToken)
+      if (!idTokenPayload) {
+        throw new Error('Invalid ID token')
+      }
+
+      const user: User = {
+        email: idTokenPayload.email,
+        sub: idTokenPayload.sub,
+        email_verified: idTokenPayload.email_verified,
+        ...idTokenPayload,
+      }
+
+      const tokens: AuthTokens = {
+        accessToken: authResult.AccessToken,
+        idToken: authResult.IdToken,
+        refreshToken: authResult.RefreshToken,
+        expiresAt: Date.now() + (authResult.ExpiresIn || 3600) * 1000,
+      }
+
+      authStore.setAuthenticated(user, tokens)
+      this.scheduleTokenRefresh(tokens.expiresAt)
+
+      return { success: true, user, tokens }
+    }
+    catch (error) {
+      console.error('Complete new password challenge error:', error)
+      throw error
+    }
+    finally {
+      authStore.setLoading(false)
+    }
+  }
+
+  async forgotPassword(email: string) {
+    try {
+      const result = await cognitoAuth.forgotPassword(email)
+      if (!result.success) {
+        throw result.error
+      }
+      return { success: true, deliveryMedium: result.data?.CodeDeliveryDetails?.DeliveryMedium }
+    }
+    catch (error) {
+      console.error('Forgot password error:', error)
+      throw error
+    }
+  }
+
+  async resetPassword(email: string, code: string, newPassword: string) {
+    try {
+      const result = await cognitoAuth.confirmForgotPassword(email, code, newPassword)
+      if (!result.success) {
+        throw result.error
+      }
+      return { success: true }
+    }
+    catch (error) {
+      console.error('Reset password error:', error)
+      throw error
+    }
   }
 }
 

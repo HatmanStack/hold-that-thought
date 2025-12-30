@@ -1,7 +1,7 @@
 <script lang='ts'>
   import { goto } from '$app/navigation'
   import { isAuthenticated } from '$lib/auth/auth-store'
-  import GoogleLoginForm from '$lib/components/auth/GoogleLoginForm.svelte'
+  import LoginForm from '$lib/components/auth/LoginForm.svelte'
   import { onMount } from 'svelte'
 
   onMount(() => {
@@ -30,5 +30,5 @@
 </svelte:head>
 
 <div class='min-h-screen flex items-center justify-center bg-base-200 px-4'>
-  <GoogleLoginForm />
+  <LoginForm />
 </div>
