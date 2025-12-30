@@ -1,75 +1,123 @@
 #!/usr/bin/env node
 
-import { AdminAddUserToGroupCommand, AdminGetUserCommand, CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider'
+import {
+  AdminAddUserToGroupCommand,
+  AdminCreateUserCommand,
+  AdminGetUserCommand,
+  CognitoIdentityProviderClient,
+} from '@aws-sdk/client-cognito-identity-provider'
 import { config } from 'dotenv'
+import { fileURLToPath } from 'url'
+import { dirname, resolve } from 'path'
 
-// Load environment variables
-config()
+const __dirname = dirname(fileURLToPath(import.meta.url))
+
+// Load from frontend/.env (where Cognito config lives)
+config({ path: resolve(__dirname, '../../frontend/.env') })
 
 const USER_POOL_ID = process.env.PUBLIC_COGNITO_USER_POOL_ID
 const AWS_REGION = process.env.PUBLIC_AWS_REGION || 'us-east-1'
 const GROUP_NAME = 'ApprovedUsers'
 
 if (!USER_POOL_ID) {
-  console.error('❌ Error: PUBLIC_COGNITO_USER_POOL_ID environment variable is required')
+  console.error('Error: PUBLIC_COGNITO_USER_POOL_ID environment variable is required')
   process.exit(1)
 }
 
-const usernames = process.argv.slice(2)
+const emails = process.argv.slice(2)
 
-if (usernames.length === 0) {
-  console.error('❌ Error: Please provide at least one username/email')
+if (emails.length === 0) {
+  console.error('Usage: node add-approved-user.js <email> [email2] [email3] ...')
+  console.error('Creates users with temp password (sent via email) and adds to ApprovedUsers group')
   process.exit(1)
 }
 
 const client = new CognitoIdentityProviderClient({ region: AWS_REGION })
 
-async function addUserToGroup(username) {
+async function userExists(email) {
   try {
-    // First, check if user exists
     await client.send(new AdminGetUserCommand({
       UserPoolId: USER_POOL_ID,
-      Username: username,
+      Username: email,
     }))
-
-    // Add user to ApprovedUsers group
-    await client.send(new AdminAddUserToGroupCommand({
-      UserPoolId: USER_POOL_ID,
-      Username: username,
-      GroupName: GROUP_NAME,
-    }))
-
     return true
   }
   catch (error) {
     if (error.name === 'UserNotFoundException') {
-      console.error(`❌ User ${username} not found in user pool`)
+      return false
     }
-    else if (error.name === 'ResourceNotFoundException') {
-      console.error(`❌ Group ${GROUP_NAME} not found. Make sure to deploy the Cognito infrastructure first.`)
+    throw error
+  }
+}
+
+async function createUser(email) {
+  await client.send(new AdminCreateUserCommand({
+    UserPoolId: USER_POOL_ID,
+    Username: email,
+    UserAttributes: [
+      { Name: 'email', Value: email },
+      { Name: 'email_verified', Value: 'true' },
+    ],
+    DesiredDeliveryMediums: ['EMAIL'],
+  }))
+}
+
+async function addToGroup(email) {
+  await client.send(new AdminAddUserToGroupCommand({
+    UserPoolId: USER_POOL_ID,
+    Username: email,
+    GroupName: GROUP_NAME,
+  }))
+}
+
+async function addApprovedUser(email) {
+  try {
+    const exists = await userExists(email)
+
+    if (exists) {
+      console.log(`User ${email} already exists, adding to ${GROUP_NAME}...`)
     }
     else {
-      console.error(`❌ Error adding ${username} to group:`, error.message)
+      console.log(`Creating user ${email}...`)
+      await createUser(email)
+      console.log(`Temp password sent to ${email}`)
+    }
+
+    await addToGroup(email)
+    console.log(`Added ${email} to ${GROUP_NAME}`)
+    return true
+  }
+  catch (error) {
+    if (error.name === 'ResourceNotFoundException') {
+      console.error(`Group ${GROUP_NAME} not found. Deploy Cognito infrastructure first.`)
+    }
+    else if (error.name === 'UsernameExistsException') {
+      console.error(`User ${email} already exists with different identifier`)
+    }
+    else {
+      console.error(`Error processing ${email}:`, error.message)
     }
     return false
   }
 }
 
 async function main() {
-
   let successCount = 0
 
-  for (const username of usernames) {
-    const success = await addUserToGroup(username)
-    if (success)
+  for (const email of emails) {
+    if (await addApprovedUser(email)) {
       successCount++
+    }
   }
-  if (successCount < usernames.length) {
+
+  console.log(`\nProcessed ${successCount}/${emails.length} users`)
+
+  if (successCount < emails.length) {
     process.exit(1)
   }
 }
 
 main().catch((error) => {
-  console.error('❌ Unexpected error:', error)
+  console.error('Unexpected error:', error)
   process.exit(1)
 })
