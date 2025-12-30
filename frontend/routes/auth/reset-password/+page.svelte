@@ -58,11 +58,14 @@
       const message = err instanceof Error ? err.message : 'Failed to reset password'
       if (message.includes('Invalid verification code')) {
         error = 'Invalid or expired verification code'
-      } else if (message.includes('Password does not conform')) {
+      }
+ else if (message.includes('Password does not conform')) {
         error = 'Password must include uppercase, lowercase, and numbers'
-      } else if (message.includes('Attempt limit exceeded')) {
+      }
+ else if (message.includes('Attempt limit exceeded')) {
         error = 'Too many attempts. Please request a new code.'
-      } else {
+      }
+ else {
         error = message
       }
     }

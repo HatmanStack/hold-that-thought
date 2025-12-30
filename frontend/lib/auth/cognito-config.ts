@@ -1,3 +1,4 @@
+import { env } from '$env/dynamic/public'
 import {
   PUBLIC_API_GATEWAY_URL,
   PUBLIC_AWS_REGION,
@@ -7,7 +8,6 @@ import {
   PUBLIC_COGNITO_USER_POOL_CLIENT_ID,
   PUBLIC_COGNITO_USER_POOL_ID,
 } from '$env/static/public'
-import { env } from '$env/dynamic/public'
 
 // AWS Cognito Configuration
 export const cognitoConfig = {

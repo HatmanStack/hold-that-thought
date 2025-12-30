@@ -1,5 +1,4 @@
 <script lang='ts'>
-  import { goto } from '$app/navigation'
   import { authService } from '$lib/auth/auth-service'
   import { isCognitoConfigured, isGuestLoginEnabled } from '$lib/auth/cognito-config'
   import { googleOAuth } from '$lib/auth/google-oauth'
@@ -37,7 +36,6 @@
       if (!result.success && result.challengeName === 'NEW_PASSWORD_REQUIRED') {
         pendingChallenge = { session: result.session, email: result.email }
         password = '' // Clear temp password
-        return
       }
 
       // Success - redirect handled by parent page via auth store subscription
@@ -46,11 +44,14 @@
       const message = err instanceof Error ? err.message : 'Login failed'
       if (message.includes('Incorrect username or password')) {
         error = 'Invalid email or password'
-      } else if (message.includes('User does not exist')) {
+      }
+ else if (message.includes('User does not exist')) {
         error = 'No account found with this email'
-      } else if (message.includes('Password attempts exceeded')) {
+      }
+ else if (message.includes('Password attempts exceeded')) {
         error = 'Too many failed attempts. Please try again later.'
-      } else {
+      }
+ else {
         error = message
       }
     }
@@ -87,7 +88,7 @@
       await authService.completeNewPasswordChallenge(
         pendingChallenge.email,
         newPassword,
-        pendingChallenge.session
+        pendingChallenge.session,
       )
 
       // Success - redirect handled by parent page
@@ -96,7 +97,8 @@
       const message = err instanceof Error ? err.message : 'Failed to set password'
       if (message.includes('Password does not conform')) {
         error = 'Password must include uppercase, lowercase, and numbers'
-      } else {
+      }
+ else {
         error = message
       }
     }

@@ -28,9 +28,11 @@
         // Don't reveal if user exists - just show success
         submitted = true
         sessionStorage.setItem('reset_password_email', email)
-      } else if (message.includes('Attempt limit exceeded')) {
+      }
+ else if (message.includes('Attempt limit exceeded')) {
         error = 'Too many attempts. Please try again later.'
-      } else {
+      }
+ else {
         error = message
       }
     }
@@ -78,7 +80,10 @@
           <button
             type='button'
             class='w-full btn btn-ghost btn-sm'
-            on:click={() => { submitted = false; error = '' }}
+            on:click={() => {
+              submitted = false
+              error = ''
+            }}
           >
             Try a different email
           </button>
