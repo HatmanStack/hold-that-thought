@@ -84,7 +84,7 @@ export async function handler(
       return reactions.handle(event, context)
     }
 
-    if (path.startsWith('/media') || path.startsWith('/pdf') || path.startsWith('/download')) {
+    if (path.startsWith('/media') || path.startsWith('/pdf') || path.startsWith('/download') || path.startsWith('/upload')) {
       return media.handle(event, context)
     }
 
