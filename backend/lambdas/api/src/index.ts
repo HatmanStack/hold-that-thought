@@ -101,9 +101,9 @@ export async function handler(
       return contact.handle(event, context)
     }
 
-    if (path.startsWith('/admin')) {
+    if (path.startsWith('/admin/')) {
       // Draft routes - allow ApprovedUsers (not just Admins)
-      if (path.includes('/drafts')) {
+      if (path.startsWith('/admin/drafts')) {
         if (!isApprovedUser && !isAdmin) {
           return errorResponse(403, 'Approved user access required')
         }
@@ -114,9 +114,14 @@ export async function handler(
       if (!isAdmin) {
         return errorResponse(403, 'Admin access required')
       }
-      if (path.includes('/comments/')) {
+
+      // Admin comment moderation: /admin/comments/{commentId}
+      if (path.startsWith('/admin/comments/')) {
         return comments.handle(event, context)
       }
+
+      // Unknown admin route
+      return errorResponse(404, `Admin route not found: ${method} ${path}`)
     }
 
     return errorResponse(404, `Route not found: ${method} ${path}`)
