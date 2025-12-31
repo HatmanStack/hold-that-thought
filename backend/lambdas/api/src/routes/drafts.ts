@@ -75,12 +75,24 @@ export async function handle(
   return errorResponse(404, 'Draft route not found')
 }
 
+const MAX_FILE_COUNT = 20
+
 async function handleUploadRequest(
   event: APIGatewayProxyEvent,
   _requesterId: string
 ): Promise<APIGatewayProxyResult> {
   const body = JSON.parse(event.body || '{}')
-  const { fileCount = 1, fileTypes = [] } = body
+  const { fileCount: rawFileCount = 1, fileTypes = [] } = body
+
+  // Validate and bound fileCount to prevent resource exhaustion
+  const fileCount = Math.min(Math.max(0, Math.floor(Number(rawFileCount) || 0)), MAX_FILE_COUNT)
+  if (fileCount <= 0) {
+    return errorResponse(400, 'fileCount must be a positive integer')
+  }
+  if (rawFileCount > MAX_FILE_COUNT) {
+    return errorResponse(400, `fileCount cannot exceed ${MAX_FILE_COUNT}`)
+  }
+
   const uploadId = uuidv4()
   const urls: Array<{ url: string; key: string; index: number }> = []
 

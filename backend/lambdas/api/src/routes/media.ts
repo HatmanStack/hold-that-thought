@@ -219,10 +219,18 @@ async function getPdfDownloadUrl(event: APIGatewayProxyEvent): Promise<APIGatewa
 }
 
 async function getDownloadUrl(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
-  const key = event.queryStringParameters?.key
+  const rawKey = event.queryStringParameters?.key
 
-  if (!key) {
+  if (!rawKey) {
     return errorResponse(400, 'Missing key parameter')
+  }
+
+  // Decode the key to catch URL-encoded path traversal attempts (e.g., %2e%2e)
+  let key: string
+  try {
+    key = decodeURIComponent(rawKey)
+  } catch {
+    return errorResponse(400, 'Invalid key encoding')
   }
 
   if (key.includes('..')) {

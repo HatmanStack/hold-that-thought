@@ -9,21 +9,38 @@ const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS || '*'
  * Get CORS headers with the configured origin
  */
 export function getCorsHeaders(requestOrigin?: string): Record<string, string> {
-  // If wildcard is configured, allow all
+  // If wildcard is configured
   if (ALLOWED_ORIGINS === '*') {
+    // CORS spec: credentials not allowed with wildcard origin
+    // If we have a request origin, echo it to allow credentials
+    if (requestOrigin) {
+      return {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': requestOrigin,
+        'Access-Control-Allow-Credentials': 'true',
+      }
+    }
+    // No origin provided - use wildcard without credentials
     return {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Credentials': 'true',
     }
   }
 
   // Check if request origin is in allowed list
-  const allowedList = ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+  const allowedList = ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
   const origin =
     requestOrigin && allowedList.includes(requestOrigin)
       ? requestOrigin
       : allowedList[0] || '*'
+
+  // Only include credentials header if we have a specific origin
+  if (origin === '*') {
+    return {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+    }
+  }
 
   return {
     'Content-Type': 'application/json',

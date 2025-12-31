@@ -68,26 +68,23 @@ export class AuthService {
       }
 
       const user: User = {
-        // Core identity (required)
-        email: idTokenPayload.email,
-        sub: idTokenPayload.sub,
-        email_verified: idTokenPayload.email_verified,
-        // Optional profile claims
-        name: idTokenPayload.name,
-        given_name: idTokenPayload.given_name,
-        family_name: idTokenPayload.family_name,
-        picture: idTokenPayload.picture,
-        locale: idTokenPayload.locale,
-        // Cognito-specific
+        'email': idTokenPayload.email,
+        'sub': idTokenPayload.sub,
+        'email_verified': idTokenPayload.email_verified,
+        'name': idTokenPayload.name,
+        'given_name': idTokenPayload.given_name,
+        'family_name': idTokenPayload.family_name,
+        'picture': idTokenPayload.picture,
+        'locale': idTokenPayload.locale,
         'cognito:username': idTokenPayload['cognito:username'],
         'cognito:groups': idTokenPayload['cognito:groups'],
-        // Token metadata
-        aud: idTokenPayload.aud,
-        iss: idTokenPayload.iss,
-        token_use: idTokenPayload.token_use,
-        auth_time: idTokenPayload.auth_time,
-        exp: idTokenPayload.exp,
-        iat: idTokenPayload.iat,
+        'identities': idTokenPayload.identities,
+        'aud': idTokenPayload.aud,
+        'iss': idTokenPayload.iss,
+        'token_use': idTokenPayload.token_use,
+        'auth_time': idTokenPayload.auth_time,
+        'exp': idTokenPayload.exp,
+        'iat': idTokenPayload.iat,
       }
 
       const tokens: AuthTokens = {
@@ -234,26 +231,23 @@ export class AuthService {
       }
 
       const user: User = {
-        // Core identity (required)
-        email: idTokenPayload.email,
-        sub: idTokenPayload.sub,
-        email_verified: idTokenPayload.email_verified,
-        // Optional profile claims
-        name: idTokenPayload.name,
-        given_name: idTokenPayload.given_name,
-        family_name: idTokenPayload.family_name,
-        picture: idTokenPayload.picture,
-        locale: idTokenPayload.locale,
-        // Cognito-specific
+        'email': idTokenPayload.email,
+        'sub': idTokenPayload.sub,
+        'email_verified': idTokenPayload.email_verified,
+        'name': idTokenPayload.name,
+        'given_name': idTokenPayload.given_name,
+        'family_name': idTokenPayload.family_name,
+        'picture': idTokenPayload.picture,
+        'locale': idTokenPayload.locale,
         'cognito:username': idTokenPayload['cognito:username'],
         'cognito:groups': idTokenPayload['cognito:groups'],
-        // Token metadata
-        aud: idTokenPayload.aud,
-        iss: idTokenPayload.iss,
-        token_use: idTokenPayload.token_use,
-        auth_time: idTokenPayload.auth_time,
-        exp: idTokenPayload.exp,
-        iat: idTokenPayload.iat,
+        'identities': idTokenPayload.identities,
+        'aud': idTokenPayload.aud,
+        'iss': idTokenPayload.iss,
+        'token_use': idTokenPayload.token_use,
+        'auth_time': idTokenPayload.auth_time,
+        'exp': idTokenPayload.exp,
+        'iat': idTokenPayload.iat,
       }
 
       const tokens: AuthTokens = {

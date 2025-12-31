@@ -1,6 +1,6 @@
-import { getApiBaseUrl } from '$lib/utils/api-url'
 import { authStore } from '$lib/auth/auth-store'
 import { refreshSession } from '$lib/auth/client'
+import { getApiBaseUrl } from '$lib/utils/api-url'
 import { get } from 'svelte/store'
 
 const API_BASE = getApiBaseUrl()

@@ -1,5 +1,5 @@
-import { getApiBaseUrl } from '$lib/utils/api-url'
 import { getStoredTokens } from '$lib/auth/client'
+import { getApiBaseUrl } from '$lib/utils/api-url'
 
 // Upload API Configuration
 const UPLOAD_API_BASE_URL = getApiBaseUrl()

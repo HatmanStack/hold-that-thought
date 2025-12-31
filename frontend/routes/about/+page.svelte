@@ -1,6 +1,6 @@
 <script lang='ts'>
-  import { getApiBaseUrl } from '$lib/utils/api-url'
   import Head from '$lib/components/head.svelte'
+  import { getApiBaseUrl } from '$lib/utils/api-url'
 
   const API_BASE = getApiBaseUrl()
 

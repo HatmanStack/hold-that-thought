@@ -1,5 +1,5 @@
-import { getApiBaseUrl } from '$lib/utils/api-url'
 import { authStore } from '$lib/auth/auth-store'
+import { getApiBaseUrl } from '$lib/utils/api-url'
 import { get } from 'svelte/store'
 
 export interface MediaItem {

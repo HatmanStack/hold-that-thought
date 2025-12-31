@@ -46,19 +46,36 @@ async function toggleReaction(
   userId: string
 ): Promise<APIGatewayProxyResult> {
   const rawCommentId = event.pathParameters?.commentId
-  const commentId = decodeURIComponent(rawCommentId || '')
-  const body = JSON.parse(event.body || '{}')
-  const { itemId: rawItemId, reactionType = 'like' } = body
-
-  if (!commentId) {
+  if (!rawCommentId) {
     return errorResponse(400, 'Missing commentId parameter')
   }
 
-  if (!rawItemId) {
+  let commentId: string
+  try {
+    commentId = decodeURIComponent(rawCommentId)
+  } catch {
+    return errorResponse(400, 'Invalid commentId encoding')
+  }
+
+  let body: Record<string, unknown>
+  try {
+    body = JSON.parse(event.body || '{}')
+  } catch {
+    return errorResponse(400, 'Invalid JSON body')
+  }
+
+  const { itemId: rawItemId, reactionType = 'like' } = body
+
+  if (!rawItemId || typeof rawItemId !== 'string') {
     return errorResponse(400, 'Missing itemId in request body')
   }
 
-  const itemId = decodeURIComponent(rawItemId)
+  let itemId: string
+  try {
+    itemId = decodeURIComponent(rawItemId)
+  } catch {
+    return errorResponse(400, 'Invalid itemId encoding')
+  }
   const itemIdVariants = [itemId, encodeURIComponent(itemId)]
 
   try {
@@ -171,7 +188,7 @@ async function toggleReaction(
     }
   } catch (error) {
     log.error('toggle_reaction_error', { commentId, userId, error: (error as Error).message })
-    throw error
+    return errorResponse(500, 'Failed to toggle reaction')
   }
 }
 
@@ -213,6 +230,6 @@ async function getReactions(event: APIGatewayProxyEvent): Promise<APIGatewayProx
     })
   } catch (error) {
     log.error('get_reactions_error', { commentId, itemId, error: (error as Error).message })
-    throw error
+    return errorResponse(500, 'Failed to get reactions')
   }
 }

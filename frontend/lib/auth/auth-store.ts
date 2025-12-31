@@ -13,29 +13,29 @@ export interface AuthTokens {
  */
 export interface User {
   // Core identity
-  email: string
-  sub: string
-  email_verified: boolean
+  'email': string
+  'sub': string
+  'email_verified': boolean
 
   // Optional profile claims
-  name?: string
-  given_name?: string
-  family_name?: string
-  picture?: string
-  locale?: string
+  'name'?: string
+  'given_name'?: string
+  'family_name'?: string
+  'picture'?: string
+  'locale'?: string
 
   // Cognito-specific claims
   'cognito:username'?: string
   'cognito:groups'?: string[] | string
-  identities?: string // JSON string from Cognito for federated identities
+  'identities'?: string // JSON string from Cognito for federated identities
 
   // Token metadata (from ID token)
-  aud?: string
-  iss?: string
-  token_use?: string
-  auth_time?: number
-  exp?: number
-  iat?: number
+  'aud'?: string
+  'iss'?: string
+  'token_use'?: string
+  'auth_time'?: number
+  'exp'?: number
+  'iat'?: number
 }
 
 export interface AuthState {

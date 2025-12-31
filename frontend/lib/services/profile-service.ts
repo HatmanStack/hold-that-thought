@@ -3,8 +3,8 @@ import type {
   ProfileApiResponse,
   UpdateProfileRequest,
 } from '$lib/types/profile'
-import { getApiBaseUrl } from '$lib/utils/api-url'
 import { authTokens } from '$lib/auth/auth-store'
+import { getApiBaseUrl } from '$lib/utils/api-url'
 import { get } from 'svelte/store'
 
 const API_BASE = getApiBaseUrl()

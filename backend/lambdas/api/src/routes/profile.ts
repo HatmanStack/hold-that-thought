@@ -140,7 +140,7 @@ async function getProfile(
     })
   } catch (error) {
     log.error('get_profile_error', { userId, error: (error as Error).message })
-    throw error
+    return errorResponse(500, 'Failed to get profile')
   }
 }
 
@@ -267,7 +267,7 @@ async function updateProfile(
     return successResponse({ message: 'Profile updated successfully' })
   } catch (error) {
     log.error('update_profile_error', { requesterId, error: (error as Error).message })
-    throw error
+    return errorResponse(500, 'Failed to update profile')
   }
 }
 
@@ -316,7 +316,7 @@ async function getUserComments(
     return successResponse({ comments })
   } catch (error) {
     log.error('get_user_comments_error', { userId, error: (error as Error).message })
-    throw error
+    return errorResponse(500, 'Failed to get user comments')
   }
 }
 
@@ -352,7 +352,7 @@ async function getPhotoUploadUrl(
     return successResponse({ uploadUrl, photoUrl })
   } catch (error) {
     log.error('get_photo_upload_url_error', { requesterId, error: (error as Error).message })
-    throw error
+    return errorResponse(500, 'Failed to get photo upload URL')
   }
 }
 
@@ -377,6 +377,6 @@ async function listUsers(_requesterId: string): Promise<APIGatewayProxyResult> {
     return successResponse({ users })
   } catch (error) {
     log.error('list_users_error', { error: (error as Error).message })
-    throw error
+    return errorResponse(500, 'Failed to list users')
   }
 }
