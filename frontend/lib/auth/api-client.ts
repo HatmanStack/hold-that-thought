@@ -8,11 +8,18 @@ export interface ApiRequestOptions {
   requireAuth?: boolean
 }
 
+/**
+ * Current API version prefix
+ */
+export const API_VERSION = '/v1'
+
 export class ApiClient {
   private baseUrl: string
 
   constructor() {
-    this.baseUrl = cognitoConfig.apiGatewayUrl
+    // Add API version prefix to base URL
+    const base = cognitoConfig.apiGatewayUrl.replace(/\/+$/, '') // Remove trailing slashes
+    this.baseUrl = `${base}${API_VERSION}`
   }
 
   async request<T = any>(endpoint: string, options: ApiRequestOptions = {}): Promise<T> {

@@ -55,7 +55,9 @@
                 {#if $currentUser.given_name || $currentUser.family_name}
                   <p><strong>Name:</strong> {$currentUser.given_name || ''} {$currentUser.family_name || ''}</p>
                 {/if}
-                <p><strong>Account Created:</strong> {new Date($currentUser.iat * 1000).toLocaleDateString()}</p>
+                {#if $currentUser.iat}
+                  <p><strong>Account Created:</strong> {new Date($currentUser.iat * 1000).toLocaleDateString()}</p>
+                {/if}
               </div>
             </div>
           </div>

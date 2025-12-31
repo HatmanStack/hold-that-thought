@@ -1,6 +1,6 @@
-import { PUBLIC_API_GATEWAY_URL } from '$env/static/public'
 import { authStore } from '$lib/auth/auth-store'
 import { refreshSession } from '$lib/auth/client'
+import { getApiBaseUrl } from '$lib/utils/api-url'
 import { get } from 'svelte/store'
 
 interface ContentListItem {
@@ -35,7 +35,7 @@ export class ContentService {
   private baseUrl: string
 
   constructor() {
-    this.baseUrl = PUBLIC_API_GATEWAY_URL
+    this.baseUrl = getApiBaseUrl()
   }
 
   async getContent(path: string): Promise<string> {

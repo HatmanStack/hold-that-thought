@@ -1,6 +1,8 @@
 <script lang='ts'>
-  import { PUBLIC_API_GATEWAY_URL } from '$env/static/public'
   import Head from '$lib/components/head.svelte'
+  import { getApiBaseUrl } from '$lib/utils/api-url'
+
+  const API_BASE = getApiBaseUrl()
 
   // Contact form state
   let showContactModal = false
@@ -34,7 +36,7 @@
     sendError = ''
 
     try {
-      const response = await fetch(`${PUBLIC_API_GATEWAY_URL}/contact`, {
+      const response = await fetch(`${API_BASE}/contact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: contactEmail, message: contactMessage }),

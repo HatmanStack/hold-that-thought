@@ -1,17 +1,14 @@
-// @ts-check
 /**
  * HTTP response helpers
- * @module lib/responses
  */
+import type { APIGatewayProxyResult } from 'aws-lambda'
 
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS || '*'
 
 /**
  * Get CORS headers with the configured origin
- * @param {string} [requestOrigin] - The origin from the request
- * @returns {Record<string, string>}
  */
-function getCorsHeaders(requestOrigin) {
+export function getCorsHeaders(requestOrigin?: string): Record<string, string> {
   // If wildcard is configured
   if (ALLOWED_ORIGINS === '*') {
     // CORS spec: credentials not allowed with wildcard origin
@@ -31,8 +28,11 @@ function getCorsHeaders(requestOrigin) {
   }
 
   // Check if request origin is in allowed list
-  const allowedList = ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
-  const origin = requestOrigin && allowedList.includes(requestOrigin) ? requestOrigin : allowedList[0] || '*'
+  const allowedList = ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+  const origin =
+    requestOrigin && allowedList.includes(requestOrigin)
+      ? requestOrigin
+      : allowedList[0] || '*'
 
   // Only include credentials header if we have a specific origin
   if (origin === '*') {
@@ -49,15 +49,16 @@ function getCorsHeaders(requestOrigin) {
   }
 }
 
-// Default headers for backwards compatibility (used when no origin context available)
+// Default headers for backwards compatibility
 const CORS_HEADERS = getCorsHeaders()
 
 /**
- * @param {object} data
- * @param {number} [statusCode=200]
- * @returns {import('aws-lambda').APIGatewayProxyResult}
+ * Create a success response
  */
-function successResponse(data, statusCode = 200) {
+export function successResponse(
+  data: unknown,
+  statusCode = 200
+): APIGatewayProxyResult {
   return {
     statusCode,
     headers: CORS_HEADERS,
@@ -66,11 +67,12 @@ function successResponse(data, statusCode = 200) {
 }
 
 /**
- * @param {number} statusCode
- * @param {string} message
- * @returns {import('aws-lambda').APIGatewayProxyResult}
+ * Create an error response
  */
-function errorResponse(statusCode, message) {
+export function errorResponse(
+  statusCode: number,
+  message: string
+): APIGatewayProxyResult {
   return {
     statusCode,
     headers: CORS_HEADERS,
@@ -79,11 +81,12 @@ function errorResponse(statusCode, message) {
 }
 
 /**
- * @param {number} retryAfter
- * @param {string} message
- * @returns {import('aws-lambda').APIGatewayProxyResult}
+ * Create a rate limit response
  */
-function rateLimitResponse(retryAfter, message) {
+export function rateLimitResponse(
+  retryAfter: number,
+  message: string
+): APIGatewayProxyResult {
   return {
     statusCode: 429,
     headers: {
@@ -92,11 +95,4 @@ function rateLimitResponse(retryAfter, message) {
     },
     body: JSON.stringify({ error: message }),
   }
-}
-
-module.exports = {
-  successResponse,
-  errorResponse,
-  rateLimitResponse,
-  getCorsHeaders,
 }

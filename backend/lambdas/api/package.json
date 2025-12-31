@@ -2,11 +2,17 @@
   "name": "hold-that-thought-api",
   "version": "1.0.0",
   "description": "Consolidated API Lambda for Hold That Thought",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "typecheck": "tsc --noEmit"
+  },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.0.0",
     "@aws-sdk/client-lambda": "^3.957.0",
     "@aws-sdk/client-s3": "^3.0.0",
+    "@aws-sdk/client-ses": "^3.0.0",
     "@aws-sdk/lib-dynamodb": "^3.0.0",
     "@aws-sdk/s3-request-presigner": "^3.0.0",
     "sanitize-html": "^2.11.0",
@@ -14,6 +20,10 @@
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.159",
-    "aws-lambda": "^1.0.7"
+    "@types/node": "^22.0.0",
+    "@types/sanitize-html": "^2.11.0",
+    "@types/uuid": "^10.0.0",
+    "aws-lambda": "^1.0.7",
+    "typescript": "^5.7.0"
   }
 }

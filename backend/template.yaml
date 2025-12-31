@@ -290,6 +290,16 @@ Resources:
   # =============================================================================
   ApiFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/index.ts
+        External:
+          - '@aws-sdk/*'
     Properties:
       CodeUri: lambdas/api/
       Handler: index.handler
@@ -301,6 +311,7 @@ Resources:
           LETTER_PROCESSOR_FUNCTION_NAME: !Ref LetterProcessorFunction
           SES_FROM_EMAIL: !Ref SesFromEmail
           ADMIN_EMAIL: !Ref AdminEmail
+          ALLOWED_ORIGINS: !Ref AllowedOrigins
       Policies:
         - Statement:
             - Effect: Allow
@@ -323,204 +334,204 @@ Resources:
         GetComments:
           Type: Api
           Properties:
-            Path: /comments/{itemId}
+            Path: /v1/comments/{itemId}
             Method: get
         CreateComment:
           Type: Api
           Properties:
-            Path: /comments/{itemId}
+            Path: /v1/comments/{itemId}
             Method: post
         EditComment:
           Type: Api
           Properties:
-            Path: /comments/{itemId}/{commentId}
+            Path: /v1/comments/{itemId}/{commentId}
             Method: put
         DeleteComment:
           Type: Api
           Properties:
-            Path: /comments/{itemId}/{commentId}
+            Path: /v1/comments/{itemId}/{commentId}
             Method: delete
         AdminDeleteComment:
           Type: Api
           Properties:
-            Path: /admin/comments/{commentId}
+            Path: /v1/admin/comments/{commentId}
             Method: delete
         # Messages
         GetConversations:
           Type: Api
           Properties:
-            Path: /messages/conversations
+            Path: /v1/messages/conversations
             Method: get
         GetMessages:
           Type: Api
           Properties:
-            Path: /messages/{conversationId}
+            Path: /v1/messages/{conversationId}
             Method: get
         CreateConversation:
           Type: Api
           Properties:
-            Path: /messages/conversations
+            Path: /v1/messages/conversations
             Method: post
         SendMessage:
           Type: Api
           Properties:
-            Path: /messages/{conversationId}
+            Path: /v1/messages/{conversationId}
             Method: post
         MessageUploadUrl:
           Type: Api
           Properties:
-            Path: /messages/{conversationId}/upload-url
+            Path: /v1/messages/{conversationId}/upload-url
             Method: post
         AttachmentUploadUrl:
           Type: Api
           Properties:
-            Path: /messages/attachments/upload-url
+            Path: /v1/messages/attachments/upload-url
             Method: post
         MarkAsRead:
           Type: Api
           Properties:
-            Path: /messages/{conversationId}/read
+            Path: /v1/messages/{conversationId}/read
             Method: put
         DeleteConversation:
           Type: Api
           Properties:
-            Path: /messages/{conversationId}
+            Path: /v1/messages/{conversationId}
             Method: delete
         DeleteMessage:
           Type: Api
           Properties:
-            Path: /messages/{conversationId}/{messageId}
+            Path: /v1/messages/{conversationId}/{messageId}
             Method: delete
         # Profile
         GetProfile:
           Type: Api
           Properties:
-            Path: /profile/{userId}
+            Path: /v1/profile/{userId}
             Method: get
         UpdateProfile:
           Type: Api
           Properties:
-            Path: /profile
+            Path: /v1/profile
             Method: put
         GetUserComments:
           Type: Api
           Properties:
-            Path: /profile/{userId}/comments
+            Path: /v1/profile/{userId}/comments
             Method: get
         ProfilePhotoUploadUrl:
           Type: Api
           Properties:
-            Path: /profile/photo/upload-url
+            Path: /v1/profile/photo/upload-url
             Method: post
         ListUsers:
           Type: Api
           Properties:
-            Path: /users
+            Path: /v1/users
             Method: get
         # Reactions
         GetReactions:
           Type: Api
           Properties:
-            Path: /reactions/{commentId}
+            Path: /v1/reactions/{commentId}
             Method: get
         AddReaction:
           Type: Api
           Properties:
-            Path: /reactions/{commentId}
+            Path: /v1/reactions/{commentId}
             Method: post
         RemoveReaction:
           Type: Api
           Properties:
-            Path: /reactions/{commentId}
+            Path: /v1/reactions/{commentId}
             Method: delete
         # Media
         MediaUploadUrl:
           Type: Api
           Properties:
-            Path: /media/upload-url
+            Path: /v1/media/upload-url
             Method: post
         ListMedia:
           Type: Api
           Properties:
-            Path: /media/list
+            Path: /v1/media/list
             Method: post
         PdfDownloadUrl:
           Type: Api
           Properties:
-            Path: /pdf/download-url
+            Path: /v1/pdf/download-url
             Method: get
         DownloadPresignedUrl:
           Type: Api
           Properties:
-            Path: /download/presigned-url
+            Path: /v1/download/presigned-url
             Method: get
         # Letters
         ListLetters:
           Type: Api
           Properties:
-            Path: /letters
+            Path: /v1/letters
             Method: get
         GetLetter:
           Type: Api
           Properties:
-            Path: /letters/{date}
+            Path: /v1/letters/{date}
             Method: get
         UpdateLetter:
           Type: Api
           Properties:
-            Path: /letters/{date}
+            Path: /v1/letters/{date}
             Method: put
         GetLetterVersions:
           Type: Api
           Properties:
-            Path: /letters/{date}/versions
+            Path: /v1/letters/{date}/versions
             Method: get
         RevertLetterVersion:
           Type: Api
           Properties:
-            Path: /letters/{date}/revert
+            Path: /v1/letters/{date}/revert
             Method: post
         GetLetterPdf:
           Type: Api
           Properties:
-            Path: /letters/{date}/pdf
+            Path: /v1/letters/{date}/pdf
             Method: get
         # Letter upload/draft routes
         LetterUploadRequest:
           Type: Api
           Properties:
-            Path: /letters/upload-request
+            Path: /v1/letters/upload-request
             Method: post
         LetterProcess:
           Type: Api
           Properties:
-            Path: /letters/process/{uploadId}
+            Path: /v1/letters/process/{uploadId}
             Method: post
         ListDrafts:
           Type: Api
           Properties:
-            Path: /admin/drafts
+            Path: /v1/admin/drafts
             Method: get
         GetDraft:
           Type: Api
           Properties:
-            Path: /admin/drafts/{draftId}
+            Path: /v1/admin/drafts/{draftId}
             Method: get
         DeleteDraft:
           Type: Api
           Properties:
-            Path: /admin/drafts/{draftId}
+            Path: /v1/admin/drafts/{draftId}
             Method: delete
         PublishDraft:
           Type: Api
           Properties:
-            Path: /admin/drafts/{draftId}/publish
+            Path: /v1/admin/drafts/{draftId}/publish
             Method: post
         # Contact (public - no auth required)
         SendContactMessage:
           Type: Api
           Properties:
-            Path: /contact
+            Path: /v1/contact
             Method: post
             Auth:
               Authorizer: NONE

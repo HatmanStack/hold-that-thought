@@ -1,7 +1,9 @@
-import { PUBLIC_API_GATEWAY_URL } from '$env/static/public'
 import { authStore } from '$lib/auth/auth-store'
 import { refreshSession } from '$lib/auth/client'
+import { getApiBaseUrl } from '$lib/utils/api-url'
 import { get } from 'svelte/store'
+
+const API_BASE = getApiBaseUrl()
 
 function extractFrontmatter(content: string) {
   const match = content.match(/^---([\s\S]*?)---([\s\S]*)$/)
@@ -88,7 +90,7 @@ export async function saveMarkdownContent(path: string, content: string): Promis
       content: fullContent,
     }
 
-    await fetch(`${PUBLIC_API_GATEWAY_URL}/pdf-download`, {
+    await fetch(`${API_BASE}/pdf-download`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

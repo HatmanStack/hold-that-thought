@@ -1,7 +1,7 @@
-import { PUBLIC_API_GATEWAY_URL } from '$env/static/public'
+import { getApiBaseUrl } from '$lib/utils/api-url'
 
 // Gallery API Gateway Configuration
-const GALLERY_API_BASE_URL = PUBLIC_API_GATEWAY_URL || 'https://your-gallery-api-id.execute-api.us-east-1.amazonaws.com/prod'
+const GALLERY_API_BASE_URL = getApiBaseUrl()
 
 export interface GalleryItem {
   id: string
