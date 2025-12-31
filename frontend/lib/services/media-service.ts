@@ -1,4 +1,4 @@
-import { PUBLIC_API_GATEWAY_URL } from '$env/static/public'
+import { getApiBaseUrl } from '$lib/utils/api-url'
 import { authStore } from '$lib/auth/auth-store'
 import { get } from 'svelte/store'
 
@@ -15,7 +15,7 @@ export interface MediaItem {
   category: 'pictures' | 'videos' | 'documents'
 }
 
-const API_URL = PUBLIC_API_GATEWAY_URL.replace(/\/+$/, '')
+const API_URL = getApiBaseUrl()
 
 export async function uploadMedia(file: File): Promise<MediaItem> {
   const auth = get(authStore)

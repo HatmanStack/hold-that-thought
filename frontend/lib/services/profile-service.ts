@@ -3,11 +3,11 @@ import type {
   ProfileApiResponse,
   UpdateProfileRequest,
 } from '$lib/types/profile'
-import { PUBLIC_API_GATEWAY_URL } from '$env/static/public'
+import { getApiBaseUrl } from '$lib/utils/api-url'
 import { authTokens } from '$lib/auth/auth-store'
 import { get } from 'svelte/store'
 
-const API_BASE = PUBLIC_API_GATEWAY_URL?.replace(/\/+$/, '') || ''
+const API_BASE = getApiBaseUrl()
 
 function getAuthHeader(): Record<string, string> {
   const tokens = get(authTokens)

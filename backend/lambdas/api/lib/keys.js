@@ -91,4 +91,5 @@ const keys = {
 
 module.exports = {
   keys,
+  PREFIX, // Re-export for convenience
 }

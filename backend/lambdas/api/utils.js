@@ -6,4 +6,6 @@ module.exports = {
   ...require('./lib/validation'),
   ...require('./lib/rate-limit'),
   ...require('./lib/user'),
+  // Repositories
+  ...require('./repositories'),
 }

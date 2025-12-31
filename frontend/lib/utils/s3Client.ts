@@ -1,7 +1,9 @@
-import { PUBLIC_API_GATEWAY_URL } from '$env/static/public'
+import { getApiBaseUrl } from '$lib/utils/api-url'
 import { authStore } from '$lib/auth/auth-store'
 import { refreshSession } from '$lib/auth/client'
 import { get } from 'svelte/store'
+
+const API_BASE = getApiBaseUrl()
 
 async function ensureAuthenticated() {
   const auth = get(authStore)
@@ -69,7 +71,7 @@ export async function saveMarkdownContent(content: string): Promise<boolean> {
     try {
       const token = await ensureAuthenticated()
 
-      const s3Response = await fetch(`${PUBLIC_API_GATEWAY_URL}/pdf-download`, {
+      const s3Response = await fetch(`${API_BASE}/pdf-download`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -126,7 +128,7 @@ export async function downloadSourcePdf(): Promise<void> {
   try {
     const token = await ensureAuthenticated()
 
-    const response = await fetch(`${PUBLIC_API_GATEWAY_URL}/pdf-download`, {
+    const response = await fetch(`${API_BASE}/pdf-download`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -230,7 +232,7 @@ export async function addLetterLambda(files: File | File[]): Promise<string> {
       files: fileData,
     }
 
-    const response = await fetch(`${PUBLIC_API_GATEWAY_URL}/upload`, {
+    const response = await fetch(`${API_BASE}/upload`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

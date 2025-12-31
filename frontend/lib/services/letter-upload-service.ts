@@ -1,6 +1,6 @@
-import { PUBLIC_API_GATEWAY_URL } from '$env/static/public'
+import { getApiBaseUrl } from '$lib/utils/api-url'
 
-const API_URL = PUBLIC_API_GATEWAY_URL?.replace(/\/+$/, '') || ''
+const API_URL = getApiBaseUrl()
 
 export interface PresignedUrlInfo {
   url: string

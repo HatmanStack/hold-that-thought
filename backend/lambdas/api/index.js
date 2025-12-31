@@ -12,13 +12,21 @@ const { log } = require('./lib/logger')
 const { errorResponse } = require('./lib/responses')
 
 /**
+ * Current API version
+ */
+const API_VERSION = 'v1'
+
+/**
  * Main API router - consolidates all API endpoints into a single Lambda
  * @param {import('aws-lambda').APIGatewayProxyEvent} event
  * @returns {Promise<import('aws-lambda').APIGatewayProxyResult>}
  */
 exports.handler = async (event) => {
   const method = event.httpMethod
-  const path = event.resource || event.path
+  const rawPath = event.resource || event.path
+
+  // Strip version prefix if present (supports /v1/... format)
+  const path = rawPath.replace(/^\/v1/, '') || '/'
 
   // Extract auth context
   const claims = event.requestContext?.authorizer?.claims || {}
