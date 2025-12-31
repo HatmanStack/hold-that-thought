@@ -4,11 +4,36 @@
  * @module lib/responses
  */
 
-const CORS_HEADERS = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Credentials': 'true',
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS || '*'
+
+/**
+ * Get CORS headers with the configured origin
+ * @param {string} [requestOrigin] - The origin from the request
+ * @returns {Record<string, string>}
+ */
+function getCorsHeaders(requestOrigin) {
+  // If wildcard is configured, allow all
+  if (ALLOWED_ORIGINS === '*') {
+    return {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Credentials': 'true',
+    }
+  }
+
+  // Check if request origin is in allowed list
+  const allowedList = ALLOWED_ORIGINS.split(',').map(o => o.trim())
+  const origin = requestOrigin && allowedList.includes(requestOrigin) ? requestOrigin : allowedList[0]
+
+  return {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Credentials': 'true',
+  }
 }
+
+// Default headers for backwards compatibility (used when no origin context available)
+const CORS_HEADERS = getCorsHeaders()
 
 /**
  * @param {object} data
@@ -56,4 +81,5 @@ module.exports = {
   successResponse,
   errorResponse,
   rateLimitResponse,
+  getCorsHeaders,
 }
