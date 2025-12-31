@@ -8,11 +8,34 @@ export interface AuthTokens {
   expiresAt: number
 }
 
+/**
+ * User information from Cognito ID token claims
+ */
 export interface User {
+  // Core identity
   email: string
   sub: string
   email_verified: boolean
-  [key: string]: any
+
+  // Optional profile claims
+  name?: string
+  given_name?: string
+  family_name?: string
+  picture?: string
+  locale?: string
+
+  // Cognito-specific claims
+  'cognito:username'?: string
+  'cognito:groups'?: string[] | string
+  identities?: string // JSON string from Cognito for federated identities
+
+  // Token metadata (from ID token)
+  aud?: string
+  iss?: string
+  token_use?: string
+  auth_time?: number
+  exp?: number
+  iat?: number
 }
 
 export interface AuthState {
