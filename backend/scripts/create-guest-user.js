@@ -5,16 +5,20 @@ import {
   AdminCreateUserCommand,
   AdminSetUserPasswordCommand,
   CognitoIdentityProviderClient,
+  CreateGroupCommand,
 } from '@aws-sdk/client-cognito-identity-provider'
 import { config } from 'dotenv'
+import { dirname, resolve } from 'path'
+import { fileURLToPath } from 'url'
 
-config()
+const __dirname = dirname(fileURLToPath(import.meta.url))
+config({ path: resolve(__dirname, '../../frontend/.env') })
 
 const USER_POOL_ID = process.env.PUBLIC_COGNITO_USER_POOL_ID
 const AWS_REGION = process.env.PUBLIC_AWS_REGION || 'us-east-1'
 
 const GUEST_EMAIL = process.argv[2] || 'guest@showcase.demo'
-const GUEST_PASSWORD = process.argv[3] || 'GuestDemo123!'
+const GUEST_PASSWORD = process.argv[3] || 'GuestDemo@123'
 
 if (!USER_POOL_ID) {
   console.error('Error: PUBLIC_COGNITO_USER_POOL_ID environment variable is required')
@@ -44,6 +48,17 @@ async function createGuestUser() {
     Permanent: true,
   }))
 
+  // Create ApprovedUsers group if it doesn't exist
+  try {
+    await client.send(new CreateGroupCommand({
+      UserPoolId: USER_POOL_ID,
+      GroupName: 'ApprovedUsers',
+      Description: 'Users approved to access the application',
+    }))
+  } catch (error) {
+    if (error.name !== 'GroupExistsException') throw error
+  }
+
   // Add to ApprovedUsers group
   await client.send(new AdminAddUserToGroupCommand({
     UserPoolId: USER_POOL_ID,
@@ -59,9 +74,30 @@ async function createGuestUser() {
   console.log(`PUBLIC_GUEST_PASSWORD=${GUEST_PASSWORD}`)
 }
 
-createGuestUser().catch((error) => {
+async function ensureGroupAndMembership() {
+  // Create ApprovedUsers group if it doesn't exist
+  try {
+    await client.send(new CreateGroupCommand({
+      UserPoolId: USER_POOL_ID,
+      GroupName: 'ApprovedUsers',
+      Description: 'Users approved to access the application',
+    }))
+  } catch (error) {
+    if (error.name !== 'GroupExistsException') throw error
+  }
+
+  // Add to ApprovedUsers group
+  await client.send(new AdminAddUserToGroupCommand({
+    UserPoolId: USER_POOL_ID,
+    Username: GUEST_EMAIL,
+    GroupName: 'ApprovedUsers',
+  }))
+}
+
+createGuestUser().catch(async (error) => {
   if (error.name === 'UsernameExistsException') {
-    console.log('Guest user already exists')
+    console.log('Guest user already exists, ensuring group membership...')
+    await ensureGroupAndMembership()
     console.log(`Email: ${GUEST_EMAIL}`)
     console.log(`Password: ${GUEST_PASSWORD}`)
   }
