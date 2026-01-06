@@ -280,7 +280,7 @@ async function handlePublish(
       Key: keys.draft(draftId),
     }))
 
-    return successResponse({ message: 'Letter published', date: finalData.date })
+    return successResponse({ message: 'Letter published', path: `/letters/${finalData.date}` })
   } catch (err) {
     log.error('publish_error', { draftId, error: (err as Error).message })
     return errorResponse(500, 'Failed to publish letter')
