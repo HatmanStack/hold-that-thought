@@ -13,8 +13,8 @@ const {
 
 // Configuration
 const USER_POOL_ID = process.env.USER_POOL_ID
-const USER_PROFILES_TABLE = process.env.USER_PROFILES_TABLE || 'hold-that-thought-user-profiles'
-const AWS_REGION = process.env.AWS_REGION || 'us-east-1'
+const TABLE_NAME = process.env.TABLE_NAME || 'HoldThatThought'
+const AWS_REGION = process.env.AWS_REGION || 'us-west-2'
 
 // Validate required environment variables
 if (!USER_POOL_ID) {
@@ -55,8 +55,11 @@ async function fetchAllCognitoUsers() {
 async function profileExists(userId) {
   try {
     const command = new GetCommand({
-      TableName: USER_PROFILES_TABLE,
-      Key: { userId },
+      TableName: TABLE_NAME,
+      Key: {
+        PK: `USER#${userId}`,
+        SK: 'PROFILE',
+      },
     })
 
     const response = await docClient.send(command)
@@ -93,6 +96,9 @@ async function createUserProfile(cognitoUser) {
   }
 
   const profile = {
+    PK: `USER#${userId}`,
+    SK: 'PROFILE',
+    entityType: 'USER_PROFILE',
     userId,
     email,
     displayName,
@@ -112,9 +118,9 @@ async function createUserProfile(cognitoUser) {
 
   try {
     const command = new PutCommand({
-      TableName: USER_PROFILES_TABLE,
+      TableName: TABLE_NAME,
       Item: profile,
-      ConditionExpression: 'attribute_not_exists(userId)', // Prevent overwriting existing profiles
+      ConditionExpression: 'attribute_not_exists(PK)', // Prevent overwriting existing profiles
     })
 
     await docClient.send(command)
