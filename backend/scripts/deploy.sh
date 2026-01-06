@@ -550,10 +550,15 @@ GUEST_PASSWORD=$(grep "^PUBLIC_GUEST_PASSWORD=" "$FRONTEND_ENV" 2>/dev/null | cu
 if [ -n "$GUEST_EMAIL" ] && [ -n "$GUEST_PASSWORD" ]; then
     echo "Recreating guest user from .env credentials..."
     echo "  Email: $GUEST_EMAIL"
-    if node scripts/create-guest-user.js "$GUEST_EMAIL" "$GUEST_PASSWORD" 2>/dev/null; then
+    CREATE_OUTPUT=$(node scripts/create-guest-user.js "$GUEST_EMAIL" "$GUEST_PASSWORD" 2>&1)
+    CREATE_STATUS=$?
+    if [ $CREATE_STATUS -eq 0 ]; then
         echo "  Guest user ready!"
+    elif echo "$CREATE_OUTPUT" | grep -qi "already exists"; then
+        echo "  Guest user already exists."
     else
-        echo "  Guest user already exists or was recreated."
+        echo "  WARNING: Guest user creation failed:"
+        echo "$CREATE_OUTPUT" | grep -v "Password" | head -5
     fi
 else
     echo "No guest credentials configured in .env"
