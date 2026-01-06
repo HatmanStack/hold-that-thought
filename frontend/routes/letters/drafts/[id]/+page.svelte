@@ -75,7 +75,7 @@
         const letterFile = new File(
           [letterContent],
           `letter-${event.detail.date}.md`,
-          { type: 'text/markdown' }
+          { type: 'text/markdown' },
         )
         await uploadDocumentToRagstack(letterFile)
       }
