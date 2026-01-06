@@ -457,6 +457,24 @@ update_env_var() {
     fi
 }
 
+# Preserve custom variables from existing .env files before updating
+PRESERVED_RAGSTACK_CHAT_URL=""
+PRESERVED_RAGSTACK_GRAPHQL_URL=""
+PRESERVED_RAGSTACK_API_KEY=""
+PRESERVED_GUEST_EMAIL=""
+PRESERVED_GUEST_PASSWORD=""
+
+# Check frontend/.env first, then root .env for existing values
+for env_file in "$FRONTEND_DIR_ENV" "$FRONTEND_ENV"; do
+    if [ -f "$env_file" ]; then
+        [ -z "$PRESERVED_RAGSTACK_CHAT_URL" ] && PRESERVED_RAGSTACK_CHAT_URL=$(grep "^PUBLIC_RAGSTACK_CHAT_URL=" "$env_file" 2>/dev/null | cut -d'=' -f2-)
+        [ -z "$PRESERVED_RAGSTACK_GRAPHQL_URL" ] && PRESERVED_RAGSTACK_GRAPHQL_URL=$(grep "^PUBLIC_RAGSTACK_GRAPHQL_URL=" "$env_file" 2>/dev/null | cut -d'=' -f2-)
+        [ -z "$PRESERVED_RAGSTACK_API_KEY" ] && PRESERVED_RAGSTACK_API_KEY=$(grep "^PUBLIC_RAGSTACK_API_KEY=" "$env_file" 2>/dev/null | cut -d'=' -f2-)
+        [ -z "$PRESERVED_GUEST_EMAIL" ] && PRESERVED_GUEST_EMAIL=$(grep "^PUBLIC_GUEST_EMAIL=" "$env_file" 2>/dev/null | cut -d'=' -f2-)
+        [ -z "$PRESERVED_GUEST_PASSWORD" ] && PRESERVED_GUEST_PASSWORD=$(grep "^PUBLIC_GUEST_PASSWORD=" "$env_file" 2>/dev/null | cut -d'=' -f2-)
+    fi
+done
+
 # Create .env if it doesn't exist
 if [ ! -f "$FRONTEND_ENV" ]; then
     cat > "$FRONTEND_ENV" << EOF
@@ -477,13 +495,13 @@ PUBLIC_API_GATEWAY_URL=$API_URL
 PUBLIC_ARCHIVE_BUCKET=$ARCHIVE_BUCKET
 
 # RAGStack Integration (optional - set values to enable)
-PUBLIC_RAGSTACK_CHAT_URL=
-PUBLIC_RAGSTACK_GRAPHQL_URL=
-PUBLIC_RAGSTACK_API_KEY=
+PUBLIC_RAGSTACK_CHAT_URL=$PRESERVED_RAGSTACK_CHAT_URL
+PUBLIC_RAGSTACK_GRAPHQL_URL=$PRESERVED_RAGSTACK_GRAPHQL_URL
+PUBLIC_RAGSTACK_API_KEY=$PRESERVED_RAGSTACK_API_KEY
 
 # Guest Login (optional - set values to enable one-click guest access)
-PUBLIC_GUEST_EMAIL=
-PUBLIC_GUEST_PASSWORD=
+PUBLIC_GUEST_EMAIL=$PRESERVED_GUEST_EMAIL
+PUBLIC_GUEST_PASSWORD=$PRESERVED_GUEST_PASSWORD
 EOF
     echo "Created frontend .env file"
 else
@@ -495,7 +513,13 @@ else
     update_env_var "PUBLIC_COGNITO_HOSTED_UI_URL" "$COGNITO_HOSTED_UI_URL" "$FRONTEND_ENV"
     update_env_var "PUBLIC_COGNITO_HOSTED_UI_DOMAIN" "$COGNITO_HOSTED_UI_DOMAIN" "$FRONTEND_ENV"
     update_env_var "PUBLIC_ARCHIVE_BUCKET" "$ARCHIVE_BUCKET" "$FRONTEND_ENV"
-    echo "Updated frontend .env file"
+    # Restore preserved custom vars if they exist and current value is empty
+    [ -n "$PRESERVED_RAGSTACK_CHAT_URL" ] && update_env_var "PUBLIC_RAGSTACK_CHAT_URL" "$PRESERVED_RAGSTACK_CHAT_URL" "$FRONTEND_ENV"
+    [ -n "$PRESERVED_RAGSTACK_GRAPHQL_URL" ] && update_env_var "PUBLIC_RAGSTACK_GRAPHQL_URL" "$PRESERVED_RAGSTACK_GRAPHQL_URL" "$FRONTEND_ENV"
+    [ -n "$PRESERVED_RAGSTACK_API_KEY" ] && update_env_var "PUBLIC_RAGSTACK_API_KEY" "$PRESERVED_RAGSTACK_API_KEY" "$FRONTEND_ENV"
+    [ -n "$PRESERVED_GUEST_EMAIL" ] && update_env_var "PUBLIC_GUEST_EMAIL" "$PRESERVED_GUEST_EMAIL" "$FRONTEND_ENV"
+    [ -n "$PRESERVED_GUEST_PASSWORD" ] && update_env_var "PUBLIC_GUEST_PASSWORD" "$PRESERVED_GUEST_PASSWORD" "$FRONTEND_ENV"
+    echo "Updated frontend .env file (preserved custom vars)"
 fi
 
 # Sync .env to frontend/ directory for Vite, preserving custom vars
@@ -515,6 +539,40 @@ cp "$FRONTEND_ENV" "$FRONTEND_DIR_ENV"
 echo "Synced .env to frontend/ for Vite (preserving custom vars)"
 
 echo ""
-echo "Done! Frontend .env has been updated with stack outputs."
+echo "==================================="
+echo "Step 6: Guest User Setup"
+echo "==================================="
+
+# Check if guest credentials are configured in .env
+GUEST_EMAIL=$(grep "^PUBLIC_GUEST_EMAIL=" "$FRONTEND_ENV" 2>/dev/null | cut -d'=' -f2)
+GUEST_PASSWORD=$(grep "^PUBLIC_GUEST_PASSWORD=" "$FRONTEND_ENV" 2>/dev/null | cut -d'=' -f2)
+
+if [ -n "$GUEST_EMAIL" ] && [ -n "$GUEST_PASSWORD" ]; then
+    echo "Recreating guest user from .env credentials..."
+    echo "  Email: $GUEST_EMAIL"
+    CREATE_OUTPUT=$(node scripts/create-guest-user.js "$GUEST_EMAIL" "$GUEST_PASSWORD" 2>&1)
+    CREATE_STATUS=$?
+    if [ $CREATE_STATUS -eq 0 ]; then
+        echo "  Guest user ready!"
+    elif echo "$CREATE_OUTPUT" | grep -qi "already exists"; then
+        echo "  Guest user already exists."
+    else
+        echo "  WARNING: Guest user creation failed:"
+        echo "$CREATE_OUTPUT" | grep -v "Password" | head -5
+    fi
+else
+    echo "No guest credentials configured in .env"
+    echo "To enable guest login, add to your .env:"
+    echo "  PUBLIC_GUEST_EMAIL=guest@showcase.demo"
+    echo "  PUBLIC_GUEST_PASSWORD=GuestDemo@123"
+    echo "Then run: cd backend/scripts && node create-guest-user.js"
+fi
+
+echo ""
+echo "==================================="
+echo "Deployment Complete!"
+echo "==================================="
+echo ""
+echo "Frontend .env has been updated with stack outputs."
 echo "  Root: .env"
 echo "  Vite: frontend/.env"

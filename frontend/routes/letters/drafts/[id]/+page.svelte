@@ -12,6 +12,7 @@
     type PublishData,
     publishDraft,
   } from '$lib/services/draft-service'
+  import { uploadDocumentToRagstack } from '$lib/services/ragstack-upload-service'
   import { onMount } from 'svelte'
 
   export let data: PageData
@@ -67,6 +68,22 @@
 
     try {
       const result = await publishDraft(data.draftId, event.detail, $authTokens.idToken)
+
+      // Also upload to RAGStack for search indexing
+      try {
+        const letterContent = `# ${event.detail.title}\n\nDate: ${event.detail.date}\nAuthor: ${event.detail.author || 'Unknown'}\n\n${event.detail.content}`
+        const letterFile = new File(
+          [letterContent],
+          `letter-${event.detail.date}.md`,
+          { type: 'text/markdown' },
+        )
+        await uploadDocumentToRagstack(letterFile)
+      }
+      catch (ragstackErr) {
+        // Don't fail the publish if RAGStack upload fails
+        console.warn('RAGStack upload failed:', ragstackErr)
+      }
+
       // Redirect to the published letter
       goto(result.path)
     }

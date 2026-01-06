@@ -125,7 +125,7 @@ export async function getCommentHistory(
     const data = await response.json()
     return {
       success: true,
-      data: data.items || data,
+      data: data.comments || data.items || [],
       lastEvaluatedKey: data.lastEvaluatedKey,
     }
   }
@@ -155,7 +155,7 @@ export async function getAllUsers(): Promise<ProfileApiResponse> {
     const data = await response.json()
     return {
       success: true,
-      data: data.items || data,
+      data: data.users || data.items || data,
     }
   }
   catch (error) {

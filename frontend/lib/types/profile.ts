@@ -85,7 +85,7 @@ export interface UpdateProfileRequest {
 export interface CommentHistoryItem {
   itemId: string
   commentId: string
-  commentText: string
+  content: string
   itemTitle: string
   itemType: 'letter' | 'media'
   createdAt: string

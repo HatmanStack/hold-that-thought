@@ -470,7 +470,7 @@ return
     <div class='relative'>
       <input
         type='text'
-        placeholder='Search photos, videos, and documents... (press Enter)'
+        placeholder='Search photos, videos, and documents...'
         class='input input-bordered w-full pl-12 pr-12 text-lg'
         value={searchQuery}
         on:input={handleSearchInput}
