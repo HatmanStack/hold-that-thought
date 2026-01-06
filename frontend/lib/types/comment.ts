@@ -3,19 +3,14 @@
 export interface Comment {
   itemId: string
   commentId: string
-  userId: string
-  userName: string
-  userPhotoUrl?: string
-  commentText: string
+  authorId: string
+  authorEmail?: string
+  content: string
   createdAt: string
   updatedAt?: string
-  isEdited: boolean
-  editHistory?: Array<{ text: string, timestamp: string }>
-  reactionCount: number
-  isDeleted: boolean
-  itemType: 'letter' | 'media'
-  itemTitle: string
-  userHasReacted?: boolean // Whether current user has reacted to this comment
+  isEdited?: boolean
+  reactionCount?: number
+  userHasReacted?: boolean
 }
 
 export interface Reaction {
@@ -39,11 +34,11 @@ export interface ReactionApiResponse {
 }
 
 export interface CreateCommentRequest {
-  commentText: string
+  content: string
   itemType: 'letter' | 'media'
   itemTitle: string
 }
 
 export interface UpdateCommentRequest {
-  commentText: string
+  content: string
 }

@@ -21,17 +21,20 @@
   let error = ''
 
   // Reaction state
-  let reactionCount = comment.reactionCount
+  let reactionCount = comment.reactionCount ?? 0
   let isReacting = false
   let hasReacted = comment.userHasReacted ?? false
 
   // Update reaction state when comment prop changes
   $: hasReacted = comment.userHasReacted ?? false
-  $: reactionCount = comment.reactionCount
+  $: reactionCount = comment.reactionCount ?? 0
 
-  $: isOwner = comment.userId === currentUserId
-  $: canEdit = isOwner && !comment.isDeleted
-  $: canDelete = (isOwner || isAdmin) && !comment.isDeleted
+  $: isOwner = comment.authorId === currentUserId
+  $: canEdit = isOwner
+  $: canDelete = isOwner || isAdmin
+
+  // Display name from email (take part before @)
+  $: displayName = comment.authorEmail?.split('@')[0] || 'User'
 
   /**
    * Format timestamp as relative time (e.g., "2 hours ago")
@@ -62,7 +65,7 @@
   }
 
   function startEditing() {
-    editText = comment.commentText
+    editText = comment.content
     editing = true
     tick().then(() => {
       document.getElementById(`edit-textarea-${comment.commentId}`)?.focus()
@@ -76,7 +79,7 @@
   }
 
   async function saveEdit() {
-    if (editText.trim().length === 0 || editText.trim() === comment.commentText) {
+    if (editText.trim().length === 0 || editText.trim() === comment.content) {
       cancelEditing()
       return
     }
@@ -152,20 +155,11 @@
   <div class='flex gap-3'>
     <!-- Avatar -->
     <div class='flex-shrink-0'>
-      {#if comment.userPhotoUrl}
-        <img
-          src={comment.userPhotoUrl}
-          alt={comment.userName}
-          class='w-10 rounded-full h-10'
-          loading='lazy'
-        />
-      {:else}
-        <div class='avatar placeholder'>
-          <div class='rounded-full w-10 bg-neutral text-neutral-content'>
-            <span class='text-lg'>{comment.userName.charAt(0).toUpperCase()}</span>
-          </div>
+      <div class='avatar placeholder'>
+        <div class='rounded-full w-10 bg-neutral text-neutral-content'>
+          <span class='text-lg'>{displayName.charAt(0).toUpperCase()}</span>
         </div>
-      {/if}
+      </div>
     </div>
 
     <!-- Comment content -->
@@ -173,10 +167,10 @@
       <!-- Header -->
       <div class='flex items-center gap-2 mb-1'>
         <a
-          href='/profile/{comment.userId}'
+          href='/profile/{comment.authorId}'
           class='text-sm font-semibold hover:text-primary hover:underline'
         >
-          {comment.userName}
+          {displayName}
         </a>
         <span class='text-xs text-base-content/60'>
           {formatRelativeTime(comment.createdAt)}
@@ -218,7 +212,7 @@
           </div>
         </div>
       {:else}
-        <p class='text-sm whitespace-pre-wrap break-words'>{comment.commentText}</p>
+        <p class='text-sm whitespace-pre-wrap break-words'>{comment.content}</p>
       {/if}
 
       {#if error}
@@ -228,7 +222,7 @@
       {/if}
 
       <!-- Actions -->
-      {#if !editing && !comment.isDeleted}
+      {#if !editing}
         <div class='flex items-center gap-3 mt-2'>
           <!-- Reaction button -->
           <button

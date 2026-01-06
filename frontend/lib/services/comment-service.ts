@@ -56,9 +56,11 @@ export async function getComments(
     }
 
     const data = await response.json()
+    // Backend returns { comments: [...], lastEvaluatedKey, count }
+    const comments = Array.isArray(data.comments) ? data.comments : (Array.isArray(data.items) ? data.items : [])
     return {
       success: true,
-      data: data.items || data,
+      data: comments,
       lastEvaluatedKey: data.lastEvaluatedKey,
     }
   }
@@ -79,7 +81,7 @@ export async function createComment(
 ): Promise<CommentApiResponse> {
   try {
     const body: CreateCommentRequest = {
-      commentText: text,
+      content: text,
       itemType,
       itemTitle,
     }
@@ -120,7 +122,7 @@ export async function updateComment(
 ): Promise<CommentApiResponse> {
   try {
     const body: UpdateCommentRequest = {
-      commentText: text,
+      content: text,
     }
 
     const url = `${API_BASE}/comments/${encodeItemId(itemId)}/${encodeURIComponent(commentId)}`
