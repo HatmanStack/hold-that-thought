@@ -38,7 +38,7 @@ export async function ensureProfile(
     groups,
     createdAt: timestamp,
     updatedAt: timestamp,
-    entityType: 'USER',
+    entityType: 'USER_PROFILE',
   }
 
   try {

@@ -59,7 +59,7 @@ class UserRepository extends BaseRepository {
       groups,
       createdAt: timestamp,
       updatedAt: timestamp,
-      entityType: 'USER',
+      entityType: 'USER_PROFILE',
     }
 
     await this.putItem(profile, {

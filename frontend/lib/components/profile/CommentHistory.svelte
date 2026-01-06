@@ -196,7 +196,7 @@
 
               <!-- Comment snippet -->
               <p class='text-sm mb-2 text-base-content/80'>
-                {truncateComment(comment.commentText)}
+                {truncateComment(comment.content)}
               </p>
 
               <!-- Metadata -->
