@@ -17,8 +17,8 @@
 
   $: isGroup = selectedUserIds.length > 1
   $: filteredUsers = users.filter(user =>
-    user.displayName.toLowerCase().includes(searchQuery.toLowerCase())
-    || user.email.toLowerCase().includes(searchQuery.toLowerCase()),
+    user.displayName?.toLowerCase().includes(searchQuery.toLowerCase())
+    || user.email?.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
   /**
@@ -124,27 +124,28 @@
           <div class='h-10 bg-base-300 rounded'></div>
         </div>
       </div>
-    {:else if error}
-      <!-- Error state -->
-      <div class='alert alert-error mb-4'>
-        <svg
-          xmlns='http://www.w3.org/2000/svg'
-          class='stroke-current shrink-0 h-6 w-6'
-          fill='none'
-          viewBox='0 0 24 24'
-        >
-          <path
-            stroke-linecap='round'
-            stroke-linejoin='round'
-            stroke-width='2'
-            d='M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z'
-          />
-        </svg>
-        <span>{error}</span>
-      </div>
-    {/if}
+    {:else}
+      <!-- Error message (if any) -->
+      {#if error}
+        <div class='alert alert-error mb-4'>
+          <svg
+            xmlns='http://www.w3.org/2000/svg'
+            class='stroke-current shrink-0 h-6 w-6'
+            fill='none'
+            viewBox='0 0 24 24'
+          >
+            <path
+              stroke-linecap='round'
+              stroke-linejoin='round'
+              stroke-width='2'
+              d='M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z'
+            />
+          </svg>
+          <span>{error}</span>
+        </div>
+      {/if}
 
-    <div class='space-y-4'>
+      <div class='space-y-4'>
       <!-- User selection -->
       <div class='form-control'>
         <label class='label'>
@@ -211,14 +212,16 @@
                   <div class='avatar placeholder'>
                     <div class='bg-neutral text-neutral-content rounded-full w-10 h-10'>
                       <span class='text-sm'>
-                        {user.displayName.charAt(0).toUpperCase()}
+                        {(user.displayName || 'U').charAt(0).toUpperCase()}
                       </span>
                     </div>
                   </div>
                 {/if}
                 <div class='flex-1'>
-                  <p class='font-semibold'>{user.displayName}</p>
-                  <p class='text-sm text-base-content/60'>{user.email}</p>
+                  <p class='font-semibold'>{user.displayName || 'Unknown User'}</p>
+                  {#if user.email}
+                    <p class='text-sm text-base-content/60'>{user.email}</p>
+                  {/if}
                 </div>
                 {#if selectedUserIds.includes(user.userId)}
                   <svg
@@ -294,5 +297,6 @@
         </button>
       </div>
     </div>
+    {/if}
   </div>
 </div>
