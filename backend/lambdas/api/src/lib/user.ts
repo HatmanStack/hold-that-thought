@@ -28,10 +28,11 @@ export async function ensureProfile(
     return result.Item as UserProfile
   }
 
-  // Create new profile
+  // Create new profile with GSI1 keys for listing all users
   const timestamp = new Date().toISOString()
   const profile: UserProfile = {
     ...key,
+    ...keys.userProfileGSI1(userId),
     userId,
     email,
     displayName: email?.split('@')[0] || 'User',

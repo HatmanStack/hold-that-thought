@@ -4,7 +4,7 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
 import type { RequestContext } from '../types'
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
-import { GetCommand, PutCommand, QueryCommand, UpdateCommand, ScanCommand } from '@aws-sdk/lib-dynamodb'
+import { GetCommand, PutCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { docClient, TABLE_NAME, ARCHIVE_BUCKET } from '../lib/database'
 import { keys, PREFIX } from '../lib/keys'
@@ -220,9 +220,10 @@ async function updateProfile(
         ExpressionAttributeValues: expressionValues,
       }))
     } else {
-      // Create new profile
+      // Create new profile with GSI1 keys for listing all users
       const profile: Record<string, unknown> = {
         ...keys.userProfile(requesterId),
+        ...keys.userProfileGSI1(requesterId),
         entityType: 'USER_PROFILE',
         userId: requesterId,
         email: requesterEmail,
@@ -339,10 +340,12 @@ async function getPhotoUploadUrl(
 
 async function listUsers(_requesterId: string): Promise<APIGatewayProxyResult> {
   try {
-    const result = await docClient.send(new ScanCommand({
+    // Use GSI1 Query instead of Scan for better scalability
+    const result = await docClient.send(new QueryCommand({
       TableName: TABLE_NAME,
-      FilterExpression: 'entityType = :type',
-      ExpressionAttributeValues: { ':type': 'USER_PROFILE' },
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :gsi1pk',
+      ExpressionAttributeValues: { ':gsi1pk': 'USERS' },
       ProjectionExpression: 'userId, displayName, profilePhotoUrl, bio',
     }))
 
