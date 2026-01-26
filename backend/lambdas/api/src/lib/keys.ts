@@ -10,6 +10,12 @@ export const keys = {
     SK: 'PROFILE',
   }),
 
+  // User profile GSI1 keys (for listing all users)
+  userProfileGSI1: (userId: string): { GSI1PK: string; GSI1SK: string } => ({
+    GSI1PK: 'USERS',
+    GSI1SK: `${PREFIX.USER}${userId}`,
+  }),
+
   // User's conversation membership: PK=USER#<userId>, SK=CONV#<convId>
   userConversation: (userId: string, convId: string): DynamoDBKey => ({
     PK: `${PREFIX.USER}${userId}`,

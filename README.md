@@ -7,6 +7,7 @@
 
 <p align="center">
 <a href="https://kit.svelte.dev"><img src="https://img.shields.io/badge/SvelteKit-2.x-orange" alt="SvelteKit" /></a>
+<a href="https://svelte.dev"><img src="https://img.shields.io/badge/Svelte-4.x-FF3E00" alt="Svelte 4" /></a>
 <a href="https://vitest.dev"><img src="https://img.shields.io/badge/Vitest-2.x-yellow" alt="Vitest" /></a>
 <a href="https://docs.aws.amazon.com/lambda/"><img src="https://img.shields.io/badge/AWS-Lambda-FF9900" alt="AWS Lambda" /></a>
 <a href="https://aws.amazon.com/dynamodb/"><img src="https://img.shields.io/badge/AWS-DynamoDB-4053D6" alt="AWS DynamoDB" /></a>
@@ -15,48 +16,141 @@
 </p>
 
 <p align="center">
-<b>Sharing letters, one typo at a time<br><a href="https://showcase-htt.hatstack.fun/">Hold That Thought »</a></b>
+<b>Sharing letters, one typo at a time</b>
 </p>
 
-A private family platform for sharing letters, photos, and memories. Upload scanned letters with AI-powered transcription and browse a shared media gallery. All media is embedded in a RAG backend for semantic search and connected to a chat client for conversational access to your family's content.
+A private family platform for sharing letters, photos, and memories. Upload scanned letters with AI-powered transcription, browse a shared media gallery, and engage with family content through comments and reactions.
 
-## Structure
+## Features
 
-```text
-├── frontend/   # SvelteKit client (lib, routes, static)
-├── backend/    # AWS Lambda serverless API (SAM)
-├── docs/       # Documentation
-└── tests/      # Centralized test suites (unit, e2e, load)
+- **Letter Archive** - Upload scanned letters (PDF/images), AI transcription via Google Gemini
+- **Media Gallery** - Photos, videos, and documents with categories and presigned URL access
+- **Comments & Reactions** - Threaded comments on letters and media with like reactions
+- **Direct Messaging** - Private conversations between family members with file attachments
+- **User Profiles** - Customizable profiles with family relationships and activity history
+- **Version History** - Track letter edits with full version history and revert capability
+- **Rate Limiting** - Atomic DynamoDB-based rate limiting with fail-open behavior
+- **RAGStack Integration** - Optional AI-powered semantic search and chat
+
+## Live Demo
+
+| Environment | URL | Access |
+|-------------|-----|--------|
+| **Showcase** | [showcase-htt.hatstack.fun](https://showcase-htt.hatstack.fun) | Login as guest |
+
+## Architecture
+
+```
+Frontend (SvelteKit)          Backend (AWS Lambda)
+       │                              │
+       ├── Auth ──────────────► Cognito (JWT)
+       │                              │
+       ├── API ───────────────► API Gateway ──► Lambda
+       │                              │              │
+       │                              │         ┌────┴────┐
+       │                              │         │         │
+       │                         DynamoDB    S3 Buckets
+       │                      (single-table)  (media/letters)
+       │                              │
+       └── RAGStack ──────────► AppSync (optional)
 ```
 
-## Prerequisites
-
-- **Node.js** v24 LTS (via nvm)
-- **npm** (included with Node.js)
-- **AWS CLI** configured with credentials
-- **AWS SAM CLI** for serverless deployment
+**Key Components:**
+- **Frontend**: SvelteKit 2.x + Svelte 4, DaisyUI components, TailwindCSS
+- **Backend**: Consolidated API Lambda with route-based handlers
+- **Database**: DynamoDB single-table design with GSI for queries
+- **Storage**: S3 with presigned URLs for secure media access
+- **Auth**: Cognito User Pool with JWT tokens and user groups
 
 ## Quick Start
 
+### Prerequisites
+
+- Node.js v24 LTS (via nvm)
+- AWS CLI configured with credentials
+- AWS SAM CLI for deployment
+
+### Installation
+
 ```bash
-npm install                    # Install root dependencies
-cd frontend && npm install     # Install frontend dependencies
-cd ..
-cp .env.example .env           # Configure environment
-npm run dev                    # Start dev server
+# Clone and install
+git clone https://github.com/HatmanStack/hold-that-thought.git
+cd hold-that-thought
+npm install
+cd frontend && npm install && cd ..
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your Cognito and API settings
+
+# Start development server
+npm run dev
+```
+
+### Deploy Backend
+
+```bash
+npm run deploy
+```
+
+The deploy script prompts for configuration and creates all AWS resources.
+
+## Project Structure
+
+```
+hold-that-thought/
+├── frontend/                 # SvelteKit application
+│   ├── routes/              # File-based routing
+│   │   ├── auth/           # Login, signup, password reset
+│   │   ├── gallery/        # Media gallery
+│   │   ├── letters/        # Letter viewing and editing
+│   │   ├── messages/       # Direct messaging
+│   │   └── profile/        # User profiles
+│   └── lib/
+│       ├── auth/           # Cognito authentication
+│       ├── components/     # Reusable Svelte components
+│       ├── services/       # API service modules
+│       └── types/          # TypeScript definitions
+│
+├── backend/                  # AWS SAM application
+│   ├── template.yaml        # SAM infrastructure definition
+│   └── lambdas/
+│       ├── api/            # Consolidated REST API
+│       │   └── src/
+│       │       ├── routes/     # Route handlers
+│       │       ├── lib/        # Shared utilities
+│       │       └── types/      # TypeScript types
+│       ├── letter-processor/   # PDF merge + Gemini AI
+│       ├── activity-aggregator/# DynamoDB stream processor
+│       └── notification-processor/ # Email notifications
+│
+├── tests/                    # Centralized test suites
+│   ├── unit/                # Vitest unit tests
+│   ├── integration/         # API integration tests
+│   ├── e2e/                 # Playwright browser tests
+│   └── load/                # Artillery load tests
+│
+└── docs/                     # Documentation
 ```
 
 ## Scripts
 
 ```bash
-npm run dev       # Start frontend dev server
-npm run build     # Build frontend for production
-npm run deploy    # Deploy backend (SAM)
-npm test          # Run unit tests
-npm run test:e2e  # Run Playwright E2E tests
-npm run test:load # Run Artillery load tests
-npm run lint      # ESLint + type check
-npm run check     # Run all checks (lint + tests)
+# Development
+npm run dev                   # Start SvelteKit dev server
+npm run build                 # Production build
+
+# Testing
+npm test                      # Run unit tests (Vitest)
+npm run test:e2e              # Playwright E2E tests
+npm run test:load             # Artillery load tests
+
+# Quality
+npm run lint                  # ESLint + type check
+npm run check                 # Run all checks (lint + tests)
+
+# Deployment
+npm run deploy                # Deploy backend via SAM
 ```
 
 ## RAGStack Integration
@@ -69,21 +163,21 @@ PUBLIC_RAGSTACK_GRAPHQL_URL=https://<appsync-id>.appsync-api.<region>.amazonaws.
 PUBLIC_RAGSTACK_API_KEY=<appsync-api-key>
 ```
 
-Features enabled:
-- **Chat widget** on homepage (AI assistant for family content)
-- **Semantic search** across indexed media
-- **Auto-indexing** of gallery uploads to knowledge base
+**Features enabled:**
+- Chat widget on homepage (AI assistant for family content)
+- Semantic search across indexed media
+- Auto-indexing of gallery uploads to knowledge base
 
-To see a demo of the RAGStack deployment powering this site, visit [RAGStack-Lambda](https://github.com/HatmanStack/RAGStack-Lambda).
+## Documentation
 
-## Deployment
-
-```bash
-npm run deploy   # Backend (Lambda + API Gateway + DynamoDB)
-npm run build    # Frontend build
-```
-
-See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for full setup and configuration.
+- [Architecture](docs/ARCHITECTURE.md) - System design, components, data flows
+- [Authentication](docs/AUTHENTICATION.md) - Cognito setup, user groups, JWT handling
+- [API Reference](docs/API_REFERENCE.md) - REST API endpoints and examples
+- [Data Model](docs/DATA_MODEL.md) - DynamoDB schema and access patterns
+- [Frontend Guide](docs/FRONTEND.md) - SvelteKit structure, services, components
+- [Deployment](docs/DEPLOYMENT.md) - AWS deployment and configuration
+- [Development](docs/DEVELOPMENT.md) - Local setup, testing, contributing
+- [Troubleshooting](docs/TROUBLESHOOTING.md) - Common issues and solutions
 
 ## License
 

@@ -3,14 +3,42 @@
  */
 import type { APIGatewayProxyResult } from 'aws-lambda'
 
-const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS || '*'
+/**
+ * Get configured allowed origins.
+ * Fails closed: requires explicit configuration, no permissive default.
+ */
+function getAllowedOrigins(): string {
+  const origins = process.env.ALLOWED_ORIGINS
+
+  if (!origins) {
+    // In local development, allow wildcard if explicitly not set
+    if (process.env.AWS_SAM_LOCAL === 'true' || process.env.NODE_ENV === 'test') {
+      return '*'
+    }
+    console.error('CORS_CONFIG_ERROR: ALLOWED_ORIGINS environment variable is not set')
+    // Fail closed: return empty string which will reject all cross-origin requests
+    return ''
+  }
+
+  return origins
+}
 
 /**
  * Get CORS headers with the configured origin
  */
 export function getCorsHeaders(requestOrigin?: string): Record<string, string> {
-  // If wildcard is configured
-  if (ALLOWED_ORIGINS === '*') {
+  const allowedOrigins = getAllowedOrigins()
+
+  // If no origins configured, return restrictive headers (fail closed)
+  if (!allowedOrigins) {
+    return {
+      'Content-Type': 'application/json',
+      // No Access-Control-Allow-Origin header = browser will block cross-origin requests
+    }
+  }
+
+  // If wildcard is explicitly configured (development only)
+  if (allowedOrigins === '*') {
     // CORS spec: credentials not allowed with wildcard origin
     // If we have a request origin, echo it to allow credentials
     if (requestOrigin) {
@@ -28,40 +56,35 @@ export function getCorsHeaders(requestOrigin?: string): Record<string, string> {
   }
 
   // Check if request origin is in allowed list
-  const allowedList = ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
-  const origin =
-    requestOrigin && allowedList.includes(requestOrigin)
-      ? requestOrigin
-      : allowedList[0] || '*'
+  const allowedList = allowedOrigins.split(',').map((o) => o.trim()).filter(Boolean)
 
-  // Only include credentials header if we have a specific origin
-  if (origin === '*') {
+  // Only return CORS headers if request origin exactly matches an allowed origin
+  // Fail closed: no fallback to first origin, no CORS headers if not matched
+  if (requestOrigin && allowedList.includes(requestOrigin)) {
     return {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': requestOrigin,
+      'Access-Control-Allow-Credentials': 'true',
     }
   }
 
+  // Request origin not in allowed list or not provided - fail closed (no CORS headers)
   return {
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Credentials': 'true',
   }
 }
-
-// Default headers for backwards compatibility
-const CORS_HEADERS = getCorsHeaders()
 
 /**
  * Create a success response
  */
 export function successResponse(
   data: unknown,
-  statusCode = 200
+  statusCode = 200,
+  requestOrigin?: string
 ): APIGatewayProxyResult {
   return {
     statusCode,
-    headers: CORS_HEADERS,
+    headers: getCorsHeaders(requestOrigin),
     body: JSON.stringify(data),
   }
 }
@@ -71,11 +94,12 @@ export function successResponse(
  */
 export function errorResponse(
   statusCode: number,
-  message: string
+  message: string,
+  requestOrigin?: string
 ): APIGatewayProxyResult {
   return {
     statusCode,
-    headers: CORS_HEADERS,
+    headers: getCorsHeaders(requestOrigin),
     body: JSON.stringify({ error: message }),
   }
 }
@@ -85,12 +109,13 @@ export function errorResponse(
  */
 export function rateLimitResponse(
   retryAfter: number,
-  message: string
+  message: string,
+  requestOrigin?: string
 ): APIGatewayProxyResult {
   return {
     statusCode: 429,
     headers: {
-      ...CORS_HEADERS,
+      ...getCorsHeaders(requestOrigin),
       'Retry-After': retryAfter.toString(),
     },
     body: JSON.stringify({ error: message }),

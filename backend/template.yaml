@@ -595,11 +595,21 @@ Resources:
 
   LetterProcessorFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/index.ts
+        External:
+          - '@aws-sdk/*'
     Properties:
       CodeUri: lambdas/letter-processor/
       Handler: index.handler
       Description: Letter processor - merges PDFs and parses with Gemini
-      Runtime: nodejs20.x
+      Runtime: nodejs24.x
       Timeout: 60
       MemorySize: 512
       Environment:

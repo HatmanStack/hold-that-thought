@@ -50,7 +50,7 @@ Create comment.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | itemId | string | Yes | Path param (base64url or plain) |
-| commentText | string | Yes | Body, max 2000 chars |
+| commentText | string | Yes | Body, max 5000 chars |
 | itemType | string | No | Content type identifier |
 | itemTitle | string | No | Content title |
 
@@ -317,7 +317,7 @@ Get user profile.
 Update own profile.
 
 **Signature:** `PUT /profile`
-**Rate Limit:** 10/min
+**Rate Limit:** 100/min (default)
 
 | Parameter | Type | Required |
 |-----------|------|----------|
@@ -357,7 +357,7 @@ Get user's comment history.
 Get presigned URL for profile photo.
 
 **Signature:** `POST /profile/photo/upload-url`
-**Rate Limit:** 5/5min
+**Rate Limit:** 10/5min
 
 | Parameter | Type | Required |
 |-----------|------|----------|
@@ -721,6 +721,7 @@ Send contact message.
 | Action | Limit | Window |
 |--------|-------|--------|
 | createComment | 20 | 1 min |
-| updateProfile | 10 | 1 min |
-| photoUpload | 5 | 5 min |
 | sendMessage | 30 | 1 min |
+| toggleReaction | 60 | 1 min |
+| upload | 10 | 5 min |
+| default | 100 | 1 min |

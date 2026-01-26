@@ -8,8 +8,9 @@ import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
 import type { RequestContext, AuthClaims } from './types'
 import { comments, messages, profile, reactions, media, letters, drafts, contact } from './routes'
 import { ensureProfile } from './lib/user'
-import { log } from './lib/logger'
+import { log, setCorrelationId, extractCorrelationId } from './lib/logger'
 import { errorResponse } from './lib/responses'
+import { toError, getStatusCode, getUserMessage, AppError } from './lib/errors'
 
 /**
  * Current API version
@@ -22,6 +23,14 @@ export const API_VERSION = 'v1'
 export async function handler(
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> {
+  // Extract and set correlation ID for request tracing
+  const traceHeader = event.headers?.['X-Amzn-Trace-Id'] || event.headers?.['x-amzn-trace-id']
+  const correlationId = extractCorrelationId(traceHeader)
+  setCorrelationId(correlationId)
+
+  // Extract request origin for CORS
+  const requestOrigin = event.headers?.['Origin'] || event.headers?.['origin']
+
   const method = event.httpMethod
   const rawPath = event.resource || event.path
 
@@ -51,11 +60,12 @@ export async function handler(
     try {
       await ensureProfile(requesterId, requesterEmail, requesterGroups)
     } catch (err) {
+      const error = toError(err)
       log.error('ensure_profile_failed', {
         requesterId,
-        error: (err as Error).message,
+        error: error.message,
       })
-      return errorResponse(500, 'Failed to initialize user profile')
+      return errorResponse(500, 'Failed to initialize user profile', requestOrigin)
     }
   }
 
@@ -64,6 +74,8 @@ export async function handler(
     requesterEmail,
     isAdmin,
     isApprovedUser,
+    correlationId,
+    requestOrigin,
   }
 
   try {
@@ -105,14 +117,14 @@ export async function handler(
       // Draft routes - allow ApprovedUsers (not just Admins)
       if (path.startsWith('/admin/drafts')) {
         if (!isApprovedUser && !isAdmin) {
-          return errorResponse(403, 'Approved user access required')
+          return errorResponse(403, 'Approved user access required', requestOrigin)
         }
         return drafts.handle(event, context)
       }
 
       // Other admin routes - require Admins group
       if (!isAdmin) {
-        return errorResponse(403, 'Admin access required')
+        return errorResponse(403, 'Admin access required', requestOrigin)
       }
 
       // Admin comment moderation: /admin/comments/{commentId}
@@ -121,15 +133,22 @@ export async function handler(
       }
 
       // Unknown admin route
-      return errorResponse(404, `Admin route not found: ${method} ${path}`)
+      return errorResponse(404, `Admin route not found: ${method} ${path}`, requestOrigin)
     }
 
-    return errorResponse(404, `Route not found: ${method} ${path}`)
-  } catch (error) {
+    return errorResponse(404, `Route not found: ${method} ${path}`, requestOrigin)
+  } catch (err) {
+    const error = toError(err)
     log.error('unhandled_error', {
-      error: (error as Error).message,
-      stack: (error as Error).stack,
+      error: error.message,
+      stack: error.stack,
     })
-    return errorResponse(500, 'Internal server error')
+
+    // Use appropriate status code and message for typed errors
+    const statusCode = getStatusCode(err)
+    const message =
+      err instanceof AppError ? getUserMessage(err) : 'Internal server error'
+
+    return errorResponse(statusCode, message, requestOrigin)
   }
 }

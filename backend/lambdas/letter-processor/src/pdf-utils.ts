@@ -1,14 +1,20 @@
-const { PDFDocument } = require('pdf-lib')
+/**
+ * PDF utilities for merging files
+ */
+import { PDFDocument } from 'pdf-lib'
+import type { FileInput } from './types'
 
-async function mergeFiles(files) {
-  // files = [{ buffer: Buffer, type: 'application/pdf' | 'image/jpeg' ... }]
+/**
+ * Merge multiple files (PDFs and images) into a single PDF
+ */
+export async function mergeFiles(files: FileInput[]): Promise<Uint8Array> {
   const mergedPdf = await PDFDocument.create()
-  
+
   for (const file of files) {
     if (file.type === 'application/pdf') {
       const pdf = await PDFDocument.load(file.buffer)
       const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices())
-      copiedPages.forEach((page) => mergedPdf.addPage(page))
+      copiedPages.forEach(page => mergedPdf.addPage(page))
     } else if (file.type.startsWith('image/')) {
       let image
       try {
@@ -21,7 +27,7 @@ async function mergeFiles(files) {
         console.error('Error embedding image:', err)
         continue
       }
-      
+
       if (image) {
         // Create page matching image dimensions
         const page = mergedPdf.addPage([image.width, image.height])
@@ -34,8 +40,6 @@ async function mergeFiles(files) {
       }
     }
   }
-  
-  return await mergedPdf.save()
-}
 
-module.exports = { mergeFiles }
+  return mergedPdf.save()
+}
