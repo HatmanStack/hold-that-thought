@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 import {
   withRetry,
@@ -10,6 +10,10 @@ import {
 describe('withRetry utility', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('should succeed on first attempt', async () => {
@@ -58,10 +62,17 @@ describe('withRetry utility', () => {
       initialDelayMs: 100,
     })
 
+    // Attach error handler BEFORE running timers to avoid unhandled rejection
+    let caughtError
+    const errorPromise = promise.catch((e) => {
+      caughtError = e
+    })
+
     // Run through all retries
     await vi.runAllTimersAsync()
+    await errorPromise
 
-    await expect(promise).rejects.toThrow(MaxRetriesExceededError)
+    expect(caughtError).toBeInstanceOf(MaxRetriesExceededError)
     expect(fn).toHaveBeenCalledTimes(3)
   })
 
@@ -94,10 +105,18 @@ describe('withRetry utility', () => {
       isRetryable: (err) => err instanceof TimeoutError, // Only retry timeouts
     })
 
+    // Attach error handler BEFORE running timers to avoid unhandled rejection
+    let caughtError
+    const errorPromise = promise.catch((e) => {
+      caughtError = e
+    })
+
     await vi.runAllTimersAsync()
+    await errorPromise
 
     // Should throw immediately without retrying
-    await expect(promise).rejects.toThrow('non-retryable')
+    expect(caughtError).toBeInstanceOf(Error)
+    expect(caughtError.message).toBe('non-retryable')
     expect(fn).toHaveBeenCalledTimes(1)
   })
 
