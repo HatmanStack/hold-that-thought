@@ -169,22 +169,28 @@ export async function handler(event: ProcessorEvent): Promise<ProcessorResult> {
   } catch (error) {
     console.error('Processing failed:', error)
 
-    // Save error status to DynamoDB
-    await ddb.send(
-      new PutCommand({
-        TableName: TABLE_NAME,
-        Item: {
-          PK: `DRAFT#${uploadId}`,
-          SK: 'METADATA',
-          entityType: 'DRAFT_LETTER',
-          status: 'ERROR',
-          error: (error as Error).message,
-          createdAt: new Date().toISOString(),
-          requesterId,
-        },
-      })
-    )
+    // Try to save error status to DynamoDB, but don't mask the original error
+    try {
+      await ddb.send(
+        new PutCommand({
+          TableName: TABLE_NAME,
+          Item: {
+            PK: `DRAFT#${uploadId}`,
+            SK: 'METADATA',
+            entityType: 'DRAFT_LETTER',
+            status: 'ERROR',
+            error: (error as Error).message,
+            createdAt: new Date().toISOString(),
+            requesterId,
+          },
+        })
+      )
+    } catch (ddbError) {
+      // Log DynamoDB failure but don't mask the original processing error
+      console.error('Failed to record error status in DynamoDB:', ddbError)
+    }
 
+    // Always rethrow the original error
     throw error
   }
 }

@@ -23,14 +23,14 @@ function getAllowedOrigins(): string {
   return origins
 }
 
-const ALLOWED_ORIGINS = getAllowedOrigins()
-
 /**
  * Get CORS headers with the configured origin
  */
 export function getCorsHeaders(requestOrigin?: string): Record<string, string> {
+  const allowedOrigins = getAllowedOrigins()
+
   // If no origins configured, return restrictive headers (fail closed)
-  if (!ALLOWED_ORIGINS) {
+  if (!allowedOrigins) {
     return {
       'Content-Type': 'application/json',
       // No Access-Control-Allow-Origin header = browser will block cross-origin requests
@@ -38,7 +38,7 @@ export function getCorsHeaders(requestOrigin?: string): Record<string, string> {
   }
 
   // If wildcard is explicitly configured (development only)
-  if (ALLOWED_ORIGINS === '*') {
+  if (allowedOrigins === '*') {
     // CORS spec: credentials not allowed with wildcard origin
     // If we have a request origin, echo it to allow credentials
     if (requestOrigin) {
@@ -56,7 +56,7 @@ export function getCorsHeaders(requestOrigin?: string): Record<string, string> {
   }
 
   // Check if request origin is in allowed list
-  const allowedList = ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+  const allowedList = allowedOrigins.split(',').map((o) => o.trim()).filter(Boolean)
 
   // If request origin is in the allowed list, echo it back
   if (requestOrigin && allowedList.includes(requestOrigin)) {
@@ -84,19 +84,17 @@ export function getCorsHeaders(requestOrigin?: string): Record<string, string> {
   }
 }
 
-// Default headers for backwards compatibility
-const CORS_HEADERS = getCorsHeaders()
-
 /**
  * Create a success response
  */
 export function successResponse(
   data: unknown,
-  statusCode = 200
+  statusCode = 200,
+  requestOrigin?: string
 ): APIGatewayProxyResult {
   return {
     statusCode,
-    headers: CORS_HEADERS,
+    headers: getCorsHeaders(requestOrigin),
     body: JSON.stringify(data),
   }
 }
@@ -106,11 +104,12 @@ export function successResponse(
  */
 export function errorResponse(
   statusCode: number,
-  message: string
+  message: string,
+  requestOrigin?: string
 ): APIGatewayProxyResult {
   return {
     statusCode,
-    headers: CORS_HEADERS,
+    headers: getCorsHeaders(requestOrigin),
     body: JSON.stringify({ error: message }),
   }
 }
@@ -120,12 +119,13 @@ export function errorResponse(
  */
 export function rateLimitResponse(
   retryAfter: number,
-  message: string
+  message: string,
+  requestOrigin?: string
 ): APIGatewayProxyResult {
   return {
     statusCode: 429,
     headers: {
-      ...CORS_HEADERS,
+      ...getCorsHeaders(requestOrigin),
       'Retry-After': retryAfter.toString(),
     },
     body: JSON.stringify({ error: message }),

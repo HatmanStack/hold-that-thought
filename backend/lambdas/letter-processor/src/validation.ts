@@ -7,21 +7,43 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const DEFAULT_DATE = '1900-01-01'
 
 /**
- * Validate a date string is in YYYY-MM-DD format
+ * Get the number of days in a given month (handles leap years)
+ */
+function getDaysInMonth(year: number, month: number): number {
+  // month is 1-indexed (1=Jan, 12=Dec)
+  // Using day 0 of the next month gives the last day of the current month
+  return new Date(year, month, 0).getDate()
+}
+
+/**
+ * Validate a date string is in YYYY-MM-DD format with valid components.
+ * Does component-level validation to reject dates like 2024-02-31.
  */
 function isValidDate(value: unknown): value is string {
   if (typeof value !== 'string') return false
   if (!DATE_PATTERN.test(value)) return false
 
-  // Verify it's a real date
-  const date = new Date(value)
-  return !isNaN(date.getTime())
+  // Parse components for validation
+  const parts = value.split('-')
+  const year = parseInt(parts[0], 10)
+  const month = parseInt(parts[1], 10)
+  const day = parseInt(parts[2], 10)
+
+  // Validate month range (1-12)
+  if (month < 1 || month > 12) return false
+
+  // Validate day range (1 to days in that month)
+  const daysInMonth = getDaysInMonth(year, month)
+  if (day < 1 || day > daysInMonth) return false
+
+  return true
 }
 
 /**
- * Safely convert unknown value to string or null
+ * Safely convert unknown value to string or null.
+ * Named safeToString to avoid shadowing the global toString.
  */
-function toString(value: unknown): string | null {
+function safeToString(value: unknown): string | null {
   if (value === null || value === undefined) return null
   if (typeof value === 'string') return value.trim() || null
   return String(value)
@@ -71,12 +93,12 @@ export function validateAndNormalizeParsedData(
 
   return {
     date,
-    author: toString(raw.author),
-    recipient: toString(raw.recipient),
-    location: toString(raw.location),
+    author: safeToString(raw.author),
+    recipient: safeToString(raw.recipient),
+    location: safeToString(raw.location),
     // Map 'content' from Gemini to 'transcription' in our schema
-    transcription: toString(raw.content),
-    summary: toString(raw.summary),
+    transcription: safeToString(raw.content),
+    summary: safeToString(raw.summary),
     tags: toStringArray(raw.tags),
   }
 }

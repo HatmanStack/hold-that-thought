@@ -28,6 +28,9 @@ export async function handler(
   const correlationId = extractCorrelationId(traceHeader)
   setCorrelationId(correlationId)
 
+  // Extract request origin for CORS
+  const requestOrigin = event.headers?.['Origin'] || event.headers?.['origin']
+
   const method = event.httpMethod
   const rawPath = event.resource || event.path
 
@@ -62,7 +65,7 @@ export async function handler(
         requesterId,
         error: error.message,
       })
-      return errorResponse(500, 'Failed to initialize user profile')
+      return errorResponse(500, 'Failed to initialize user profile', requestOrigin)
     }
   }
 
@@ -72,6 +75,7 @@ export async function handler(
     isAdmin,
     isApprovedUser,
     correlationId,
+    requestOrigin,
   }
 
   try {
@@ -113,14 +117,14 @@ export async function handler(
       // Draft routes - allow ApprovedUsers (not just Admins)
       if (path.startsWith('/admin/drafts')) {
         if (!isApprovedUser && !isAdmin) {
-          return errorResponse(403, 'Approved user access required')
+          return errorResponse(403, 'Approved user access required', requestOrigin)
         }
         return drafts.handle(event, context)
       }
 
       // Other admin routes - require Admins group
       if (!isAdmin) {
-        return errorResponse(403, 'Admin access required')
+        return errorResponse(403, 'Admin access required', requestOrigin)
       }
 
       // Admin comment moderation: /admin/comments/{commentId}
@@ -129,10 +133,10 @@ export async function handler(
       }
 
       // Unknown admin route
-      return errorResponse(404, `Admin route not found: ${method} ${path}`)
+      return errorResponse(404, `Admin route not found: ${method} ${path}`, requestOrigin)
     }
 
-    return errorResponse(404, `Route not found: ${method} ${path}`)
+    return errorResponse(404, `Route not found: ${method} ${path}`, requestOrigin)
   } catch (err) {
     const error = toError(err)
     log.error('unhandled_error', {
@@ -145,6 +149,6 @@ export async function handler(
     const message =
       err instanceof AppError ? getUserMessage(err) : 'Internal server error'
 
-    return errorResponse(statusCode, message)
+    return errorResponse(statusCode, message, requestOrigin)
   }
 }

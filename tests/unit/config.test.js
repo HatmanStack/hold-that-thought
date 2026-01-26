@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
+// Use a clearly fake API key constant to avoid secret scanner false positives
+// This is NOT a real API key - it's a test placeholder with the correct format
+const FAKE_API_KEY = 'FAKE_TEST_KEY_NOT_REAL_0123456789abcdef'
+
 describe('letter-processor config', () => {
   const originalEnv = process.env
 
@@ -17,20 +21,20 @@ describe('letter-processor config', () => {
 
   describe('config loading', () => {
     it('should load config successfully with valid env vars', async () => {
-      process.env.GEMINI_API_KEY = 'AIzaSyTestKeyThatIsLongEnough123456789'
+      process.env.GEMINI_API_KEY = FAKE_API_KEY
 
       const { config } = await import(
         '../../backend/lambdas/letter-processor/src/lib/config.ts'
       )
 
-      expect(config.geminiApiKey).toBe('AIzaSyTestKeyThatIsLongEnough123456789')
+      expect(config.geminiApiKey).toBe(FAKE_API_KEY)
       expect(config.tableName).toBe('test-table')
       expect(config.archiveBucket).toBe('test-bucket')
     })
 
     it('should throw error if TABLE_NAME is not set', async () => {
       delete process.env.TABLE_NAME
-      process.env.GEMINI_API_KEY = 'AIzaSyTestKey123456789'
+      process.env.GEMINI_API_KEY = FAKE_API_KEY
 
       await expect(
         import('../../backend/lambdas/letter-processor/src/lib/config.ts')
@@ -39,7 +43,7 @@ describe('letter-processor config', () => {
 
     it('should throw error if ARCHIVE_BUCKET is not set', async () => {
       delete process.env.ARCHIVE_BUCKET
-      process.env.GEMINI_API_KEY = 'AIzaSyTestKey123456789'
+      process.env.GEMINI_API_KEY = FAKE_API_KEY
 
       await expect(
         import('../../backend/lambdas/letter-processor/src/lib/config.ts')
@@ -60,13 +64,13 @@ describe('letter-processor config', () => {
 
   describe('getGeminiApiKey', () => {
     it('should return API key when configured', async () => {
-      process.env.GEMINI_API_KEY = 'AIzaSyTestKeyThatIsLongEnough123456789'
+      process.env.GEMINI_API_KEY = FAKE_API_KEY
 
       const { getGeminiApiKey } = await import(
         '../../backend/lambdas/letter-processor/src/lib/config.ts'
       )
 
-      expect(getGeminiApiKey()).toBe('AIzaSyTestKeyThatIsLongEnough123456789')
+      expect(getGeminiApiKey()).toBe(FAKE_API_KEY)
     })
 
     it('should throw error when API key is not configured', async () => {

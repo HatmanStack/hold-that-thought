@@ -1,10 +1,48 @@
 /**
  * User profile management utilities
  */
-import { GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb'
+import { GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb'
 import { docClient, TABLE_NAME } from './database'
 import { keys } from './keys'
 import type { UserProfile } from '../types'
+
+/**
+ * Backfill GSI1 attributes for a profile if missing (read-repair).
+ * This handles profiles created before GSI1 was added.
+ */
+async function backfillGSI1IfMissing(profile: UserProfile): Promise<UserProfile> {
+  const gsi1Keys = keys.userProfileGSI1(profile.userId)
+
+  // Check if GSI1 attributes are missing
+  if (!profile.GSI1PK || !profile.GSI1SK) {
+    try {
+      await docClient.send(
+        new UpdateCommand({
+          TableName: TABLE_NAME,
+          Key: keys.userProfile(profile.userId),
+          UpdateExpression: 'SET GSI1PK = :gsi1pk, GSI1SK = :gsi1sk',
+          ExpressionAttributeValues: {
+            ':gsi1pk': gsi1Keys.GSI1PK,
+            ':gsi1sk': gsi1Keys.GSI1SK,
+          },
+          // Only update if GSI1PK doesn't exist (avoid race with concurrent repairs)
+          ConditionExpression: 'attribute_not_exists(GSI1PK)',
+        })
+      )
+      // Return profile with GSI1 attributes
+      return { ...profile, ...gsi1Keys }
+    } catch (err) {
+      // Condition failed means another request already added GSI1 - that's fine
+      if ((err as Error).name === 'ConditionalCheckFailedException') {
+        return { ...profile, ...gsi1Keys }
+      }
+      // Log but don't fail - GSI1 is for listing, not critical path
+      console.warn('GSI1 backfill failed:', (err as Error).message)
+    }
+  }
+
+  return profile
+}
 
 /**
  * Ensure a user profile exists (create if not present)
@@ -25,7 +63,8 @@ export async function ensureProfile(
   )
 
   if (result.Item) {
-    return result.Item as UserProfile
+    // Backfill GSI1 if missing (read-repair for existing profiles)
+    return backfillGSI1IfMissing(result.Item as UserProfile)
   }
 
   // Create new profile with GSI1 keys for listing all users

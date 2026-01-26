@@ -13,6 +13,7 @@ export interface RequestContext {
   isAdmin: boolean
   isApprovedUser: boolean
   correlationId: string
+  requestOrigin?: string
 }
 
 export interface AuthClaims {
@@ -43,6 +44,8 @@ export interface UserProfile extends BaseEntity {
   photoKey?: string
   isPrivate?: boolean
   groups?: string
+  GSI1PK?: string
+  GSI1SK?: string
 }
 
 export interface Comment extends BaseEntity {
