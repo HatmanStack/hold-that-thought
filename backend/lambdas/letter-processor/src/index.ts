@@ -115,6 +115,11 @@ export async function handler(event: ProcessorEvent): Promise<ProcessorResult> {
       const res = await s3.send(
         new GetObjectCommand({ Bucket: ARCHIVE_BUCKET, Key: obj.Key })
       )
+
+      if (!res.Body) {
+        throw new Error(`Empty body for object: ${ARCHIVE_BUCKET}/${obj.Key}`)
+      }
+
       const buffer = await streamToBuffer(res.Body as Readable)
 
       // Validate individual file size
