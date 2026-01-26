@@ -1,7 +1,7 @@
 /**
  * Rate limiting utilities
  */
-import { GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb'
+import { PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb'
 import { docClient, TABLE_NAME } from './database'
 import { keys } from './keys'
 
@@ -27,6 +27,9 @@ export const RATE_LIMITS: Record<string, RateLimitConfig> = {
 
 /**
  * Check if a user action is rate limited
+ *
+ * Uses atomic DynamoDB UpdateCommand with ADD to prevent race conditions.
+ * Concurrent requests will correctly increment the counter.
  */
 export async function checkRateLimit(
   userId: string,
@@ -36,74 +39,84 @@ export async function checkRateLimit(
   const key = keys.rateLimit(userId, action)
   const now = Date.now()
   const windowStart = now - config.windowMs
+  const ttl = Math.floor((now + config.windowMs) / 1000)
 
   try {
-    // Get current rate limit record
+    // Atomic increment with conditional check for window expiry
     const result = await docClient.send(
-      new GetCommand({
+      new UpdateCommand({
         TableName: TABLE_NAME,
         Key: key,
+        UpdateExpression:
+          'SET windowStart = if_not_exists(windowStart, :now), ' +
+          'entityType = :entityType, userId = :userId, #action = :action, ' +
+          'updatedAt = :now, #ttl = :ttl ' +
+          'ADD #count :inc',
+        ConditionExpression:
+          'attribute_not_exists(windowStart) OR windowStart >= :windowStart',
+        ExpressionAttributeNames: {
+          '#count': 'count',
+          '#action': 'action',
+          '#ttl': 'ttl',
+        },
+        ExpressionAttributeValues: {
+          ':inc': 1,
+          ':now': now,
+          ':windowStart': windowStart,
+          ':ttl': ttl,
+          ':entityType': 'RATE_LIMIT',
+          ':userId': userId,
+          ':action': action,
+        },
+        ReturnValues: 'ALL_NEW',
       })
     )
 
-    const record = result.Item
+    const newCount = (result.Attributes?.count as number) || 1
+    const recordWindowStart = (result.Attributes?.windowStart as number) || now
 
-    // If no record or window expired, start fresh
-    if (!record || record.windowStart < windowStart) {
-      const ttl = Math.floor((now + config.windowMs) / 1000)
-
-      await docClient.send(
-        new PutCommand({
-          TableName: TABLE_NAME,
-          Item: {
-            ...key,
-            userId,
-            action,
-            count: 1,
-            windowStart: now,
-            ttl,
-            entityType: 'RATE_LIMIT',
-          },
-        })
-      )
-
-      return {
-        allowed: true,
-        remaining: config.maxRequests - 1,
-        resetAt: now + config.windowMs,
-      }
-    }
-
-    // Check if over limit
-    const count = (record.count as number) || 0
-    if (count >= config.maxRequests) {
+    if (newCount > config.maxRequests) {
       return {
         allowed: false,
         remaining: 0,
-        resetAt: (record.windowStart as number) + config.windowMs,
+        resetAt: recordWindowStart + config.windowMs,
       }
     }
 
-    // Increment counter
-    const ttl = Math.floor((now + config.windowMs) / 1000)
-    await docClient.send(
-      new PutCommand({
-        TableName: TABLE_NAME,
-        Item: {
-          ...record,
-          count: count + 1,
-          ttl,
-        },
-      })
-    )
-
     return {
       allowed: true,
-      remaining: config.maxRequests - count - 1,
-      resetAt: (record.windowStart as number) + config.windowMs,
+      remaining: config.maxRequests - newCount,
+      resetAt: recordWindowStart + config.windowMs,
     }
   } catch (error) {
-    // On error, allow the request (fail open for availability)
+    // Window expired during operation - reset and allow
+    if ((error as Error).name === 'ConditionalCheckFailedException') {
+      try {
+        await docClient.send(
+          new PutCommand({
+            TableName: TABLE_NAME,
+            Item: {
+              ...key,
+              userId,
+              action,
+              count: 1,
+              windowStart: now,
+              ttl,
+              entityType: 'RATE_LIMIT',
+            },
+          })
+        )
+        return {
+          allowed: true,
+          remaining: config.maxRequests - 1,
+          resetAt: now + config.windowMs,
+        }
+      } catch {
+        // Fall through to fail-open
+      }
+    }
+
+    // Fail open for availability
     console.error('Rate limit check failed:', error)
     return {
       allowed: true,
