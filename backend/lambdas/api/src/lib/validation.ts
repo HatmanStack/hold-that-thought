@@ -105,3 +105,81 @@ export function validateContentLength(
   if (!content) return minLength === 0
   return content.length >= minLength && content.length <= maxLength
 }
+
+/**
+ * Result of pagination key validation
+ */
+export interface PaginationKeyValidation {
+  valid: boolean
+  key?: Record<string, unknown>
+  error?: string
+}
+
+/**
+ * Validate and decode a pagination key (lastEvaluatedKey).
+ *
+ * Pagination keys are base64-encoded JSON objects containing DynamoDB keys.
+ * This function validates:
+ * 1. The key can be decoded from base64
+ * 2. The key is valid JSON
+ * 3. The key contains a PK that matches the expected prefix
+ *
+ * @param encodedKey - The base64-encoded pagination key from the client
+ * @param expectedPKPrefix - The expected prefix for the PK value (e.g., "USER#", "COMMENT#")
+ * @returns Validation result with decoded key or error message
+ *
+ * @example
+ * ```typescript
+ * const result = validatePaginationKey(lastEvaluatedKey, 'COMMENT#')
+ * if (!result.valid) {
+ *   return errorResponse(400, result.error || 'Invalid pagination key')
+ * }
+ * // Use result.key as ExclusiveStartKey
+ * ```
+ */
+export function validatePaginationKey(
+  encodedKey: string | undefined | null,
+  expectedPKPrefix?: string
+): PaginationKeyValidation {
+  // No key is valid - just means no pagination
+  if (!encodedKey) {
+    return { valid: true }
+  }
+
+  // Decode from base64
+  let decoded: string
+  try {
+    decoded = Buffer.from(encodedKey, 'base64').toString('utf-8')
+  } catch {
+    return { valid: false, error: 'Invalid pagination key: not valid base64' }
+  }
+
+  // Parse JSON
+  let key: Record<string, unknown>
+  try {
+    key = JSON.parse(decoded)
+  } catch {
+    return { valid: false, error: 'Invalid pagination key: not valid JSON' }
+  }
+
+  // Validate structure - must be an object
+  if (typeof key !== 'object' || key === null || Array.isArray(key)) {
+    return { valid: false, error: 'Invalid pagination key: expected object' }
+  }
+
+  // Validate PK prefix if specified
+  if (expectedPKPrefix) {
+    const pk = key.PK
+    if (typeof pk !== 'string') {
+      return { valid: false, error: 'Invalid pagination key: missing PK' }
+    }
+    if (!pk.startsWith(expectedPKPrefix)) {
+      return {
+        valid: false,
+        error: `Invalid pagination key: PK prefix mismatch`,
+      }
+    }
+  }
+
+  return { valid: true, key }
+}

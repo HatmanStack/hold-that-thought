@@ -26,6 +26,11 @@ const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}))
 const TABLE_NAME = process.env.TABLE_NAME
 const ARCHIVE_BUCKET = process.env.ARCHIVE_BUCKET
 
+// Resource limits to prevent OOM and excessive processing time
+const MAX_FILES = 20 // Maximum number of files per upload
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB per file
+const MAX_TOTAL_SIZE_BYTES = 50 * 1024 * 1024 // 50 MB total
+
 /**
  * Convert a readable stream to a Buffer
  */
@@ -83,13 +88,45 @@ export async function handler(event: ProcessorEvent): Promise<ProcessorResult> {
       return idxA - idxB
     })
 
-    // 2. Download files
+    // Validate file count limit
+    if (objects.length > MAX_FILES) {
+      throw new Error(
+        `Too many files: ${objects.length} exceeds limit of ${MAX_FILES}. ` +
+          'Please reduce the number of files and try again.'
+      )
+    }
+
+    // 2. Download files with size tracking
     const files: FileInput[] = []
+    let totalSize = 0
+
     for (const obj of objects) {
       const res = await s3.send(
         new GetObjectCommand({ Bucket: ARCHIVE_BUCKET, Key: obj.Key })
       )
       const buffer = await streamToBuffer(res.Body as Readable)
+
+      // Validate individual file size
+      if (buffer.length > MAX_FILE_SIZE_BYTES) {
+        const sizeMB = (buffer.length / (1024 * 1024)).toFixed(2)
+        const limitMB = (MAX_FILE_SIZE_BYTES / (1024 * 1024)).toFixed(0)
+        throw new Error(
+          `File ${obj.Key} is too large: ${sizeMB} MB exceeds ${limitMB} MB limit. ` +
+            'Please reduce the file size and try again.'
+        )
+      }
+
+      // Track cumulative size
+      totalSize += buffer.length
+      if (totalSize > MAX_TOTAL_SIZE_BYTES) {
+        const totalMB = (totalSize / (1024 * 1024)).toFixed(2)
+        const limitMB = (MAX_TOTAL_SIZE_BYTES / (1024 * 1024)).toFixed(0)
+        throw new Error(
+          `Total upload size ${totalMB} MB exceeds ${limitMB} MB limit. ` +
+            'Please reduce the total file size and try again.'
+        )
+      }
+
       const type = getMimeType(obj.Key!)
       files.push({ buffer, type })
     }

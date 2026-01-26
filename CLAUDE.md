@@ -77,6 +77,18 @@ backend/
 - Single-table DynamoDB design (see `docs/DATA_MODEL.md` for key patterns)
 - S3 buckets for letters, media, profile photos with presigned URLs
 
+**Shared utilities (`api/src/lib/`):**
+- `errors.ts` - Typed error classes (ValidationError, NotFoundError, etc.) and `toError()` for safe error conversion
+- `constants.ts` - Presigned URL expiry times, pagination limits, content length limits
+- `validation.ts` - Input validators including `validatePaginationKey()` for secure cursor handling
+- `rate-limit.ts` - Atomic rate limiting with DynamoDB (fail-open for availability)
+- `logger.ts` - Structured JSON logging with correlation ID support
+- `responses.ts` - CORS-aware response helpers (fail-closed in production)
+
+**Letter processor utilities (`letter-processor/src/lib/`):**
+- `config.ts` - Environment validation with API key format checking
+- `retry.ts` - Exponential backoff with `withRetry()` and transient error detection
+
 ### DynamoDB Single-Table Design
 
 Key prefixes: `USER#`, `COMMENT#`, `CONV#`, `MSG#`, `REACTION#`, `LETTER#`, `DRAFT#`
@@ -86,6 +98,7 @@ Common access patterns:
 - Comments on item: `PK=COMMENT#{itemId}, SK begins_with timestamp`
 - User's comments: `GSI1PK=USER#{userId}, GSI1SK begins_with COMMENT#`
 - All letters: `GSI1PK=LETTERS` (sorted by date)
+- All users: `GSI1PK=USERS` (for user listings)
 
 ### Test Structure
 

@@ -12,6 +12,7 @@ export interface RequestContext {
   requesterEmail: string | undefined
   isAdmin: boolean
   isApprovedUser: boolean
+  correlationId: string
 }
 
 export interface AuthClaims {

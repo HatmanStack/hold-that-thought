@@ -8,7 +8,7 @@
 
 | Entity | PK | SK | GSI1PK | GSI1SK |
 |--------|----|----|--------|--------|
-| User Profile | `USER#{userId}` | `PROFILE` | - | - |
+| User Profile | `USER#{userId}` | `PROFILE` | `USERS` | `USER#{userId}` |
 | User Conversation | `USER#{userId}` | `CONV#{convId}` | - | - |
 | Rate Limit | `USER#{userId}` | `RATE#{action}` | - | - |
 | Comment | `COMMENT#{itemId}` | `{timestamp}#{commentId}` | `USER#{userId}` | `COMMENT#{timestamp}` |
@@ -47,6 +47,7 @@
 | List all letters | GSI1PK = `LETTERS`, GSI1SK descending | GSI1 |
 | Get letter versions | PK = `LETTER#{date}`, SK begins_with `VERSION#` | Table |
 | Get conversation messages | PK = `CONV#{convId}`, SK begins_with `MSG#` | Table |
+| List all users | GSI1PK = `USERS` | GSI1 |
 
 ---
 
@@ -73,6 +74,8 @@
 {
   PK: string           // USER#{userId}
   SK: 'PROFILE'
+  GSI1PK: 'USERS'      // For listing all users
+  GSI1SK: string       // USER#{userId}
   userId: string
   email: string
   displayName: string

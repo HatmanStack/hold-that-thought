@@ -12,6 +12,7 @@ import { keys, PREFIX } from '../lib/keys'
 import { successResponse, errorResponse } from '../lib/responses'
 import { log } from '../lib/logger'
 import { signPhotoUrl } from '../lib/s3-utils'
+import { toError } from '../lib/errors'
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || 'us-west-2',
@@ -106,8 +107,9 @@ async function listConversations(userId: string): Promise<APIGatewayProxyResult>
       }))
 
     return successResponse({ conversations })
-  } catch (error) {
-    log.error('list_conversations_error', { userId, error: (error as Error).message })
+  } catch (err) {
+    const error = toError(err)
+    log.error('list_conversations_error', { userId, error: error.message })
     throw error
   }
 }
@@ -187,8 +189,9 @@ async function getMessages(event: APIGatewayProxyEvent, userId: string): Promise
         ? Buffer.from(JSON.stringify(result.LastEvaluatedKey)).toString('base64')
         : null,
     })
-  } catch (error) {
-    log.error('get_messages_error', { conversationId, userId, error: (error as Error).message })
+  } catch (err) {
+    const error = toError(err)
+    log.error('get_messages_error', { conversationId, userId, error: error.message })
     throw error
   }
 }
@@ -258,8 +261,9 @@ async function createConversation(event: APIGatewayProxyEvent, userId: string): 
     }
 
     return successResponse({ conversationId, conversationType, participantIds, message }, 201)
-  } catch (error) {
-    log.error('create_conversation_error', { userId, participantIds, error: (error as Error).message })
+  } catch (err) {
+    const error = toError(err)
+    log.error('create_conversation_error', { userId, participantIds, error: error.message })
     throw error
   }
 }
@@ -302,8 +306,9 @@ async function sendMessage(event: APIGatewayProxyEvent, userId: string): Promise
     await updateConversationMembers(conversationId, userId, participantIds)
 
     return successResponse(message, 201)
-  } catch (error) {
-    log.error('send_message_error', { conversationId, userId, error: (error as Error).message })
+  } catch (err) {
+    const error = toError(err)
+    log.error('send_message_error', { conversationId, userId, error: error.message })
     throw error
   }
 }
@@ -329,8 +334,9 @@ async function generateUploadUrl(event: APIGatewayProxyEvent, userId: string): P
     const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 900 })
 
     return successResponse({ uploadUrl: presignedUrl, s3Key: key, fileName, contentType })
-  } catch (error) {
-    log.error('generate_upload_url_error', { userId, fileName, error: (error as Error).message })
+  } catch (err) {
+    const error = toError(err)
+    log.error('generate_upload_url_error', { userId, fileName, error: error.message })
     throw error
   }
 }
@@ -352,11 +358,12 @@ async function markAsRead(event: APIGatewayProxyEvent, userId: string): Promise<
     }))
 
     return successResponse({ message: 'Conversation marked as read' })
-  } catch (error) {
-    if ((error as Error).name === 'ConditionalCheckFailedException') {
+  } catch (err) {
+    const error = toError(err)
+    if (error.name === 'ConditionalCheckFailedException') {
       return errorResponse(403, 'You are not a member of this conversation')
     }
-    log.error('mark_as_read_error', { conversationId, userId, error: (error as Error).message })
+    log.error('mark_as_read_error', { conversationId, userId, error: error.message })
     throw error
   }
 }
@@ -399,6 +406,7 @@ async function deleteConversation(event: APIGatewayProxyEvent, userId: string): 
     }
 
     const deleteOps: Array<{ DeleteRequest: { Key: Record<string, unknown> } }> = []
+    const s3KeysToDelete: string[] = []
 
     participantIds.forEach(pid => {
       const userConvKey = keys.userConversation(pid, conversationId)
@@ -430,15 +438,12 @@ async function deleteConversation(event: APIGatewayProxyEvent, userId: string): 
             DeleteRequest: { Key: { PK: msg.PK as string, SK: msg.SK as string } },
           })
 
-          // Delete attachments from S3
+          // Collect S3 keys for later deletion
           const attachments = msg.attachments as Attachment[] | undefined
           if (attachments && attachments.length > 0) {
             attachments.forEach(att => {
               if (att.s3Key) {
-                s3Client.send(new DeleteObjectCommand({
-                  Bucket: ARCHIVE_BUCKET,
-                  Key: att.s3Key,
-                })).catch(e => log.warn('attachment_delete_failed', { s3Key: att.s3Key, error: (e as Error).message }))
+                s3KeysToDelete.push(att.s3Key)
               }
             })
           }
@@ -447,7 +452,23 @@ async function deleteConversation(event: APIGatewayProxyEvent, userId: string): 
       lastKey = msgs.LastEvaluatedKey
     } while (lastKey)
 
-    // Batch delete
+    // Delete S3 attachments (soft cleanup - log failures but don't fail the operation)
+    // We await these to ensure cleanup is attempted before returning success
+    await Promise.all(
+      s3KeysToDelete.map(async (s3Key) => {
+        try {
+          await s3Client.send(new DeleteObjectCommand({
+            Bucket: ARCHIVE_BUCKET,
+            Key: s3Key,
+          }))
+        } catch (e) {
+          // Log but don't fail - orphaned S3 objects are cleaned up by lifecycle policies
+          log.warn('attachment_delete_failed', { s3Key, error: (e as Error).message })
+        }
+      })
+    )
+
+    // Batch delete DynamoDB records
     for (let i = 0; i < deleteOps.length; i += 25) {
       await docClient.send(new BatchWriteCommand({
         RequestItems: { [TABLE_NAME]: deleteOps.slice(i, i + 25) },
@@ -455,8 +476,9 @@ async function deleteConversation(event: APIGatewayProxyEvent, userId: string): 
     }
 
     return successResponse({ message: 'Conversation deleted' })
-  } catch (error) {
-    log.error('delete_conversation_error', { conversationId, userId, error: (error as Error).message })
+  } catch (err) {
+    const error = toError(err)
+    log.error('delete_conversation_error', { conversationId, userId, error: error.message })
     throw error
   }
 }
@@ -511,8 +533,9 @@ async function deleteMessage(event: APIGatewayProxyEvent, userId: string): Promi
     }))
 
     return successResponse({ message: 'Message deleted' })
-  } catch (error) {
-    log.error('delete_message_error', { conversationId, messageId, userId, error: (error as Error).message })
+  } catch (err) {
+    const error = toError(err)
+    log.error('delete_message_error', { conversationId, messageId, userId, error: error.message })
     throw error
   }
 }

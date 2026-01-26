@@ -3,13 +3,41 @@
  */
 import type { APIGatewayProxyResult } from 'aws-lambda'
 
-const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS || '*'
+/**
+ * Get configured allowed origins.
+ * Fails closed: requires explicit configuration, no permissive default.
+ */
+function getAllowedOrigins(): string {
+  const origins = process.env.ALLOWED_ORIGINS
+
+  if (!origins) {
+    // In local development, allow wildcard if explicitly not set
+    if (process.env.AWS_SAM_LOCAL === 'true' || process.env.NODE_ENV === 'test') {
+      return '*'
+    }
+    console.error('CORS_CONFIG_ERROR: ALLOWED_ORIGINS environment variable is not set')
+    // Fail closed: return empty string which will reject all cross-origin requests
+    return ''
+  }
+
+  return origins
+}
+
+const ALLOWED_ORIGINS = getAllowedOrigins()
 
 /**
  * Get CORS headers with the configured origin
  */
 export function getCorsHeaders(requestOrigin?: string): Record<string, string> {
-  // If wildcard is configured
+  // If no origins configured, return restrictive headers (fail closed)
+  if (!ALLOWED_ORIGINS) {
+    return {
+      'Content-Type': 'application/json',
+      // No Access-Control-Allow-Origin header = browser will block cross-origin requests
+    }
+  }
+
+  // If wildcard is explicitly configured (development only)
   if (ALLOWED_ORIGINS === '*') {
     // CORS spec: credentials not allowed with wildcard origin
     // If we have a request origin, echo it to allow credentials
@@ -29,23 +57,30 @@ export function getCorsHeaders(requestOrigin?: string): Record<string, string> {
 
   // Check if request origin is in allowed list
   const allowedList = ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
-  const origin =
-    requestOrigin && allowedList.includes(requestOrigin)
-      ? requestOrigin
-      : allowedList[0] || '*'
 
-  // Only include credentials header if we have a specific origin
-  if (origin === '*') {
+  // If request origin is in the allowed list, echo it back
+  if (requestOrigin && allowedList.includes(requestOrigin)) {
     return {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': requestOrigin,
+      'Access-Control-Allow-Credentials': 'true',
     }
   }
 
+  // Request origin not in allowed list - use first allowed origin
+  // This allows same-origin requests to work
+  const defaultOrigin = allowedList[0]
+  if (defaultOrigin) {
+    return {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': defaultOrigin,
+      'Access-Control-Allow-Credentials': 'true',
+    }
+  }
+
+  // No valid origins configured - fail closed
   return {
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Credentials': 'true',
   }
 }
 
