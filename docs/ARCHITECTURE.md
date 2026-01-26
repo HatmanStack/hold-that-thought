@@ -2,7 +2,7 @@
 
 ## System Design
 
-```
+```text
 User Request → API Gateway → Lambda (consolidated) → DynamoDB / S3
                    ↓
               Cognito JWT validation
@@ -33,7 +33,7 @@ User Request → API Gateway → Lambda (consolidated) → DynamoDB / S3
 
 ### Authentication
 
-```
+```text
 1. User → Cognito (login)
 2. Cognito → JWT token
 3. Frontend stores token
@@ -44,7 +44,7 @@ User Request → API Gateway → Lambda (consolidated) → DynamoDB / S3
 
 ### Letter Upload & Processing
 
-```
+```text
 1. User uploads PDF/images via presigned URL
 2. Frontend calls POST /letters/upload-request
 3. Lambda returns presigned URLs for each file
@@ -61,7 +61,7 @@ User Request → API Gateway → Lambda (consolidated) → DynamoDB / S3
 
 ### Comment System
 
-```
+```text
 1. User submits comment on letter/media
 2. Rate limit check (atomic DynamoDB update)
 3. Comment saved with composite key:
@@ -74,7 +74,7 @@ User Request → API Gateway → Lambda (consolidated) → DynamoDB / S3
 
 ### Messaging
 
-```
+```text
 1. Create conversation:
    - Direct (2 users): ID = sorted user IDs
    - Group (3+ users): ID = UUID
@@ -86,7 +86,7 @@ User Request → API Gateway → Lambda (consolidated) → DynamoDB / S3
 
 ### Media Gallery
 
-```
+```text
 1. User requests upload URL
 2. Lambda generates presigned PUT URL
 3. User uploads directly to S3
@@ -183,7 +183,7 @@ InternalError      → 500
 
 ### Error Flow
 
-```
+```text
 1. Route handler throws typed error
 2. Main handler catches with toError()
 3. getStatusCode() extracts HTTP status

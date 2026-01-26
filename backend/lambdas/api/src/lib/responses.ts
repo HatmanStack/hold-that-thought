@@ -58,7 +58,8 @@ export function getCorsHeaders(requestOrigin?: string): Record<string, string> {
   // Check if request origin is in allowed list
   const allowedList = allowedOrigins.split(',').map((o) => o.trim()).filter(Boolean)
 
-  // If request origin is in the allowed list, echo it back
+  // Only return CORS headers if request origin exactly matches an allowed origin
+  // Fail closed: no fallback to first origin, no CORS headers if not matched
   if (requestOrigin && allowedList.includes(requestOrigin)) {
     return {
       'Content-Type': 'application/json',
@@ -67,18 +68,7 @@ export function getCorsHeaders(requestOrigin?: string): Record<string, string> {
     }
   }
 
-  // Request origin not in allowed list - use first allowed origin
-  // This allows same-origin requests to work
-  const defaultOrigin = allowedList[0]
-  if (defaultOrigin) {
-    return {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': defaultOrigin,
-      'Access-Control-Allow-Credentials': 'true',
-    }
-  }
-
-  // No valid origins configured - fail closed
+  // Request origin not in allowed list or not provided - fail closed (no CORS headers)
   return {
     'Content-Type': 'application/json',
   }

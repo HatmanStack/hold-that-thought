@@ -25,8 +25,8 @@ async function backfillGSI1IfMissing(profile: UserProfile): Promise<UserProfile>
             ':gsi1pk': gsi1Keys.GSI1PK,
             ':gsi1sk': gsi1Keys.GSI1SK,
           },
-          // Only update if GSI1PK doesn't exist (avoid race with concurrent repairs)
-          ConditionExpression: 'attribute_not_exists(GSI1PK)',
+          // Update if either GSI1 attribute is missing (handles partial backfills)
+          ConditionExpression: 'attribute_not_exists(GSI1PK) OR attribute_not_exists(GSI1SK)',
         })
       )
       // Return profile with GSI1 attributes

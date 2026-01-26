@@ -57,7 +57,18 @@ function getMimeType(key: string): string {
 /**
  * Main Lambda handler
  */
+// Supported MIME types for letter processing
+const SUPPORTED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png']
+
 export async function handler(event: ProcessorEvent): Promise<ProcessorResult> {
+  // Fail fast: validate required environment variables
+  if (!TABLE_NAME) {
+    throw new Error('Missing required environment variable: TABLE_NAME')
+  }
+  if (!ARCHIVE_BUCKET) {
+    throw new Error('Missing required environment variable: ARCHIVE_BUCKET')
+  }
+
   const { uploadId, requesterId } = event
 
   if (!uploadId) throw new Error('Missing uploadId')
@@ -128,6 +139,15 @@ export async function handler(event: ProcessorEvent): Promise<ProcessorResult> {
       }
 
       const type = getMimeType(obj.Key!)
+
+      // Reject unsupported file types early rather than silently dropping
+      if (!SUPPORTED_MIME_TYPES.includes(type)) {
+        throw new Error(
+          `Unsupported file type for ${obj.Key}: ${type}. ` +
+            `Supported types: ${SUPPORTED_MIME_TYPES.join(', ')}`
+        )
+      }
+
       files.push({ buffer, type })
     }
 
