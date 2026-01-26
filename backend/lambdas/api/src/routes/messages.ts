@@ -11,6 +11,7 @@ import { docClient, TABLE_NAME, ARCHIVE_BUCKET } from '../lib/database'
 import { keys, PREFIX } from '../lib/keys'
 import { successResponse, errorResponse } from '../lib/responses'
 import { log } from '../lib/logger'
+import { signPhotoUrl } from '../lib/s3-utils'
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || 'us-west-2',
@@ -21,20 +22,6 @@ interface Attachment {
   fileName?: string
   contentType?: string
   url?: string
-}
-
-/**
- * Sign a profile photo URL for private bucket access
- */
-async function signPhotoUrl(photoUrl: string | null | undefined): Promise<string | null> {
-  if (!photoUrl) return null
-
-  const match = photoUrl.match(/https:\/\/([^.]+)\.s3\.[^/]+\.amazonaws\.com\/(.+)/)
-  if (!match) return photoUrl
-
-  const [, bucket, key] = match
-  const command = new GetObjectCommand({ Bucket: bucket, Key: key })
-  return getSignedUrl(s3Client, command, { expiresIn: 3600 })
 }
 
 /**

@@ -3,7 +3,7 @@
  */
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
 import type { RequestContext } from '../types'
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import { GetCommand, PutCommand, QueryCommand, UpdateCommand, ScanCommand } from '@aws-sdk/lib-dynamodb'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { docClient, TABLE_NAME, ARCHIVE_BUCKET } from '../lib/database'
@@ -12,6 +12,7 @@ import { successResponse, errorResponse, rateLimitResponse } from '../lib/respon
 import { validateUserId, sanitizeText, validateLimit } from '../lib/validation'
 import { checkRateLimit, getRetryAfter } from '../lib/rate-limit'
 import { log } from '../lib/logger'
+import { signPhotoUrl } from '../lib/s3-utils'
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || 'us-west-2',
@@ -23,26 +24,6 @@ interface FamilyRelationship {
   name: string
   customType?: string
   createdAt?: string
-}
-
-/**
- * Sign photo URL for private bucket access
- */
-async function signPhotoUrl(photoUrl: string | null | undefined): Promise<string | null> {
-  if (!photoUrl) return null
-
-  const match = photoUrl.match(/https:\/\/([^.]+)\.s3\.[^/]+\.amazonaws\.com\/(.+)/)
-  if (!match) return photoUrl
-
-  const [, bucket, key] = match
-
-  try {
-    const command = new GetObjectCommand({ Bucket: bucket, Key: key })
-    return getSignedUrl(s3Client, command, { expiresIn: 3600 })
-  } catch (error) {
-    log.error('sign_photo_url_failed', { bucket, key, error: (error as Error).message })
-    return photoUrl
-  }
 }
 
 /**
