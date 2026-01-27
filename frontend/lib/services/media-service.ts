@@ -12,7 +12,7 @@ export interface MediaItem {
   fileSize: number
   contentType: string
   thumbnailUrl?: string
-  signedUrl: string
+  signedUrl?: string
   category: 'pictures' | 'videos' | 'documents'
 }
 
@@ -134,7 +134,7 @@ function imageToMediaItem(img: RagImage): MediaItem {
     fileSize: img.fileSize || 0,
     contentType: img.contentType || inferContentType(img.filename),
     thumbnailUrl: img.thumbnailUrl || undefined,
-    signedUrl: img.thumbnailUrl || '', // RAGStack provides presigned thumbnailUrl for images
+    signedUrl: img.thumbnailUrl || undefined, // RAGStack provides presigned thumbnailUrl for images
     category: 'pictures',
   }
 }

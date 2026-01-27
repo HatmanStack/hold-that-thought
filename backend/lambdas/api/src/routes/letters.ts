@@ -11,6 +11,7 @@ import { docClient, TABLE_NAME, ARCHIVE_BUCKET } from '../lib/database'
 const RAGSTACK_BUCKET = process.env.RAGSTACK_BUCKET || ''
 const RAGSTACK_REGION = process.env.RAGSTACK_REGION || 'us-east-1'
 const ragstackS3Client = new S3Client({ region: RAGSTACK_REGION })
+import { PRESIGNED_URL_EXPIRY_SECONDS } from '../lib/constants'
 import { keys } from '../lib/keys'
 import { successResponse, errorResponse } from '../lib/responses'
 import { log } from '../lib/logger'
@@ -368,14 +369,14 @@ async function getPdfUrl(event: APIGatewayProxyEvent, requestOrigin?: string): P
       downloadUrl = await getSignedUrl(
         ragstackS3Client,
         new GetObjectCommand({ Bucket: RAGSTACK_BUCKET, Key: ragstackKey }),
-        { expiresIn: 3600 }
+        { expiresIn: PRESIGNED_URL_EXPIRY_SECONDS }
       )
     } else if (result.Item.pdfKey) {
       // Legacy fallback: serve from archive bucket
       downloadUrl = await getSignedUrl(
         s3Client,
         new GetObjectCommand({ Bucket: ARCHIVE_BUCKET, Key: result.Item.pdfKey as string }),
-        { expiresIn: 3600 }
+        { expiresIn: PRESIGNED_URL_EXPIRY_SECONDS }
       )
     } else {
       return errorResponse(404, 'PDF not found', requestOrigin)

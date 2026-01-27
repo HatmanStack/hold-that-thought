@@ -6,6 +6,7 @@ import type { RequestContext } from '../types'
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { ARCHIVE_BUCKET } from '../lib/database'
+import { PRESIGNED_URL_EXPIRY_SECONDS } from '../lib/constants'
 import { successResponse, errorResponse } from '../lib/responses'
 import { log } from '../lib/logger'
 
@@ -60,7 +61,10 @@ async function getDownloadUrl(event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
   // Determine which bucket to use
   let targetBucket: string
-  if (bucket === 'ragstack' && RAGSTACK_BUCKET) {
+  if (bucket === 'ragstack') {
+    if (!RAGSTACK_BUCKET) {
+      return errorResponse(500, 'RAGStack storage is not configured')
+    }
     // RAGStack bucket: allow input/ and content/ prefixes
     const allowedPrefixes = ['input/', 'content/']
     if (!allowedPrefixes.some(prefix => key.startsWith(prefix))) {
@@ -81,7 +85,7 @@ async function getDownloadUrl(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const downloadUrl = await getSignedUrl(
       client,
       new GetObjectCommand({ Bucket: targetBucket, Key: key }),
-      { expiresIn: 3600 }
+      { expiresIn: PRESIGNED_URL_EXPIRY_SECONDS }
     )
 
     return successResponse({

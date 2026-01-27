@@ -213,7 +213,7 @@ else
     echo "     GraphQL URL:  $RAGSTACK_GRAPHQL_URL"
     echo "     API Key:      ${RAGSTACK_API_KEY:0:8}..."
     echo "     Chat Widget:  $RAGSTACK_CHAT_URL"
-    RAGSTACK_ADMIN_EMAIL="placeholder@example.com"
+    RAGSTACK_ADMIN_EMAIL=""
 fi
 
 # Letters archive check
@@ -245,7 +245,10 @@ echo "Configuration saved to $ENV_DEPLOY_FILE"
 
 # Generate samconfig.toml so `sam deploy` without arguments uses correct config
 DEPLOY_BUCKET="sam-deploy-hold-that-thought-${AWS_REGION}"
-PARAM_OVERRIDES_TOML="AllowedOrigins=$ALLOWED_ORIGINS AppDomain=$APP_DOMAIN TableName=$TABLE_NAME SesFromEmail=$SES_FROM_EMAIL AdminEmail=$ADMIN_EMAIL ArchiveBucket=$ARCHIVE_BUCKET GeminiApiKey=$GEMINI_API_KEY RagStackStackName=$RAGSTACK_STACK_NAME RagStackAdminEmail=$RAGSTACK_ADMIN_EMAIL"
+PARAM_OVERRIDES_TOML="AllowedOrigins=$ALLOWED_ORIGINS AppDomain=$APP_DOMAIN TableName=$TABLE_NAME SesFromEmail=$SES_FROM_EMAIL AdminEmail=$ADMIN_EMAIL ArchiveBucket=$ARCHIVE_BUCKET GeminiApiKey=$GEMINI_API_KEY RagStackStackName=$RAGSTACK_STACK_NAME"
+if [ -n "$RAGSTACK_ADMIN_EMAIL" ]; then
+    PARAM_OVERRIDES_TOML="$PARAM_OVERRIDES_TOML RagStackAdminEmail=$RAGSTACK_ADMIN_EMAIL"
+fi
 if [ -n "$GOOGLE_CLIENT_ID" ]; then
     PARAM_OVERRIDES_TOML="$PARAM_OVERRIDES_TOML GoogleClientId=$GOOGLE_CLIENT_ID GoogleClientSecret=$GOOGLE_CLIENT_SECRET"
 fi
