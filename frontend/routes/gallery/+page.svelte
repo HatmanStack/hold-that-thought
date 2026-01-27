@@ -6,7 +6,7 @@
   import { authLoading, currentUser, isAuthenticated } from '$lib/auth/auth-store'
   import CommentSection from '$lib/components/comments/CommentSection.svelte'
   import Head from '$lib/components/head.svelte'
-  import { getMediaItems, type MediaItem, uploadMedia } from '$lib/services/media-service'
+  import { getMediaItems, invalidateMediaCache, resolveSignedUrl, type MediaItem } from '$lib/services/media-service'
   import { uploadToRagstack } from '$lib/services/ragstack-upload-service'
   import { filterResultsByCategory, searchKnowledgeBase, type SearchResult } from '$lib/services/search-service'
   import { onDestroy, onMount } from 'svelte'
@@ -26,6 +26,7 @@
   let showCaptionModal = false
   let pendingUploadFile: File | null = null
   let userCaption = ''
+  let extractText = false
   let previewUrl: string | null = null
 
   // Create/revoke preview URL when pendingUploadFile changes
@@ -63,9 +64,7 @@
     error = ''
 
     try {
-      const items = await getMediaItems(section)
-      // Filter out files with 0 bytes
-      mediaItems = items.filter(item => item.fileSize > 0)
+      mediaItems = await getMediaItems(section)
 
       // Check for item query param to auto-open
       checkForItemParam()
@@ -125,6 +124,7 @@
     if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
       pendingUploadFile = file
       userCaption = ''
+      extractText = false
       showCaptionModal = true
       input.value = ''
     }
@@ -147,27 +147,20 @@
     if (!pendingUploadFile)
       return
     showCaptionModal = false
-    await performUpload(pendingUploadFile, userCaption)
+    await performUpload(pendingUploadFile, userCaption, extractText)
     pendingUploadFile = null
     userCaption = ''
+    extractText = false
   }
 
   // Perform the actual upload
-  async function performUpload(file: File, caption?: string) {
+  async function performUpload(file: File, caption?: string, shouldExtractText = false) {
     uploading = true
     uploadError = ''
 
     try {
-      // Upload to both family archive and RAGStack in parallel
-      const [, ragstackResult] = await Promise.allSettled([
-        uploadMedia(file),
-        uploadToRagstack(file, caption),
-      ])
-
-      // Log RAGStack upload result (don't fail if RAGStack fails)
-      if (ragstackResult.status === 'rejected') {
-        console.warn('RAGStack upload failed:', ragstackResult.reason)
-      }
+      // Upload to RAGStack (handles indexing and storage)
+      await uploadToRagstack(file, caption, shouldExtractText)
 
       // Reload the media list to ensure proper display with signed URLs
       await loadMediaItems(selectedSection)
@@ -175,6 +168,7 @@
       // Clear media items cache so next search will reload
       mediaItemsLoaded = false
       allMediaItems.clear()
+      invalidateMediaCache()
 
       uploadError = ''
     }
@@ -193,10 +187,21 @@
     loadMediaItems(section)
   }
 
-  // Open media item in modal
-  function openMediaItem(item: MediaItem) {
+  // Open media item in modal, resolving signed URL if needed
+  async function openMediaItem(item: MediaItem) {
     selectedItem = item
     showModal = true
+
+    // Videos and documents need a presigned URL resolved via the backend
+    if (!item.signedUrl && (item.category === 'videos' || item.category === 'documents')) {
+      try {
+        const url = await resolveSignedUrl(item)
+        item.signedUrl = url
+        selectedItem = { ...item }
+      } catch (err) {
+        console.error('Failed to resolve signed URL:', err)
+      }
+    }
   }
 
   // Close modal
@@ -299,10 +304,8 @@ return
       // Index by filename without timestamp prefix (lowercase for case-insensitive matching)
       const all = [...pictures, ...videos, ...documents]
       for (const item of all) {
-        if (item.fileSize > 0) {
-          const normalizedFilename = stripTimestampPrefix(item.filename).toLowerCase()
-          allMediaItems.set(normalizedFilename, item)
-        }
+        const normalizedFilename = stripTimestampPrefix(item.filename).toLowerCase()
+        allMediaItems.set(normalizedFilename, item)
       }
       mediaItemsLoaded = true
     }
@@ -882,6 +885,16 @@ return
         ></textarea>
         <label class='label'>
           <span class='label-text-alt text-base-content/60'>AI will also generate a caption automatically</span>
+        </label>
+      </div>
+
+      <div class='form-control mb-4'>
+        <label class='label cursor-pointer justify-start gap-3'>
+          <input type='checkbox' class='checkbox checkbox-sm' bind:checked={extractText} />
+          <span class='label-text'>Extract text from image (OCR)</span>
+        </label>
+        <label class='label pt-0'>
+          <span class='label-text-alt text-base-content/60'>Enable for images containing text you want searchable</span>
         </label>
       </div>
 
