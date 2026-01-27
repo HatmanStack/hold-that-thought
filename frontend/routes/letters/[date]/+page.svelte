@@ -185,7 +185,7 @@
           <!-- Action Buttons -->
           <div class='divider mt-4 mb-0' />
           <div class='mt-2 mb-4 flex flex-wrap items-center gap-2'>
-            {#if letter.pdfKey}
+            {#if letter.pdfKey || letter.ragstackDocumentId}
               <button
                 class='btn btn-sm btn-outline gap-2'
                 on:click={downloadPdf}

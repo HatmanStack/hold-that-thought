@@ -10,6 +10,7 @@ export interface Letter {
   tags?: string[]
   content: string
   pdfKey?: string
+  ragstackDocumentId?: string
   createdAt: string
   updatedAt: string
   lastEditedBy?: string
