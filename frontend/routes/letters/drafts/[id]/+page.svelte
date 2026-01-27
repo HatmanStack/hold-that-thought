@@ -67,9 +67,8 @@
     error = ''
 
     try {
-      const result = await publishDraft(data.draftId, event.detail, $authTokens.idToken)
-
-      // Also upload to RAGStack for search indexing
+      // Upload letter content to RAGStack for search indexing
+      let ragstackDocumentId: string | undefined
       try {
         const letterContent = `# ${event.detail.title}\n\nDate: ${event.detail.date}\nAuthor: ${event.detail.author || 'Unknown'}\n\n${event.detail.content}`
         const letterFile = new File(
@@ -80,9 +79,24 @@
         await uploadDocumentToRagstack(letterFile)
       }
       catch (ragstackErr) {
-        // Don't fail the publish if RAGStack upload fails
-        console.warn('RAGStack upload failed:', ragstackErr)
+        console.warn('RAGStack markdown upload failed:', ragstackErr)
       }
+
+      // Upload combined PDF to RAGStack so it can be served from the data bucket
+      if (pdfUrl) {
+        try {
+          const pdfResponse = await fetch(pdfUrl)
+          const pdfBlob = await pdfResponse.blob()
+          const pdfFile = new File([pdfBlob], `${event.detail.date}.pdf`, { type: 'application/pdf' })
+          ragstackDocumentId = await uploadDocumentToRagstack(pdfFile)
+        }
+        catch (pdfErr) {
+          console.warn('RAGStack PDF upload failed:', pdfErr)
+        }
+      }
+
+      const publishData = { ...event.detail, ragstackDocumentId }
+      const result = await publishDraft(data.draftId, publishData, $authTokens.idToken)
 
       // Redirect to the published letter
       goto(result.path)

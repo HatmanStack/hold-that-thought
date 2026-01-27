@@ -6,7 +6,6 @@ export default antfu({
   ignores: [
     'mdsvex.config.js',
     '**/*.md',
-    'lib/components/MediaUpload.svelte',
   ],
   rules: {
     'no-console': ['error', { allow: ['warn', 'error'] }],

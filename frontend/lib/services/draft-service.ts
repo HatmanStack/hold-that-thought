@@ -34,6 +34,7 @@ export interface PublishData {
   author?: string
   tags?: string[]
   description?: string
+  ragstackDocumentId?: string
 }
 
 export interface PublishResponse {

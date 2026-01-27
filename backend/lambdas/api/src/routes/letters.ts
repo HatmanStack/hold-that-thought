@@ -4,9 +4,14 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
 import type { RequestContext } from '../types'
 import { GetCommand, PutCommand, QueryCommand, UpdateCommand, type QueryCommandInput } from '@aws-sdk/lib-dynamodb'
-import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { docClient, TABLE_NAME, ARCHIVE_BUCKET } from '../lib/database'
+
+const RAGSTACK_BUCKET = process.env.RAGSTACK_BUCKET || ''
+const RAGSTACK_REGION = process.env.RAGSTACK_REGION || 'us-east-1'
+const ragstackS3Client = new S3Client({ region: RAGSTACK_REGION })
+import { PRESIGNED_URL_EXPIRY_SECONDS } from '../lib/constants'
 import { keys } from '../lib/keys'
 import { successResponse, errorResponse } from '../lib/responses'
 import { log } from '../lib/logger'
@@ -127,6 +132,7 @@ async function getLetter(event: APIGatewayProxyEvent, requestOrigin?: string): P
       tags: result.Item.tags,
       content: result.Item.content,
       pdfKey: result.Item.pdfKey,
+      ragstackDocumentId: result.Item.ragstackDocumentId,
       createdAt: result.Item.createdAt,
       updatedAt: result.Item.updatedAt,
       lastEditedBy: result.Item.lastEditedBy,
@@ -208,24 +214,6 @@ async function updateLetter(
         ':editor': requesterId,
         ':vc': versionNumber,
       },
-    }))
-
-    // Update S3 archive
-    const letterJson = {
-      date,
-      title: updatedTitle,
-      author: updatedAuthor || null,
-      description: updatedDescription || null,
-      content,
-      pdfKey: current.Item.pdfKey || null,
-      updatedAt: now,
-    }
-
-    await s3Client.send(new PutObjectCommand({
-      Bucket: ARCHIVE_BUCKET,
-      Key: `letters/${date}/${date}.json`,
-      Body: JSON.stringify(letterJson, null, 2),
-      ContentType: 'application/json',
     }))
 
     return successResponse({
@@ -369,15 +357,30 @@ async function getPdfUrl(event: APIGatewayProxyEvent, requestOrigin?: string): P
       Key: keys.letter(date),
     }))
 
-    if (!result.Item || !result.Item.pdfKey) {
-      return errorResponse(404, 'PDF not found', requestOrigin)
+    if (!result.Item) {
+      return errorResponse(404, 'Letter not found', requestOrigin)
     }
 
-    const downloadUrl = await getSignedUrl(
-      s3Client,
-      new GetObjectCommand({ Bucket: ARCHIVE_BUCKET, Key: result.Item.pdfKey as string }),
-      { expiresIn: 3600 }
-    )
+    let downloadUrl: string
+
+    if (result.Item.ragstackDocumentId && RAGSTACK_BUCKET) {
+      // New path: serve from RAGStack bucket
+      const ragstackKey = `input/${result.Item.ragstackDocumentId}/${result.Item.pdfFilename || `${date}.pdf`}`
+      downloadUrl = await getSignedUrl(
+        ragstackS3Client,
+        new GetObjectCommand({ Bucket: RAGSTACK_BUCKET, Key: ragstackKey }),
+        { expiresIn: PRESIGNED_URL_EXPIRY_SECONDS }
+      )
+    } else if (result.Item.pdfKey) {
+      // Legacy fallback: serve from archive bucket
+      downloadUrl = await getSignedUrl(
+        s3Client,
+        new GetObjectCommand({ Bucket: ARCHIVE_BUCKET, Key: result.Item.pdfKey as string }),
+        { expiresIn: PRESIGNED_URL_EXPIRY_SECONDS }
+      )
+    } else {
+      return errorResponse(404, 'PDF not found', requestOrigin)
+    }
 
     return successResponse({ downloadUrl }, 200, requestOrigin)
   } catch (error) {

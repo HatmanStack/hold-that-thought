@@ -1,8 +1,14 @@
 import { PUBLIC_RAGSTACK_API_KEY, PUBLIC_RAGSTACK_GRAPHQL_URL } from '$env/static/public'
 
+export interface RagstackUploadResult {
+  documentId?: string
+  imageId?: string
+}
+
 const CREATE_UPLOAD_URL = `mutation CreateUploadUrl($filename: String!) {
   createUploadUrl(filename: $filename) {
     uploadUrl
+    documentId
     fields
   }
 }`
@@ -12,6 +18,13 @@ const CREATE_IMAGE_UPLOAD_URL = `mutation CreateImageUploadUrl($filename: String
     uploadUrl
     imageId
     fields
+  }
+}`
+
+const SUBMIT_IMAGE = `mutation SubmitImage($input: SubmitImageInput!) {
+  submitImage(input: $input) {
+    imageId
+    status
   }
 }`
 
@@ -42,9 +55,9 @@ async function graphqlRequest(query: string, variables: Record<string, unknown>)
   return json.data
 }
 
-export async function uploadDocumentToRagstack(file: File): Promise<void> {
+export async function uploadDocumentToRagstack(file: File): Promise<string> {
   const data = await graphqlRequest(CREATE_UPLOAD_URL, { filename: file.name })
-  const { uploadUrl, fields } = data.createUploadUrl
+  const { uploadUrl, documentId, fields } = data.createUploadUrl
 
   const form = new FormData()
   let parsedFields = JSON.parse(fields)
@@ -60,11 +73,14 @@ export async function uploadDocumentToRagstack(file: File): Promise<void> {
   if (!uploadResponse.ok) {
     throw new Error(`Failed to upload document to RAGStack: ${uploadResponse.status}`)
   }
+
+  return documentId
 }
 
 export async function uploadImageToRagstack(
   file: File,
   userCaption?: string,
+  extractText = false,
 ): Promise<string> {
   const data = await graphqlRequest(CREATE_IMAGE_UPLOAD_URL, {
     filename: file.name,
@@ -89,23 +105,30 @@ export async function uploadImageToRagstack(
     throw new Error('Failed to upload image to RAGStack S3')
   }
 
+  if (extractText) {
+    try {
+      await graphqlRequest(SUBMIT_IMAGE, {
+        input: { imageId, extractText: true },
+      })
+    }
+    catch {
+      console.warn('Failed to request text extraction for image:', imageId)
+    }
+  }
+
   return imageId
 }
 
-export async function uploadToRagstack(file: File, userCaption?: string): Promise<void> {
+export async function uploadToRagstack(file: File, userCaption?: string, extractText = false): Promise<RagstackUploadResult> {
   const isImage = file.type.startsWith('image/')
-  const isVideo = file.type.startsWith('video/')
-
-  if (isVideo) {
-    // Videos only go to S3 archive, not RAGStack
-    return
-  }
 
   if (isImage) {
-    await uploadImageToRagstack(file, userCaption)
+    const imageId = await uploadImageToRagstack(file, userCaption, extractText)
+    return { imageId }
   }
   else {
-    // Documents (PDF, DOC, etc.)
-    await uploadDocumentToRagstack(file)
+    // Documents, videos, and other files
+    const documentId = await uploadDocumentToRagstack(file)
+    return { documentId }
   }
 }
