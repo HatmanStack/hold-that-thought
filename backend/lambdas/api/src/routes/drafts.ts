@@ -3,7 +3,7 @@
  */
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
 import type { RequestContext } from '../types'
-import { S3Client, PutObjectCommand, CopyObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
 import { GetCommand, DeleteCommand, ScanCommand, PutCommand } from '@aws-sdk/lib-dynamodb'
@@ -199,6 +199,7 @@ interface PublishData {
     content: string
     author?: string
     description?: string
+    ragstackDocumentId?: string
   }
 }
 
@@ -231,30 +232,9 @@ async function handlePublish(
       return errorResponse(404, 'Draft not found')
     }
 
-    // Paths
-    const letterPrefix = `${S3_PREFIXES.letters}${finalData.date}/`
-    const pdfKey = `${letterPrefix}${finalData.date}.pdf`
-    const jsonKey = `${letterPrefix}${finalData.date}.json`
-
-    // Copy PDF
-    if (draft.s3Key) {
-      await s3Client.send(new CopyObjectCommand({
-        Bucket: ARCHIVE_BUCKET,
-        CopySource: `${ARCHIVE_BUCKET}/${draft.s3Key}`,
-        Key: pdfKey,
-      }))
-    }
-
-    // Write JSON metadata
-    await s3Client.send(new PutObjectCommand({
-      Bucket: ARCHIVE_BUCKET,
-      Key: jsonKey,
-      Body: JSON.stringify(finalData, null, 2),
-      ContentType: 'application/json',
-    }))
-
     // Create Letter in DynamoDB
     const now = new Date().toISOString()
+    const pdfFilename = `${finalData.date}.pdf`
     await docClient.send(new PutCommand({
       TableName: TABLE_NAME,
       Item: {
@@ -264,7 +244,8 @@ async function handlePublish(
         content: finalData.content,
         author: finalData.author || null,
         description: finalData.description || null,
-        pdfKey,
+        ragstackDocumentId: finalData.ragstackDocumentId || null,
+        pdfFilename,
         createdAt: now,
         updatedAt: now,
         lastEditedBy: requesterId,
