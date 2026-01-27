@@ -609,68 +609,6 @@ Publish draft as letter.
 
 ## Media
 
-### POST /media/upload-url
-Get presigned upload URL.
-
-**Signature:** `POST /media/upload-url`
-
-| Parameter | Type | Required | Constraints |
-|-----------|------|----------|-------------|
-| filename | string | Yes | |
-| contentType | string | Yes | image/*, video/mp4, video/avi, video/quicktime, application/pdf, text/* |
-| fileSize | number | No | Max varies by type |
-
-**Response:**
-```json
-{
-  "presignedUrl": "string",
-  "key": "string",
-  "message": "string"
-}
-```
-
----
-
-### POST /media/list
-List media by category.
-
-**Signature:** `POST /media/list`
-
-| Parameter | Type | Required | Values |
-|-----------|------|----------|--------|
-| category | string | Yes | pictures, videos, documents |
-
-**Response:**
-```json
-[{
-  "id": "string",
-  "filename": "string",
-  "title": "string",
-  "uploadDate": "ISO8601",
-  "fileSize": "number",
-  "contentType": "string",
-  "signedUrl": "string",
-  "category": "string"
-}]
-```
-
----
-
-### GET /pdf/download-url
-Get PDF download URL by title.
-
-**Signature:** `GET /pdf/download-url?title=`
-
-**Response:**
-```json
-{
-  "downloadUrl": "string",
-  "filename": "string"
-}
-```
-
----
-
 ### GET /download/presigned-url
 Get download URL by S3 key.
 
