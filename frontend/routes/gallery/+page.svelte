@@ -311,10 +311,21 @@ return
     }
   }
 
-  // Get matched media item for a search result
+  // Get matched media item for a search result (fuzzy matching)
   function getMatchedMediaItem(result: SearchResult): MediaItem | undefined {
     const searchFilename = result.filename.toLowerCase()
-    return allMediaItems.get(searchFilename)
+    // Try exact match first
+    const exactMatch = allMediaItems.get(searchFilename)
+    if (exactMatch) return exactMatch
+
+    // Fuzzy match: check if search filename (without extension) is contained in archive filename
+    const searchBase = searchFilename.replace(/\.[^.]+$/, '')
+    for (const [archiveFilename, item] of allMediaItems) {
+      if (archiveFilename.includes(searchBase)) {
+        return item
+      }
+    }
+    return undefined
   }
 
   // Search functions
@@ -371,8 +382,7 @@ return
   $: matchedSearchResults = (() => {
     const seen = new Set<string>()
     return searchResults.filter((r) => {
-      const filename = r.filename.toLowerCase()
-      const item = allMediaItems.get(filename)
+      const item = getMatchedMediaItem(r)
       if (!item || seen.has(item.id))
         return false
       seen.add(item.id)
