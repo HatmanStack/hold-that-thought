@@ -86,7 +86,7 @@ async function getPresignedUrl(s3Key: string): Promise<string> {
   const response = await fetch(
     `${API_URL}/download/presigned-url?key=${encodeURIComponent(s3Key)}&bucket=ragstack`,
     {
-      headers: { 'Authorization': `Bearer ${auth.tokens.idToken}` },
+      headers: { Authorization: `Bearer ${auth.tokens.idToken}` },
     },
   )
 
@@ -104,13 +104,22 @@ async function getPresignedUrl(s3Key: string): Promise<string> {
 function inferContentType(filename: string): string {
   const ext = filename.split('.').pop()?.toLowerCase() || ''
   const map: Record<string, string> = {
-    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif',
-    webp: 'image/webp', svg: 'image/svg+xml',
-    mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime',
-    mp3: 'audio/mpeg', wav: 'audio/wav',
-    pdf: 'application/pdf', doc: 'application/msword',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    svg: 'image/svg+xml',
+    mp4: 'video/mp4',
+    webm: 'video/webm',
+    mov: 'video/quicktime',
+    mp3: 'audio/mpeg',
+    wav: 'audio/wav',
+    pdf: 'application/pdf',
+    doc: 'application/msword',
     docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    txt: 'text/plain', md: 'text/markdown',
+    txt: 'text/plain',
+    md: 'text/markdown',
   }
   return map[ext] || 'application/octet-stream'
 }
@@ -147,7 +156,8 @@ function documentToMediaItem(doc: RagDocument, category: 'videos' | 'documents')
 let cachedDocuments: RagDocument[] | null = null
 
 async function fetchDocuments(): Promise<RagDocument[]> {
-  if (cachedDocuments) return cachedDocuments
+  if (cachedDocuments)
+    return cachedDocuments
 
   const data = await ragstackQuery(`query {
     listDocuments {
@@ -176,18 +186,18 @@ export async function getMediaItems(category: 'pictures' | 'videos' | 'documents
   if (category === 'videos') {
     // type=media + mediaType=video, or video file extensions
     const videos = docs.filter(d =>
-      (d.type === 'media' && d.mediaType === 'video') ||
-      /\.(mp4|webm|mov|avi|mkv)$/i.test(d.filename),
+      (d.type === 'media' && d.mediaType === 'video')
+      || /\.(?:mp4|webm|mov|avi|mkv)$/i.test(d.filename),
     )
     return videos.map(d => documentToMediaItem(d, 'videos'))
   }
 
   // Documents: exclude letters (.md files with date prefix), videos, and images
   const documents = docs.filter(d =>
-    d.type === 'document' &&
-    !d.mediaType &&
-    !/^\d{4}-\d{2}-\d{2}-.+\.md$/.test(d.filename) &&
-    !/\.(mp4|webm|mov|avi|mkv)$/i.test(d.filename),
+    d.type === 'document'
+    && !d.mediaType
+    && !/^\d{4}-\d{2}-\d{2}-.+\.md$/.test(d.filename)
+    && !/\.(?:mp4|webm|mov|avi|mkv)$/i.test(d.filename),
   )
   return documents.map(d => documentToMediaItem(d, 'documents'))
 }
@@ -197,12 +207,14 @@ export async function getMediaItems(category: 'pictures' | 'videos' | 'documents
  * Images already have signedUrl from thumbnailUrl. Videos/documents need this.
  */
 export async function resolveSignedUrl(item: MediaItem): Promise<string> {
-  if (item.signedUrl) return item.signedUrl
+  if (item.signedUrl)
+    return item.signedUrl
 
   // Look up the inputS3Uri from the cached documents
   const docs = cachedDocuments || await fetchDocuments()
   const doc = docs.find(d => d.documentId === item.id)
-  if (!doc) throw new Error(`Document ${item.id} not found`)
+  if (!doc)
+    throw new Error(`Document ${item.id} not found`)
 
   const key = s3UriToKey(doc.inputS3Uri)
   return getPresignedUrl(key)

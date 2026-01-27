@@ -6,7 +6,7 @@
   import { authLoading, currentUser, isAuthenticated } from '$lib/auth/auth-store'
   import CommentSection from '$lib/components/comments/CommentSection.svelte'
   import Head from '$lib/components/head.svelte'
-  import { getMediaItems, invalidateMediaCache, resolveSignedUrl, type MediaItem } from '$lib/services/media-service'
+  import { getMediaItems, invalidateMediaCache, type MediaItem, resolveSignedUrl } from '$lib/services/media-service'
   import { uploadToRagstack } from '$lib/services/ragstack-upload-service'
   import { filterResultsByCategory, searchKnowledgeBase, type SearchResult } from '$lib/services/search-service'
   import { onDestroy, onMount } from 'svelte'
@@ -198,7 +198,8 @@
         const url = await resolveSignedUrl(item)
         item.signedUrl = url
         selectedItem = { ...item }
-      } catch (err) {
+      }
+ catch (err) {
         console.error('Failed to resolve signed URL:', err)
       }
     }
@@ -319,7 +320,8 @@ return
     const searchFilename = result.filename.toLowerCase()
     // Try exact match first
     const exactMatch = allMediaItems.get(searchFilename)
-    if (exactMatch) return exactMatch
+    if (exactMatch)
+return exactMatch
 
     // Fuzzy match: check if search filename (without extension) is contained in archive filename
     const searchBase = searchFilename.replace(/\.[^.]+$/, '')
