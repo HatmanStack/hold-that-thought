@@ -53,7 +53,7 @@ if [ -f "$ENV_DEPLOY_FILE" ]; then
 fi
 
 # Get region with default
-DEFAULT_REGION="${AWS_REGION:-us-west-2}"
+DEFAULT_REGION="${AWS_REGION:-us-east-1}"
 read -p "AWS Region [$DEFAULT_REGION]: " input_region
 AWS_REGION="${input_region:-$DEFAULT_REGION}"
 
@@ -153,6 +153,69 @@ DEFAULT_ARCHIVE="${ARCHIVE_BUCKET:-hold-that-thought-archive}"
 read -p "Archive Bucket [$DEFAULT_ARCHIVE]: " input_bucket
 ARCHIVE_BUCKET="${input_bucket:-$DEFAULT_ARCHIVE}"
 
+echo ""
+echo "--- RAGStack Configuration ---"
+echo "RAGStack provides AI-powered search, chat, and media storage."
+echo ""
+echo "You have two options:"
+echo "  1. NEW DEPLOYMENT (recommended for first-time users):"
+echo "     Press Enter to leave this blank. A fresh RAGStack instance"
+echo "     will be deployed automatically as part of this stack."
+echo "     You will be prompted for an admin email for the RAGStack"
+echo "     dashboard and alerts."
+echo ""
+echo "  2. EXISTING RAGSTACK:"
+echo "     If you already deployed RAGStack separately (e.g. from the"
+echo "     AWS Marketplace or via RAGStack-Lambda), enter that stack"
+echo "     name here. This stack will reference the existing RAGStack"
+echo "     resources instead of creating new ones."
+echo "     You can find your stack name in the CloudFormation console."
+echo ""
+
+DEFAULT_RAGSTACK_STACK="${RAGSTACK_STACK_NAME:-}"
+read -p "Existing RAGStack Stack Name (leave empty for new) [$DEFAULT_RAGSTACK_STACK]: " input_ragstack_stack
+RAGSTACK_STACK_NAME="${input_ragstack_stack:-$DEFAULT_RAGSTACK_STACK}"
+
+if [ -z "$RAGSTACK_STACK_NAME" ]; then
+    echo ""
+    echo "  -> Will deploy a new RAGStack nested stack."
+    echo "     This adds AI search, chat, and media indexing to your app."
+    echo ""
+    DEFAULT_RAGSTACK_EMAIL="${RAGSTACK_ADMIN_EMAIL:-$ADMIN_EMAIL}"
+    read -p "RAGStack Admin Email [$DEFAULT_RAGSTACK_EMAIL]: " input_ragstack_email
+    RAGSTACK_ADMIN_EMAIL="${input_ragstack_email:-$DEFAULT_RAGSTACK_EMAIL}"
+else
+    echo ""
+    echo "  -> Will reference existing stack: $RAGSTACK_STACK_NAME"
+    echo "     Fetching RAGStack outputs from CloudFormation exports..."
+    echo ""
+
+    # Fetch existing RAGStack values (may be in a different region, e.g. us-east-1)
+    RAGSTACK_EXPORT_REGION="${RAGSTACK_REGION:-us-east-1}"
+    echo "     Looking up exports from region: $RAGSTACK_EXPORT_REGION"
+
+    RAGSTACK_DATA_BUCKET=$(aws cloudformation list-exports --region "$RAGSTACK_EXPORT_REGION" \
+        --query "Exports[?Name=='${RAGSTACK_STACK_NAME}-DataBucket'].Value" --output text 2>/dev/null)
+    RAGSTACK_GRAPHQL_URL=$(aws cloudformation list-exports --region "$RAGSTACK_EXPORT_REGION" \
+        --query "Exports[?Name=='${RAGSTACK_STACK_NAME}-GraphQLApiUrl'].Value" --output text 2>/dev/null)
+    RAGSTACK_API_KEY=$(aws cloudformation list-exports --region "$RAGSTACK_EXPORT_REGION" \
+        --query "Exports[?Name=='${RAGSTACK_STACK_NAME}-GraphQLApiKey'].Value" --output text 2>/dev/null)
+    RAGSTACK_CHAT_URL=$(aws cloudformation list-exports --region "$RAGSTACK_EXPORT_REGION" \
+        --query "Exports[?Name=='${RAGSTACK_STACK_NAME}-WebComponentCDNUrl'].Value" --output text 2>/dev/null)
+
+    if [ -z "$RAGSTACK_DATA_BUCKET" ] || [ "$RAGSTACK_DATA_BUCKET" = "None" ]; then
+        echo "ERROR: Could not find exports for stack '$RAGSTACK_STACK_NAME' in $RAGSTACK_EXPORT_REGION"
+        echo "Make sure the stack name is correct and the stack is deployed."
+        exit 1
+    fi
+
+    echo "     Data Bucket:  $RAGSTACK_DATA_BUCKET"
+    echo "     GraphQL URL:  $RAGSTACK_GRAPHQL_URL"
+    echo "     API Key:      ${RAGSTACK_API_KEY:0:8}..."
+    echo "     Chat Widget:  $RAGSTACK_CHAT_URL"
+    RAGSTACK_ADMIN_EMAIL="placeholder@example.com"
+fi
+
 # Letters archive check
 echo ""
 echo "--- Letter Archive ---"
@@ -173,6 +236,8 @@ TABLE_NAME=$TABLE_NAME
 SES_FROM_EMAIL=$SES_FROM_EMAIL
 ADMIN_EMAIL=$ADMIN_EMAIL
 ARCHIVE_BUCKET=$ARCHIVE_BUCKET
+RAGSTACK_STACK_NAME=$RAGSTACK_STACK_NAME
+RAGSTACK_ADMIN_EMAIL=$RAGSTACK_ADMIN_EMAIL
 LETTERS_DB_POPULATED=$LETTERS_DB_POPULATED
 EOF
 echo ""
@@ -180,7 +245,7 @@ echo "Configuration saved to $ENV_DEPLOY_FILE"
 
 # Generate samconfig.toml so `sam deploy` without arguments uses correct config
 DEPLOY_BUCKET="sam-deploy-hold-that-thought-${AWS_REGION}"
-PARAM_OVERRIDES_TOML="AllowedOrigins=$ALLOWED_ORIGINS AppDomain=$APP_DOMAIN TableName=$TABLE_NAME SesFromEmail=$SES_FROM_EMAIL AdminEmail=$ADMIN_EMAIL ArchiveBucket=$ARCHIVE_BUCKET GeminiApiKey=$GEMINI_API_KEY"
+PARAM_OVERRIDES_TOML="AllowedOrigins=$ALLOWED_ORIGINS AppDomain=$APP_DOMAIN TableName=$TABLE_NAME SesFromEmail=$SES_FROM_EMAIL AdminEmail=$ADMIN_EMAIL ArchiveBucket=$ARCHIVE_BUCKET GeminiApiKey=$GEMINI_API_KEY RagStackStackName=$RAGSTACK_STACK_NAME RagStackAdminEmail=$RAGSTACK_ADMIN_EMAIL"
 if [ -n "$GOOGLE_CLIENT_ID" ]; then
     PARAM_OVERRIDES_TOML="$PARAM_OVERRIDES_TOML GoogleClientId=$GOOGLE_CLIENT_ID GoogleClientSecret=$GOOGLE_CLIENT_SECRET"
 fi
@@ -197,7 +262,7 @@ stack_name = "$STACK_NAME"
 s3_bucket = "$DEPLOY_BUCKET"
 s3_prefix = "$STACK_NAME"
 region = "$AWS_REGION"
-capabilities = "CAPABILITY_IAM"
+capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND"
 confirm_changeset = false
 fail_on_empty_changeset = false
 parameter_overrides = "$PARAM_OVERRIDES_TOML"
@@ -333,6 +398,15 @@ PARAM_OVERRIDES="$PARAM_OVERRIDES SesFromEmail=$SES_FROM_EMAIL"
 PARAM_OVERRIDES="$PARAM_OVERRIDES AdminEmail=$ADMIN_EMAIL"
 PARAM_OVERRIDES="$PARAM_OVERRIDES ArchiveBucket=$ARCHIVE_BUCKET"
 PARAM_OVERRIDES="$PARAM_OVERRIDES GeminiApiKey=$GEMINI_API_KEY"
+PARAM_OVERRIDES="$PARAM_OVERRIDES RagStackStackName=$RAGSTACK_STACK_NAME"
+PARAM_OVERRIDES="$PARAM_OVERRIDES RagStackAdminEmail=$RAGSTACK_ADMIN_EMAIL"
+
+if [ -n "$RAGSTACK_STACK_NAME" ]; then
+    PARAM_OVERRIDES="$PARAM_OVERRIDES RagStackDataBucketName=$RAGSTACK_DATA_BUCKET"
+    PARAM_OVERRIDES="$PARAM_OVERRIDES RagStackGraphQLApiUrl=$RAGSTACK_GRAPHQL_URL"
+    PARAM_OVERRIDES="$PARAM_OVERRIDES RagStackGraphQLApiKey=$RAGSTACK_API_KEY"
+    PARAM_OVERRIDES="$PARAM_OVERRIDES RagStackChatWidgetUrl=$RAGSTACK_CHAT_URL"
+fi
 
 if [ -n "$GOOGLE_CLIENT_ID" ]; then
     PARAM_OVERRIDES="$PARAM_OVERRIDES GoogleClientId=$GOOGLE_CLIENT_ID"
@@ -344,7 +418,7 @@ sam deploy \
     --region "$AWS_REGION" \
     --s3-bucket "$DEPLOY_BUCKET" \
     --s3-prefix "$STACK_NAME" \
-    --capabilities CAPABILITY_IAM \
+    --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
     --parameter-overrides $PARAM_OVERRIDES \
     --no-confirm-changeset \
     --no-fail-on-empty-changeset
@@ -429,12 +503,32 @@ COGNITO_HOSTED_UI_DOMAIN=$(aws cloudformation describe-stacks \
     --query 'Stacks[0].Outputs[?OutputKey==`CognitoHostedUIDomain`].OutputValue' \
     --output text 2>/dev/null || echo "")
 
+RAGSTACK_GRAPHQL_URL=$(aws cloudformation describe-stacks \
+    --stack-name "$STACK_NAME" \
+    --region "$AWS_REGION" \
+    --query 'Stacks[0].Outputs[?OutputKey==`RagStackGraphQLUrl`].OutputValue' \
+    --output text 2>/dev/null || echo "")
+
+RAGSTACK_API_KEY=$(aws cloudformation describe-stacks \
+    --stack-name "$STACK_NAME" \
+    --region "$AWS_REGION" \
+    --query 'Stacks[0].Outputs[?OutputKey==`RagStackApiKey`].OutputValue' \
+    --output text 2>/dev/null || echo "")
+
+RAGSTACK_CHAT_WIDGET_URL=$(aws cloudformation describe-stacks \
+    --stack-name "$STACK_NAME" \
+    --region "$AWS_REGION" \
+    --query 'Stacks[0].Outputs[?OutputKey==`RagStackChatWidgetUrl`].OutputValue' \
+    --output text 2>/dev/null || echo "")
+
 echo "Stack Outputs:"
 echo "  API URL: $API_URL"
 echo "  User Pool ID: $USER_POOL_ID"
 echo "  User Pool Client ID: $USER_POOL_CLIENT_ID"
 echo "  Identity Pool ID: $IDENTITY_POOL_ID"
 echo "  Cognito Hosted UI: $COGNITO_HOSTED_UI_URL"
+echo "  RAGStack GraphQL: $RAGSTACK_GRAPHQL_URL"
+echo "  RAGStack Chat Widget: $RAGSTACK_CHAT_WIDGET_URL"
 echo ""
 
 # Update frontend .env file (root for backwards compat, frontend/ for Vite)
@@ -494,10 +588,10 @@ PUBLIC_API_GATEWAY_URL=$API_URL
 # Archive Bucket
 PUBLIC_ARCHIVE_BUCKET=$ARCHIVE_BUCKET
 
-# RAGStack Integration (optional - set values to enable)
-PUBLIC_RAGSTACK_CHAT_URL=$PRESERVED_RAGSTACK_CHAT_URL
-PUBLIC_RAGSTACK_GRAPHQL_URL=$PRESERVED_RAGSTACK_GRAPHQL_URL
-PUBLIC_RAGSTACK_API_KEY=$PRESERVED_RAGSTACK_API_KEY
+# RAGStack Integration (from nested stack)
+PUBLIC_RAGSTACK_CHAT_URL=${RAGSTACK_CHAT_WIDGET_URL:-$PRESERVED_RAGSTACK_CHAT_URL}
+PUBLIC_RAGSTACK_GRAPHQL_URL=${RAGSTACK_GRAPHQL_URL:-$PRESERVED_RAGSTACK_GRAPHQL_URL}
+PUBLIC_RAGSTACK_API_KEY=${RAGSTACK_API_KEY:-$PRESERVED_RAGSTACK_API_KEY}
 
 # Guest Login (optional - set values to enable one-click guest access)
 PUBLIC_GUEST_EMAIL=$PRESERVED_GUEST_EMAIL
@@ -513,10 +607,10 @@ else
     update_env_var "PUBLIC_COGNITO_HOSTED_UI_URL" "$COGNITO_HOSTED_UI_URL" "$FRONTEND_ENV"
     update_env_var "PUBLIC_COGNITO_HOSTED_UI_DOMAIN" "$COGNITO_HOSTED_UI_DOMAIN" "$FRONTEND_ENV"
     update_env_var "PUBLIC_ARCHIVE_BUCKET" "$ARCHIVE_BUCKET" "$FRONTEND_ENV"
-    # Restore preserved custom vars if they exist and current value is empty
-    [ -n "$PRESERVED_RAGSTACK_CHAT_URL" ] && update_env_var "PUBLIC_RAGSTACK_CHAT_URL" "$PRESERVED_RAGSTACK_CHAT_URL" "$FRONTEND_ENV"
-    [ -n "$PRESERVED_RAGSTACK_GRAPHQL_URL" ] && update_env_var "PUBLIC_RAGSTACK_GRAPHQL_URL" "$PRESERVED_RAGSTACK_GRAPHQL_URL" "$FRONTEND_ENV"
-    [ -n "$PRESERVED_RAGSTACK_API_KEY" ] && update_env_var "PUBLIC_RAGSTACK_API_KEY" "$PRESERVED_RAGSTACK_API_KEY" "$FRONTEND_ENV"
+    # RAGStack values from nested stack outputs (fall back to preserved values)
+    update_env_var "PUBLIC_RAGSTACK_CHAT_URL" "${RAGSTACK_CHAT_WIDGET_URL:-$PRESERVED_RAGSTACK_CHAT_URL}" "$FRONTEND_ENV"
+    update_env_var "PUBLIC_RAGSTACK_GRAPHQL_URL" "${RAGSTACK_GRAPHQL_URL:-$PRESERVED_RAGSTACK_GRAPHQL_URL}" "$FRONTEND_ENV"
+    update_env_var "PUBLIC_RAGSTACK_API_KEY" "${RAGSTACK_API_KEY:-$PRESERVED_RAGSTACK_API_KEY}" "$FRONTEND_ENV"
     [ -n "$PRESERVED_GUEST_EMAIL" ] && update_env_var "PUBLIC_GUEST_EMAIL" "$PRESERVED_GUEST_EMAIL" "$FRONTEND_ENV"
     [ -n "$PRESERVED_GUEST_PASSWORD" ] && update_env_var "PUBLIC_GUEST_PASSWORD" "$PRESERVED_GUEST_PASSWORD" "$FRONTEND_ENV"
     echo "Updated frontend .env file (preserved custom vars)"
