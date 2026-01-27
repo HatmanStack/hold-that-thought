@@ -33,10 +33,10 @@ export async function handle(
   event: APIGatewayProxyEvent,
   context: RequestContext
 ): Promise<APIGatewayProxyResult> {
-  const { requesterId, requesterEmail, isAdmin } = context
+  const { requesterId, requesterEmail, isAdmin, requestOrigin } = context
 
   if (!requesterId) {
-    return errorResponse(401, 'Unauthorized: Missing user context')
+    return errorResponse(401, 'Unauthorized: Missing user context', requestOrigin)
   }
 
   const method = event.httpMethod
@@ -44,41 +44,42 @@ export async function handle(
   const normalizedResource = resource.replace(/^\/v1/, '')
 
   if (method === 'GET' && normalizedResource === '/profile/{userId}') {
-    return getProfile(event, requesterId, isAdmin)
+    return getProfile(event, requesterId, isAdmin, requestOrigin)
   }
 
   if (method === 'PUT' && normalizedResource === '/profile') {
-    return updateProfile(event, requesterId, requesterEmail)
+    return updateProfile(event, requesterId, requesterEmail, requestOrigin)
   }
 
   if (method === 'GET' && normalizedResource === '/profile/{userId}/comments') {
-    return getUserComments(event, requesterId, isAdmin)
+    return getUserComments(event, requesterId, isAdmin, requestOrigin)
   }
 
   if (method === 'POST' && normalizedResource === '/profile/photo/upload-url') {
-    return getPhotoUploadUrl(event, requesterId)
+    return getPhotoUploadUrl(event, requesterId, requestOrigin)
   }
 
   if (method === 'GET' && normalizedResource === '/users') {
-    return listUsers(requesterId)
+    return listUsers(requesterId, requestOrigin)
   }
 
-  return errorResponse(404, 'Route not found')
+  return errorResponse(404, 'Route not found', requestOrigin)
 }
 
 async function getProfile(
   event: APIGatewayProxyEvent,
   requesterId: string,
-  isAdmin: boolean
+  isAdmin: boolean,
+  requestOrigin?: string
 ): Promise<APIGatewayProxyResult> {
   const userId = event.pathParameters?.userId
 
   if (!userId) {
-    return errorResponse(400, 'Missing userId parameter')
+    return errorResponse(400, 'Missing userId parameter', requestOrigin)
   }
 
   if (!validateUserId(userId)) {
-    return errorResponse(400, 'Invalid userId format')
+    return errorResponse(400, 'Invalid userId format', requestOrigin)
   }
 
   try {
@@ -88,13 +89,13 @@ async function getProfile(
     }))
 
     if (!result.Item || result.Item.entityType !== 'USER_PROFILE') {
-      return errorResponse(404, 'Profile not found')
+      return errorResponse(404, 'Profile not found', requestOrigin)
     }
 
     const profile = result.Item
 
     if (profile.isProfilePrivate && userId !== requesterId && !isAdmin) {
-      return errorResponse(403, 'This profile is private')
+      return errorResponse(403, 'This profile is private', requestOrigin)
     }
 
     const signedPhotoUrl = await signPhotoUrl(profile.profilePhotoUrl as string)
@@ -118,21 +119,22 @@ async function getProfile(
       notifyOnComment: profile.notifyOnComment !== false,
       theme: profile.theme || null,
       familyRelationships: profile.familyRelationships || [],
-    })
+    }, 200, requestOrigin)
   } catch (error) {
     log.error('get_profile_error', { userId, error: (error as Error).message })
-    return errorResponse(500, 'Failed to get profile')
+    return errorResponse(500, 'Failed to get profile', requestOrigin)
   }
 }
 
 async function updateProfile(
   event: APIGatewayProxyEvent,
   requesterId: string,
-  requesterEmail?: string
+  requesterEmail?: string,
+  requestOrigin?: string
 ): Promise<APIGatewayProxyResult> {
   const rateLimit = await checkRateLimit(requesterId, 'default')
   if (!rateLimit.allowed) {
-    return rateLimitResponse(getRetryAfter(rateLimit.resetAt), 'Rate limit exceeded')
+    return rateLimitResponse(getRetryAfter(rateLimit.resetAt), 'Rate limit exceeded', requestOrigin)
   }
 
   const body = JSON.parse(event.body || '{}')
@@ -145,14 +147,14 @@ async function updateProfile(
   // Validate theme
   if (body.theme !== undefined) {
     if (typeof body.theme !== 'string' || body.theme.length > 50 || !/^[a-z0-9-]*$/.test(body.theme)) {
-      return errorResponse(400, 'Invalid theme value')
+      return errorResponse(400, 'Invalid theme value', requestOrigin)
     }
   }
 
   // Validate familyRelationships
   if (body.familyRelationships !== undefined) {
     if (!Array.isArray(body.familyRelationships)) {
-      return errorResponse(400, 'familyRelationships must be an array')
+      return errorResponse(400, 'familyRelationships must be an array', requestOrigin)
     }
 
     const now = new Date().toISOString()
@@ -160,13 +162,13 @@ async function updateProfile(
       const rel = body.familyRelationships[i] as FamilyRelationship
 
       if (!rel.id || typeof rel.id !== 'string') {
-        return errorResponse(400, `Relationship at index ${i} is missing required field: id`)
+        return errorResponse(400, `Relationship at index ${i} is missing required field: id`, requestOrigin)
       }
       if (!rel.type || typeof rel.type !== 'string') {
-        return errorResponse(400, `Relationship at index ${i} is missing required field: type`)
+        return errorResponse(400, `Relationship at index ${i} is missing required field: type`, requestOrigin)
       }
       if (!rel.name || typeof rel.name !== 'string') {
-        return errorResponse(400, `Relationship at index ${i} is missing required field: name`)
+        return errorResponse(400, `Relationship at index ${i} is missing required field: name`, requestOrigin)
       }
 
       rel.name = sanitizeText(rel.name)
@@ -185,7 +187,7 @@ async function updateProfile(
   }
 
   if (errors.length > 0) {
-    return errorResponse(400, errors.join(', '))
+    return errorResponse(400, errors.join(', '), requestOrigin)
   }
 
   try {

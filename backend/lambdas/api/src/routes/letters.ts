@@ -26,45 +26,45 @@ export async function handle(
   event: APIGatewayProxyEvent,
   context: RequestContext
 ): Promise<APIGatewayProxyResult> {
-  const { requesterId } = context
+  const { requesterId, requestOrigin } = context
   const method = event.httpMethod
   const resource = event.resource
   const normalizedResource = resource.replace(/^\/v1/, '')
 
   if (method === 'GET' && normalizedResource === '/letters') {
-    return listLetters(event)
+    return listLetters(event, requestOrigin)
   }
 
   if (method === 'GET' && normalizedResource === '/letters/{date}') {
-    return getLetter(event)
+    return getLetter(event, requestOrigin)
   }
 
   if (method === 'PUT' && normalizedResource === '/letters/{date}') {
     if (!requesterId) {
-      return errorResponse(401, 'Authentication required')
+      return errorResponse(401, 'Authentication required', requestOrigin)
     }
-    return updateLetter(event, requesterId)
+    return updateLetter(event, requesterId, requestOrigin)
   }
 
   if (method === 'GET' && normalizedResource === '/letters/{date}/versions') {
-    return getVersions(event)
+    return getVersions(event, requestOrigin)
   }
 
   if (method === 'POST' && normalizedResource === '/letters/{date}/revert') {
     if (!requesterId) {
-      return errorResponse(401, 'Authentication required')
+      return errorResponse(401, 'Authentication required', requestOrigin)
     }
-    return revertToVersion(event, requesterId)
+    return revertToVersion(event, requesterId, requestOrigin)
   }
 
   if (method === 'GET' && normalizedResource === '/letters/{date}/pdf') {
-    return getPdfUrl(event)
+    return getPdfUrl(event, requestOrigin)
   }
 
-  return errorResponse(404, 'Route not found')
+  return errorResponse(404, 'Route not found', requestOrigin)
 }
 
-async function listLetters(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+async function listLetters(event: APIGatewayProxyEvent, requestOrigin?: string): Promise<APIGatewayProxyResult> {
   const limit = parseInt(event.queryStringParameters?.limit || '50', 10)
   const cursor = event.queryStringParameters?.cursor
 
@@ -95,18 +95,18 @@ async function listLetters(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
       nextCursor: result.LastEvaluatedKey
         ? Buffer.from(JSON.stringify(result.LastEvaluatedKey)).toString('base64')
         : null,
-    })
+    }, 200, requestOrigin)
   } catch (error) {
     log.error('list_letters_error', { error: (error as Error).message })
     throw error
   }
 }
 
-async function getLetter(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+async function getLetter(event: APIGatewayProxyEvent, requestOrigin?: string): Promise<APIGatewayProxyResult> {
   const date = event.pathParameters?.date
 
   if (!date || !isValidDate(date)) {
-    return errorResponse(400, 'Valid date parameter required (YYYY-MM-DD)')
+    return errorResponse(400, 'Valid date parameter required (YYYY-MM-DD)', requestOrigin)
   }
 
   try {
@@ -116,7 +116,7 @@ async function getLetter(event: APIGatewayProxyEvent): Promise<APIGatewayProxyRe
     }))
 
     if (!result.Item) {
-      return errorResponse(404, 'Letter not found')
+      return errorResponse(404, 'Letter not found', requestOrigin)
     }
 
     return successResponse({
@@ -131,7 +131,7 @@ async function getLetter(event: APIGatewayProxyEvent): Promise<APIGatewayProxyRe
       updatedAt: result.Item.updatedAt,
       lastEditedBy: result.Item.lastEditedBy,
       versionCount: result.Item.versionCount || 0,
-    })
+    }, 200, requestOrigin)
   } catch (error) {
     log.error('get_letter_error', { date, error: (error as Error).message })
     throw error
@@ -140,7 +140,8 @@ async function getLetter(event: APIGatewayProxyEvent): Promise<APIGatewayProxyRe
 
 async function updateLetter(
   event: APIGatewayProxyEvent,
-  requesterId: string
+  requesterId: string,
+  requestOrigin?: string
 ): Promise<APIGatewayProxyResult> {
   const date = event.pathParameters?.date
 
@@ -148,17 +149,17 @@ async function updateLetter(
   try {
     body = JSON.parse(event.body || '{}')
   } catch {
-    return errorResponse(400, 'Invalid JSON body')
+    return errorResponse(400, 'Invalid JSON body', requestOrigin)
   }
 
   const { content, title, author, description } = body
 
   if (!date || !isValidDate(date)) {
-    return errorResponse(400, 'Valid date parameter required (YYYY-MM-DD)')
+    return errorResponse(400, 'Valid date parameter required (YYYY-MM-DD)', requestOrigin)
   }
 
   if (!content) {
-    return errorResponse(400, 'Content is required')
+    return errorResponse(400, 'Content is required', requestOrigin)
   }
 
   try {
@@ -168,7 +169,7 @@ async function updateLetter(
     }))
 
     if (!current.Item) {
-      return errorResponse(404, 'Letter not found')
+      return errorResponse(404, 'Letter not found', requestOrigin)
     }
 
     const now = new Date().toISOString()
@@ -230,18 +231,18 @@ async function updateLetter(
     return successResponse({
       message: 'Letter updated',
       versionCount: versionNumber,
-    })
+    }, 200, requestOrigin)
   } catch (error) {
     log.error('update_letter_error', { date, error: (error as Error).message })
     throw error
   }
 }
 
-async function getVersions(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+async function getVersions(event: APIGatewayProxyEvent, requestOrigin?: string): Promise<APIGatewayProxyResult> {
   const date = event.pathParameters?.date
 
   if (!date || !isValidDate(date)) {
-    return errorResponse(400, 'Valid date parameter required (YYYY-MM-DD)')
+    return errorResponse(400, 'Valid date parameter required (YYYY-MM-DD)', requestOrigin)
   }
 
   try {
@@ -262,7 +263,7 @@ async function getVersions(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
       timestamp: item.SK?.replace('VERSION#', ''),
     }))
 
-    return successResponse({ versions })
+    return successResponse({ versions }, 200, requestOrigin)
   } catch (error) {
     log.error('get_versions_error', { date, error: (error as Error).message })
     throw error
@@ -271,7 +272,8 @@ async function getVersions(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
 
 async function revertToVersion(
   event: APIGatewayProxyEvent,
-  requesterId: string
+  requesterId: string,
+  requestOrigin?: string
 ): Promise<APIGatewayProxyResult> {
   const date = event.pathParameters?.date
 
@@ -279,17 +281,17 @@ async function revertToVersion(
   try {
     body = JSON.parse(event.body || '{}')
   } catch {
-    return errorResponse(400, 'Invalid JSON body')
+    return errorResponse(400, 'Invalid JSON body', requestOrigin)
   }
 
   const { timestamp } = body
 
   if (!date || !isValidDate(date)) {
-    return errorResponse(400, 'Valid date parameter required (YYYY-MM-DD)')
+    return errorResponse(400, 'Valid date parameter required (YYYY-MM-DD)', requestOrigin)
   }
 
   if (!timestamp) {
-    return errorResponse(400, 'Version timestamp is required')
+    return errorResponse(400, 'Version timestamp is required', requestOrigin)
   }
 
   try {
@@ -299,7 +301,7 @@ async function revertToVersion(
     }))
 
     if (!versionResult.Item) {
-      return errorResponse(404, 'Version not found')
+      return errorResponse(404, 'Version not found', requestOrigin)
     }
 
     const version = versionResult.Item
@@ -347,18 +349,18 @@ async function revertToVersion(
       }))
     }
 
-    return successResponse({ message: 'Reverted to version', timestamp })
+    return successResponse({ message: 'Reverted to version', timestamp }, 200, requestOrigin)
   } catch (error) {
     log.error('revert_version_error', { date, timestamp, error: (error as Error).message })
     throw error
   }
 }
 
-async function getPdfUrl(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+async function getPdfUrl(event: APIGatewayProxyEvent, requestOrigin?: string): Promise<APIGatewayProxyResult> {
   const date = event.pathParameters?.date
 
   if (!date || !isValidDate(date)) {
-    return errorResponse(400, 'Valid date parameter required (YYYY-MM-DD)')
+    return errorResponse(400, 'Valid date parameter required (YYYY-MM-DD)', requestOrigin)
   }
 
   try {
@@ -368,7 +370,7 @@ async function getPdfUrl(event: APIGatewayProxyEvent): Promise<APIGatewayProxyRe
     }))
 
     if (!result.Item || !result.Item.pdfKey) {
-      return errorResponse(404, 'PDF not found')
+      return errorResponse(404, 'PDF not found', requestOrigin)
     }
 
     const downloadUrl = await getSignedUrl(
@@ -377,7 +379,7 @@ async function getPdfUrl(event: APIGatewayProxyEvent): Promise<APIGatewayProxyRe
       { expiresIn: 3600 }
     )
 
-    return successResponse({ downloadUrl })
+    return successResponse({ downloadUrl }, 200, requestOrigin)
   } catch (error) {
     log.error('get_pdf_url_error', { date, error: (error as Error).message })
     throw error
