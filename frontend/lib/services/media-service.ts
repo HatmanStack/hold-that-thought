@@ -170,7 +170,10 @@ async function fetchDocuments(): Promise<RagDocument[]> {
     }
   }`) as { listDocuments: { items: RagDocument[] } }
 
-  cachedDocuments = (data.listDocuments.items || []).filter(d => d.status === 'INDEXED')
+  cachedDocuments = (data.listDocuments.items || []).filter(d =>
+    d.status === 'INDEXED'
+    && !/^\d{4}-\d{2}-\d{2}(?:[-.].+)?\.(?:md|pdf)$/.test(d.filename),
+  )
   return cachedDocuments
 }
 
@@ -233,11 +236,10 @@ export async function getMediaItems(
     }
   }
 
-  // Documents: exclude letters (.md and .pdf with date prefix), videos, and images
+  // Documents: exclude videos and media-typed items (letters already excluded in fetchDocuments)
   const documents = docs.filter(d =>
     d.type === 'document'
     && !d.mediaType
-    && !/^\d{4}-\d{2}-\d{2}(?:[-.].+)?\.(?:md|pdf)$/.test(d.filename)
     && !/\.(?:mp4|webm|mov|avi|mkv)$/i.test(d.filename),
   )
   return {
