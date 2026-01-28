@@ -69,6 +69,14 @@ Parameters:
     Description: Admin email for RAGStack (only required for new deployments)
     Default: 'placeholder@example.com'
 
+  # Legacy parameters (kept for backwards-compatible stack updates)
+  PhotoBucket:
+    Type: String
+    Default: ''
+  MediaBucket:
+    Type: String
+    Default: ''
+
   SesFromEmail:
     Type: String
     Description: Email address to send notifications from (domain must be verified in SES)
