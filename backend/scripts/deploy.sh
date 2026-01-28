@@ -187,6 +187,10 @@ if [ -z "$RAGSTACK_STACK_NAME" ]; then
 else
     echo ""
     echo "  -> Will reference existing stack: $RAGSTACK_STACK_NAME"
+    echo ""
+    DEFAULT_RAGSTACK_EMAIL="${RAGSTACK_ADMIN_EMAIL:-$ADMIN_EMAIL}"
+    read -p "RAGStack Admin Email [$DEFAULT_RAGSTACK_EMAIL]: " input_ragstack_email
+    RAGSTACK_ADMIN_EMAIL="${input_ragstack_email:-$DEFAULT_RAGSTACK_EMAIL}"
     echo "     Fetching RAGStack outputs from CloudFormation exports..."
     echo ""
 
@@ -213,7 +217,7 @@ else
     echo "     GraphQL URL:  $RAGSTACK_GRAPHQL_URL"
     echo "     API Key:      ${RAGSTACK_API_KEY:0:8}..."
     echo "     Chat Widget:  $RAGSTACK_CHAT_URL"
-    RAGSTACK_ADMIN_EMAIL=""
+    # RAGSTACK_ADMIN_EMAIL set by prompt above
 fi
 
 # Letters archive check
