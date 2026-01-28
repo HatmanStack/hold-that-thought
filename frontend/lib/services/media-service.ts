@@ -16,6 +16,11 @@ export interface MediaItem {
   category: 'pictures' | 'videos' | 'documents'
 }
 
+export interface MediaPage {
+  items: MediaItem[]
+  hasMore: boolean
+}
+
 interface RagImage {
   imageId: string
   filename: string
@@ -169,27 +174,63 @@ async function fetchDocuments(): Promise<RagDocument[]> {
   return cachedDocuments
 }
 
-export async function getMediaItems(category: 'pictures' | 'videos' | 'documents'): Promise<MediaItem[]> {
-  if (category === 'pictures') {
-    const data = await ragstackQuery(`query {
-      listImages(limit: 100) {
-        items { imageId filename s3Uri thumbnailUrl caption contentType fileSize createdAt }
-      }
-    }`) as { listImages: { items: RagImage[] } }
+function sortByDate(items: MediaItem[]): MediaItem[] {
+  return items.sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime())
+}
 
-    return (data.listImages.items || []).map(imageToMediaItem)
+const PAGE_SIZE = 50
+
+// Track pagination state for images
+let imageNextToken: string | null = null
+let allLoadedImages: MediaItem[] = []
+
+export function resetPagination() {
+  imageNextToken = null
+  allLoadedImages = []
+}
+
+export async function getMediaItems(
+  category: 'pictures' | 'videos' | 'documents',
+  loadMore = false,
+): Promise<MediaPage> {
+  if (category === 'pictures') {
+    if (!loadMore) {
+      imageNextToken = null
+      allLoadedImages = []
+    }
+
+    const data = await ragstackQuery(`query ListImages($limit: Int, $nextToken: String) {
+      listImages(limit: $limit, nextToken: $nextToken) {
+        items { imageId filename s3Uri thumbnailUrl caption contentType fileSize createdAt }
+        nextToken
+      }
+    }`, {
+      limit: PAGE_SIZE,
+      nextToken: imageNextToken,
+    }) as { listImages: { items: RagImage[], nextToken: string | null } }
+
+    const newItems = (data.listImages.items || []).map(imageToMediaItem)
+    imageNextToken = data.listImages.nextToken
+    allLoadedImages = [...allLoadedImages, ...newItems]
+
+    return {
+      items: sortByDate(allLoadedImages),
+      hasMore: !!imageNextToken,
+    }
   }
 
-  // Videos and documents both come from listDocuments
+  // Videos and documents both come from listDocuments (no server pagination)
   const docs = await fetchDocuments()
 
   if (category === 'videos') {
-    // type=media + mediaType=video, or video file extensions
     const videos = docs.filter(d =>
       (d.type === 'media' && d.mediaType === 'video')
       || /\.(?:mp4|webm|mov|avi|mkv)$/i.test(d.filename),
     )
-    return videos.map(d => documentToMediaItem(d, 'videos'))
+    return {
+      items: sortByDate(videos.map(d => documentToMediaItem(d, 'videos'))),
+      hasMore: false,
+    }
   }
 
   // Documents: exclude letters (.md files with date prefix), videos, and images
@@ -199,7 +240,10 @@ export async function getMediaItems(category: 'pictures' | 'videos' | 'documents
     && !/^\d{4}-\d{2}-\d{2}-.+\.md$/.test(d.filename)
     && !/\.(?:mp4|webm|mov|avi|mkv)$/i.test(d.filename),
   )
-  return documents.map(d => documentToMediaItem(d, 'documents'))
+  return {
+    items: sortByDate(documents.map(d => documentToMediaItem(d, 'documents'))),
+    hasMore: false,
+  }
 }
 
 /**

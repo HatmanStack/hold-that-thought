@@ -6,7 +6,7 @@
   import { authLoading, currentUser, isAuthenticated } from '$lib/auth/auth-store'
   import CommentSection from '$lib/components/comments/CommentSection.svelte'
   import Head from '$lib/components/head.svelte'
-  import { getMediaItems, invalidateMediaCache, type MediaItem, resolveSignedUrl } from '$lib/services/media-service'
+  import { getMediaItems, invalidateMediaCache, type MediaItem, resetPagination, resolveSignedUrl } from '$lib/services/media-service'
   import { uploadToRagstack } from '$lib/services/ragstack-upload-service'
   import { filterResultsByCategory, searchKnowledgeBase, type SearchResult } from '$lib/services/search-service'
   import { onDestroy, onMount } from 'svelte'
@@ -15,6 +15,8 @@
 
   let selectedSection: 'pictures' | 'videos' | 'documents' = 'pictures'
   let mediaItems: MediaItem[] = []
+  let hasMore = false
+  let loadingMore = false
   let loading = false
   let error = ''
   let selectedItem: MediaItem | null = null
@@ -59,23 +61,34 @@
   let mediaItemsLoaded = false
 
   // Load media items for the selected section
-  async function loadMediaItems(section: 'pictures' | 'videos' | 'documents') {
-    loading = true
+  async function loadMediaItems(section: 'pictures' | 'videos' | 'documents', loadMore = false) {
+    if (loadMore) {
+      loadingMore = true
+    }
+    else {
+      loading = true
+      resetPagination()
+    }
     error = ''
 
     try {
-      mediaItems = await getMediaItems(section)
+      const page = await getMediaItems(section, loadMore)
+      mediaItems = page.items
+      hasMore = page.hasMore
 
       // Check for item query param to auto-open
-      checkForItemParam()
+      if (!loadMore)
+        checkForItemParam()
     }
     catch (err) {
       console.error(`Error loading ${section}:`, err)
       error = err instanceof Error ? err.message : `Failed to load ${section}`
-      mediaItems = []
+      if (!loadMore)
+        mediaItems = []
     }
     finally {
       loading = false
+      loadingMore = false
     }
   }
 
@@ -296,14 +309,14 @@
 return
 
     try {
-      const [pictures, videos, documents] = await Promise.all([
+      const [picturesPage, videosPage, documentsPage] = await Promise.all([
         getMediaItems('pictures'),
         getMediaItems('videos'),
         getMediaItems('documents'),
       ])
 
       // Index by filename without timestamp prefix (lowercase for case-insensitive matching)
-      const all = [...pictures, ...videos, ...documents]
+      const all = [...picturesPage.items, ...videosPage.items, ...documentsPage.items]
       for (const item of all) {
         const normalizedFilename = stripTimestampPrefix(item.filename).toLowerCase()
         allMediaItems.set(normalizedFilename, item)
@@ -749,6 +762,23 @@ return exactMatch
         </button>
       {/each}
     </div>
+
+    {#if hasMore}
+      <div class='text-center mt-6'>
+        <button
+          class='btn btn-outline'
+          class:loading={loadingMore}
+          disabled={loadingMore}
+          on:click={() => loadMediaItems(selectedSection, true)}
+        >
+          {#if loadingMore}
+            Loading...
+          {:else}
+            Load More
+          {/if}
+        </button>
+      </div>
+    {/if}
   {/if}
 </div>
 
