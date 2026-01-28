@@ -172,7 +172,7 @@ async function fetchDocuments(): Promise<RagDocument[]> {
 
   const allItems = data.listDocuments.items || []
   cachedDocuments = allItems.filter((d) => {
-    const isLetter = /^\d{4}-\d{2}-\d{2}(?:[-.].+)?\.(?:md|pdf)$/.test(d.filename)
+    const isLetter = /^\d{4}-\d{2}-\d{2}(?:[_\-.].+)?\.(?:md|pdf)$/.test(d.filename)
     if (isLetter)
       console.log('[media-service] excluding letter:', d.filename)
     return d.status === 'INDEXED' && !isLetter
