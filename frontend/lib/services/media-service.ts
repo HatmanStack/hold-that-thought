@@ -233,11 +233,11 @@ export async function getMediaItems(
     }
   }
 
-  // Documents: exclude letters (.md files with date prefix), videos, and images
+  // Documents: exclude letters (.md and .pdf with date prefix), videos, and images
   const documents = docs.filter(d =>
     d.type === 'document'
     && !d.mediaType
-    && !/^\d{4}-\d{2}-\d{2}-.+\.md$/.test(d.filename)
+    && !/^\d{4}-\d{2}-\d{2}[-.].+\.(?:md|pdf)$/.test(d.filename)
     && !/\.(?:mp4|webm|mov|avi|mkv)$/i.test(d.filename),
   )
   return {
