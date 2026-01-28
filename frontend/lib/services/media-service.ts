@@ -237,7 +237,7 @@ export async function getMediaItems(
   const documents = docs.filter(d =>
     d.type === 'document'
     && !d.mediaType
-    && !/^\d{4}-\d{2}-\d{2}[-.].+\.(?:md|pdf)$/.test(d.filename)
+    && !/^\d{4}-\d{2}-\d{2}(?:[-.].+)?\.(?:md|pdf)$/.test(d.filename)
     && !/\.(?:mp4|webm|mov|avi|mkv)$/i.test(d.filename),
   )
   return {
