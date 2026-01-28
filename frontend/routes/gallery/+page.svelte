@@ -730,9 +730,11 @@ return exactMatch
             {/if}
 
             <!-- File size badge -->
-            <div class='absolute badge badge-sm text-white border-none right-2 top-2 bg-black/50'>
-              {formatFileSize(item.fileSize)}
-            </div>
+            {#if item.fileSize}
+              <div class='absolute badge badge-sm text-white border-none right-2 top-2 bg-black/50'>
+                {formatFileSize(item.fileSize)}
+              </div>
+            {/if}
           </figure>
 
           <div class='card-body p-4'>
@@ -806,7 +808,7 @@ return exactMatch
             </div>
             <p class='text-lg font-semibold mb-2'>{selectedItem.title}</p>
             <p class='text-sm text-base-content/70 mb-4'>
-              {selectedItem.contentType} • {formatFileSize(selectedItem.fileSize)}
+              {selectedItem.contentType}{#if selectedItem.fileSize} • {formatFileSize(selectedItem.fileSize)}{/if}
             </p>
             <a href={selectedItem.signedUrl} target='_blank' class='btn btn-primary'>
               Download & View
@@ -827,10 +829,12 @@ return exactMatch
           <span class='font-semibold'>Upload Date:</span>
           <span class='text-base-content/70'>{formatDate(selectedItem.uploadDate)}</span>
         </div>
-        <div>
-          <span class='font-semibold'>File Size:</span>
-          <span class='text-base-content/70'>{formatFileSize(selectedItem.fileSize)}</span>
-        </div>
+        {#if selectedItem.fileSize}
+          <div>
+            <span class='font-semibold'>File Size:</span>
+            <span class='text-base-content/70'>{formatFileSize(selectedItem.fileSize)}</span>
+          </div>
+        {/if}
       </div>
 
       <!-- Comments Section -->
