@@ -6,7 +6,7 @@
   import { authLoading, currentUser, isAuthenticated } from '$lib/auth/auth-store'
   import CommentSection from '$lib/components/comments/CommentSection.svelte'
   import Head from '$lib/components/head.svelte'
-  import { getMediaItems, invalidateMediaCache, type MediaItem, resetPagination, resolveSignedUrl } from '$lib/services/media-service'
+  import { createMediaItemFromSearch, getImageById, getMediaItems, getPresignedUrlForKey, invalidateMediaCache, type MediaItem, resetPagination, resolveSignedUrl } from '$lib/services/media-service'
   import { uploadToRagstack } from '$lib/services/ragstack-upload-service'
   import { filterResultsByCategory, searchKnowledgeBase, type SearchResult } from '$lib/services/search-service'
   import { onDestroy, onMount } from 'svelte'
@@ -212,9 +212,37 @@
         item.signedUrl = url
         selectedItem = { ...item }
       }
- catch (err) {
+      catch (err) {
         console.error('Failed to resolve signed URL:', err)
       }
+    }
+  }
+
+  // Open a search result item in modal
+  async function openSearchResultItem(result: SearchResult) {
+    const item = searchResultToMediaItem(result)
+    selectedItem = item
+    showModal = true
+
+    // Get the proper URL for this item
+    try {
+      if (result.category === 'pictures') {
+        const image = await getImageById(result.id)
+        if (image?.thumbnailUrl) {
+          item.signedUrl = image.thumbnailUrl
+          item.thumbnailUrl = image.thumbnailUrl
+          selectedItem = { ...item }
+        }
+      }
+      else {
+        // Videos and documents need presigned URL from backend
+        const url = await getPresignedUrlForKey(result.s3Key)
+        item.signedUrl = url
+        selectedItem = { ...item }
+      }
+    }
+    catch (err) {
+      console.error('Failed to resolve URL for search result:', err)
     }
   }
 
@@ -228,7 +256,7 @@
   function getCurrentItemsList(): MediaItem[] {
     if (isSearchMode) {
       return filteredSearchResults
-        .map(r => getMatchedMediaItem(r))
+        .map(r => searchResultToMediaItem(r))
         .filter((item): item is MediaItem => item !== undefined)
     }
     return mediaItems
@@ -328,19 +356,31 @@ return
     }
   }
 
-  // Get matched media item for a search result (fuzzy matching)
-  function getMatchedMediaItem(result: SearchResult): MediaItem | undefined {
-    const searchFilename = result.filename.toLowerCase()
-    // Try exact match first
-    const exactMatch = allMediaItems.get(searchFilename)
-    if (exactMatch)
-return exactMatch
+  // Cache of thumbnails loaded for search results
+  const searchThumbnails = new Map<string, string>()
 
-    // Fuzzy match: check if search filename (without extension) is contained in archive filename
-    const searchBase = searchFilename.replace(/\.[^.]+$/, '')
-    for (const [archiveFilename, item] of allMediaItems) {
-      if (archiveFilename.includes(searchBase)) {
-        return item
+  // Create a MediaItem directly from a search result
+  function searchResultToMediaItem(result: SearchResult): MediaItem {
+    return createMediaItemFromSearch(
+      result.id,
+      result.filename,
+      result.s3Key,
+      result.category,
+      result.content ? result.content.substring(0, 200) : undefined,
+    )
+  }
+
+  // Load thumbnail URL for a search result image
+  async function loadSearchThumbnail(result: SearchResult): Promise<string | undefined> {
+    if (searchThumbnails.has(result.id)) {
+      return searchThumbnails.get(result.id)
+    }
+
+    if (result.category === 'pictures') {
+      const image = await getImageById(result.id)
+      if (image?.thumbnailUrl) {
+        searchThumbnails.set(result.id, image.thumbnailUrl)
+        return image.thumbnailUrl
       }
     }
     return undefined
@@ -396,26 +436,25 @@ return exactMatch
     searchError = ''
   }
 
-  // Filter search results to only include items that exist in the gallery, deduplicated
-  $: matchedSearchResults = (() => {
+  // Deduplicate search results by ID
+  $: deduplicatedSearchResults = (() => {
     const seen = new Set<string>()
     return searchResults.filter((r) => {
-      const item = getMatchedMediaItem(r)
-      if (!item || seen.has(item.id))
+      if (seen.has(r.id))
         return false
-      seen.add(item.id)
+      seen.add(r.id)
       return true
     })
   })()
 
   $: filteredSearchResults = isSearchMode
-    ? filterResultsByCategory(matchedSearchResults, selectedSection)
+    ? filterResultsByCategory(deduplicatedSearchResults, selectedSection)
     : []
 
   $: searchCounts = {
-    pictures: filterResultsByCategory(matchedSearchResults, 'pictures').length,
-    videos: filterResultsByCategory(matchedSearchResults, 'videos').length,
-    documents: filterResultsByCategory(matchedSearchResults, 'documents').length,
+    pictures: filterResultsByCategory(deduplicatedSearchResults, 'pictures').length,
+    videos: filterResultsByCategory(deduplicatedSearchResults, 'videos').length,
+    documents: filterResultsByCategory(deduplicatedSearchResults, 'documents').length,
   }
 
   // Load initial data
@@ -531,8 +570,8 @@ return exactMatch
     {/if}
     {#if isSearchMode && !isSearching}
       <div class='text-sm text-base-content/60 mt-2 text-center'>
-        {#if matchedSearchResults.length > 0}
-          Found {matchedSearchResults.length} item{matchedSearchResults.length !== 1 ? 's' : ''} for "{searchQuery}"
+        {#if deduplicatedSearchResults.length > 0}
+          Found {deduplicatedSearchResults.length} item{deduplicatedSearchResults.length !== 1 ? 's' : ''} for "{searchQuery}"
         {:else if searchResults.length > 0}
           No gallery items match "{searchQuery}"
         {/if}
@@ -615,49 +654,46 @@ return exactMatch
       </div>
     {:else}
       <div class='grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'>
-        {#each filteredSearchResults as result, index (result.source + index)}
-          {@const matchedItem = getMatchedMediaItem(result)}
-          {#if matchedItem}
-            <button
-              type='button'
-              class='card bg-base-100 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer text-left p-0 border-0 w-full'
-              on:click={() => openMediaItem(matchedItem)}
-            >
-              <figure class='aspect-square bg-base-200 relative overflow-hidden'>
-                {#if result.category === 'pictures'}
-                  <img src={matchedItem.thumbnailUrl || matchedItem.signedUrl} alt={matchedItem.title} class='w-full h-full object-cover' loading='lazy' />
-                {:else if result.category === 'videos'}
-                  {#if matchedItem.thumbnailUrl}
-                    <div class='relative w-full h-full'>
-                      <img src={matchedItem.thumbnailUrl} alt={matchedItem.title} class='w-full h-full object-cover' loading='lazy' />
-                      <div class='absolute inset-0 flex items-center justify-center bg-black/20'>
-                        <div class='rounded-full p-3 bg-white/90'>
-                          <svg class='w-8 h-8 text-primary' fill='currentColor' viewBox='0 0 24 24'>
-                            <path d='M8 5v14l11-7z' />
-                          </svg>
-                        </div>
-                      </div>
-                    </div>
+        {#each filteredSearchResults as result, index (result.id + index)}
+          {@const mediaItem = searchResultToMediaItem(result)}
+          <button
+            type='button'
+            class='card bg-base-100 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer text-left p-0 border-0 w-full'
+            on:click={() => openSearchResultItem(result)}
+          >
+            <figure class='aspect-square bg-base-200 relative overflow-hidden'>
+              {#if result.category === 'pictures'}
+                {#await loadSearchThumbnail(result)}
+                  <div class='w-full h-full flex items-center justify-center text-base-content/40'>
+                    <div class='loading loading-spinner'></div>
+                  </div>
+                {:then thumbnailUrl}
+                  {#if thumbnailUrl}
+                    <img src={thumbnailUrl} alt={mediaItem.title} class='w-full h-full object-cover' loading='lazy' />
                   {:else}
                     <div class='w-full h-full flex items-center justify-center text-base-content/40'>
-                      <div class='text-4xl'>🎥</div>
+                      <div class='text-4xl'>📸</div>
                     </div>
                   {/if}
-                {:else}
-                  <div class='w-full h-full flex items-center justify-center text-base-content/40'>
-                    <div class='text-4xl'>📄</div>
-                  </div>
-                {/if}
-                <div class='absolute badge badge-sm text-white border-none right-2 top-2 bg-black/50'>
-                  {(result.score * 100).toFixed(0)}% match
+                {/await}
+              {:else if result.category === 'videos'}
+                <div class='w-full h-full flex items-center justify-center text-base-content/40'>
+                  <div class='text-4xl'>🎥</div>
                 </div>
-              </figure>
-              <div class='card-body p-4'>
-                <h3 class='card-title text-sm line-clamp-1'>{stripTimestampPrefix(matchedItem.title)}</h3>
-                <p class='text-xs text-base-content/70 line-clamp-2'>{result.content}</p>
+              {:else}
+                <div class='w-full h-full flex items-center justify-center text-base-content/40'>
+                  <div class='text-4xl'>📄</div>
+                </div>
+              {/if}
+              <div class='absolute badge badge-sm text-white border-none right-2 top-2 bg-black/50'>
+                {(result.score * 100).toFixed(0)}% match
               </div>
-            </button>
-          {/if}
+            </figure>
+            <div class='card-body p-4'>
+              <h3 class='card-title text-sm line-clamp-1'>{stripTimestampPrefix(mediaItem.title)}</h3>
+              <p class='text-xs text-base-content/70 line-clamp-2'>{result.content || 'No description'}</p>
+            </div>
+          </button>
         {/each}
       </div>
     {/if}

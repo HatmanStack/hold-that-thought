@@ -5,7 +5,10 @@ export interface SearchResult {
   source: string
   score: number
   filename: string
-  category?: 'pictures' | 'videos' | 'documents'
+  category: 'pictures' | 'videos' | 'documents'
+  // Extracted from source URI for creating MediaItem directly
+  id: string
+  s3Key: string
 }
 
 export interface SearchResponse {
@@ -28,6 +31,22 @@ function extractFilename(source: string): string {
   // /path/to/file.jpg → file.jpg
   const parts = source.split('/')
   return parts[parts.length - 1] || source
+}
+
+/**
+ * Parse S3 URI to extract the key and document/image ID
+ * Format: s3://bucket/content/{id}/{filename} or s3://bucket/input/{id}/{filename}
+ */
+function parseS3Uri(source: string): { id: string, s3Key: string } {
+  // Remove s3://bucket/ prefix
+  const match = source.match(/^s3:\/\/[^/]+\/(.+)$/)
+  const s3Key = match ? match[1] : source
+
+  // Extract ID from path like content/{id}/filename or input/{id}/filename
+  const pathMatch = s3Key.match(/^(?:content|input)\/([^/]+)\//)
+  const id = pathMatch ? pathMatch[1] : s3Key
+
+  return { id, s3Key }
 }
 
 function categorizeResult(source: string): 'pictures' | 'videos' | 'documents' {
@@ -84,11 +103,16 @@ export async function searchKnowledgeBase(
   const data = json.data?.searchKnowledgeBase
   const results = data?.results || []
 
-  const categorizedResults = results.map((result: SearchResult) => ({
-    ...result,
-    filename: extractFilename(result.source),
-    category: categorizeResult(result.source),
-  }))
+  const categorizedResults = results.map((result: { content: string, source: string, score: number }) => {
+    const { id, s3Key } = parseS3Uri(result.source)
+    return {
+      ...result,
+      filename: extractFilename(result.source),
+      category: categorizeResult(result.source),
+      id,
+      s3Key,
+    }
+  })
 
   return {
     query,

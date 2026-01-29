@@ -171,12 +171,10 @@ async function fetchDocuments(): Promise<RagDocument[]> {
   }`) as { listDocuments: { items: RagDocument[] } }
 
   const allItems = data.listDocuments.items || []
-  cachedDocuments = allItems.filter((d) => {
-    const isLetter = /^\d{4}-\d{2}-\d{2}(?:[_\-.].+)?\.(?:md|pdf)$/.test(d.filename)
-    if (isLetter)
-      console.log('[media-service] excluding letter:', d.filename)
-    return d.status === 'INDEXED' && !isLetter
-  })
+  cachedDocuments = allItems.filter(d =>
+    d.status === 'INDEXED'
+    && !/^\d{4}-\d{2}-\d{2}(?:[_\-.].+)?\.(?:md|pdf)$/.test(d.filename),
+  )
   return cachedDocuments
 }
 
@@ -274,4 +272,51 @@ export async function resolveSignedUrl(item: MediaItem): Promise<string> {
  */
 export function invalidateMediaCache() {
   cachedDocuments = null
+}
+
+/**
+ * Get image info from RAGStack by ID (for search result thumbnails)
+ */
+export async function getImageById(imageId: string): Promise<RagImage | null> {
+  try {
+    const data = await ragstackQuery(`query GetImage($imageId: ID!) {
+      getImage(imageId: $imageId) {
+        imageId filename s3Uri thumbnailUrl caption contentType fileSize createdAt
+      }
+    }`, { imageId }) as { getImage: RagImage | null }
+    return data.getImage
+  }
+  catch {
+    return null
+  }
+}
+
+/**
+ * Get presigned URL for an S3 key via backend proxy
+ */
+export async function getPresignedUrlForKey(s3Key: string): Promise<string> {
+  return getPresignedUrl(s3Key)
+}
+
+/**
+ * Create a MediaItem from search result data (for direct search display)
+ */
+export function createMediaItemFromSearch(
+  id: string,
+  filename: string,
+  s3Key: string,
+  category: 'pictures' | 'videos' | 'documents',
+  description?: string,
+): MediaItem {
+  return {
+    id,
+    filename,
+    title: filename,
+    description,
+    uploadDate: new Date().toISOString(),
+    fileSize: 0,
+    contentType: inferContentType(filename),
+    signedUrl: undefined,
+    category,
+  }
 }
