@@ -86,25 +86,5 @@
       </div>
     {/if}
 
-    <div class='divider'>Access Information</div>
-
-    <div class='space-y-2 text-center'>
-      <div class='alert alert-info'>
-        <svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' class='w-6 h-6 stroke-current shrink-0'>
-          <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'></path>
-        </svg>
-        <div class='text-sm'>
-          <p><strong>Restricted Access:</strong> Only authorized users can sign in</p>
-          <p class='mt-1'>• Google OAuth users with approved email domains</p>
-          <p>• Users manually added by administrators</p>
-        </div>
-      </div>
-
-      <div class='mt-4'>
-        <p class='text-xs opacity-70'>
-          Need access? Contact your administrator to authorize your email address.
-        </p>
-      </div>
-    </div>
   </div>
 </div>
