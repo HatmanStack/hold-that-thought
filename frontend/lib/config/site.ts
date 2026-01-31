@@ -8,7 +8,7 @@ export const site: SiteConfig = {
     status: '✨',
   },
   description: 'A private family platform for sharing letters, photos, and memories with AI-powered transcription',
-  domain: 'holdthatthought.family',
+  domain: 'family.hatstack.fun',
   keywords: ['family archive', 'letter transcription', 'family memories', 'photo sharing', 'AI transcription'],
   lang: 'en-US',
   protocol: 'https://',
