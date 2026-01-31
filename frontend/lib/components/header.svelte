@@ -5,7 +5,6 @@
   import Nav from '$lib/components/header_nav.svelte'
   import Search from '$lib/components/header_search.svelte'
   import { header as headerConfig, theme } from '$lib/config/general'
-  import { site } from '$lib/config/site'
   import { getProfile, updateProfile } from '$lib/services/profile-service'
   import { title as storedTitle } from '$lib/stores/title'
   import { hslToHex } from '$lib/utils/color'
@@ -106,7 +105,7 @@
         {#if headerConfig.nav}
           <Nav nav={headerConfig.nav} {path} {pin} {scrollY} {title} />
         {/if}
-        <a class='btn btn-ghost text-lg normal-case' href='/'>{site.title}</a>
+        <a class='btn btn-ghost text-lg normal-case' href='/'>Home</a>
         <!-- Hide these links on small screens -->
         <div class='ml-4 hidden lg:flex space-x-2'>
           <a class='btn btn-ghost normal-case' href='/about' class:btn-active={path === '/about'}>About</a>
