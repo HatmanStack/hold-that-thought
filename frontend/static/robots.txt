@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /auth/
+Disallow: /messages/
+Disallow: /profile/
+Disallow: /admin/
+Disallow: /api/
+
+Sitemap: https://holdthatthought.family/sitemap.xml

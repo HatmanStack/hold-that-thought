@@ -3,6 +3,8 @@ import { site } from '$lib/config/site'
 
 import { genPosts } from '$lib/utils/posts'
 
+const staticPages = ['/about', '/gallery', '/letters']
+
 function render(): string {
   return `<?xml version='1.0' encoding='utf-8'?>
   <urlset
@@ -14,7 +16,17 @@ function render(): string {
     xmlns:video="https://www.google.com/schemas/sitemap-video/1.1">
     <url>
       <loc>${site.protocol + site.domain}</loc>
+      <priority>1.0</priority>
     </url>
+    ${staticPages
+      .map(
+        page => `
+        <url>
+            <loc>${site.protocol + site.domain + page}</loc>
+            <priority>0.8</priority>
+        </url>`,
+      )
+      .join('')}
     ${genPosts()
       .map(
         post => `

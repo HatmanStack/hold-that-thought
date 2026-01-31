@@ -263,7 +263,7 @@
   }
 
   // Navigate to previous/next item in modal (infinite loop)
-  function navigateModal(direction: 'prev' | 'next') {
+  async function navigateModal(direction: 'prev' | 'next') {
     if (!selectedItem)
       return
     const items = getCurrentItemsList()
@@ -280,7 +280,34 @@
     else {
       newIndex = currentIndex === items.length - 1 ? 0 : currentIndex + 1
     }
-    selectedItem = items[newIndex]
+
+    const newItem = items[newIndex]
+    selectedItem = newItem
+
+    // In search mode, we need to fetch the signed URL for the new item
+    if (isSearchMode && !newItem.signedUrl) {
+      const result = filteredSearchResults[newIndex]
+      if (result) {
+        try {
+          if (result.category === 'pictures') {
+            const image = await getImageById(result.id)
+            if (image?.thumbnailUrl) {
+              newItem.signedUrl = image.thumbnailUrl
+              newItem.thumbnailUrl = image.thumbnailUrl
+              selectedItem = { ...newItem }
+            }
+          }
+          else {
+            const url = await getPresignedUrlForKey(result.s3Key)
+            newItem.signedUrl = url
+            selectedItem = { ...newItem }
+          }
+        }
+        catch (err) {
+          console.error('Failed to resolve URL for navigated item:', err)
+        }
+      }
+    }
   }
 
   // Check if navigation is possible (always true if more than 1 item)
