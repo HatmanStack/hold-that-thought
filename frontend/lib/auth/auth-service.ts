@@ -23,6 +23,32 @@ function decodeJWT(token: string) {
   }
 }
 
+/**
+ * Maps a decoded JWT payload to a User object.
+ * Centralizes the mapping to avoid duplication across auth flows.
+ */
+function mapJwtPayloadToUser(payload: Record<string, unknown>): User {
+  return {
+    'email': payload.email as string,
+    'sub': payload.sub as string,
+    'email_verified': payload.email_verified as boolean,
+    'name': payload.name as string | undefined,
+    'given_name': payload.given_name as string | undefined,
+    'family_name': payload.family_name as string | undefined,
+    'picture': payload.picture as string | undefined,
+    'locale': payload.locale as string | undefined,
+    'cognito:username': payload['cognito:username'] as string | undefined,
+    'cognito:groups': payload['cognito:groups'] as string[] | string | undefined,
+    'identities': payload.identities as string | undefined,
+    'aud': payload.aud as string | undefined,
+    'iss': payload.iss as string | undefined,
+    'token_use': payload.token_use as string | undefined,
+    'auth_time': payload.auth_time as number | undefined,
+    'exp': payload.exp as number | undefined,
+    'iat': payload.iat as number | undefined,
+  }
+}
+
 export class AuthService {
   private refreshTimer: NodeJS.Timeout | null = null
 
@@ -67,25 +93,7 @@ export class AuthService {
         throw new Error('Invalid ID token')
       }
 
-      const user: User = {
-        'email': idTokenPayload.email,
-        'sub': idTokenPayload.sub,
-        'email_verified': idTokenPayload.email_verified,
-        'name': idTokenPayload.name,
-        'given_name': idTokenPayload.given_name,
-        'family_name': idTokenPayload.family_name,
-        'picture': idTokenPayload.picture,
-        'locale': idTokenPayload.locale,
-        'cognito:username': idTokenPayload['cognito:username'],
-        'cognito:groups': idTokenPayload['cognito:groups'],
-        'identities': idTokenPayload.identities,
-        'aud': idTokenPayload.aud,
-        'iss': idTokenPayload.iss,
-        'token_use': idTokenPayload.token_use,
-        'auth_time': idTokenPayload.auth_time,
-        'exp': idTokenPayload.exp,
-        'iat': idTokenPayload.iat,
-      }
+      const user = mapJwtPayloadToUser(idTokenPayload)
 
       const tokens: AuthTokens = {
         accessToken: authResult.AccessToken,
@@ -230,25 +238,7 @@ export class AuthService {
         throw new Error('Invalid ID token')
       }
 
-      const user: User = {
-        'email': idTokenPayload.email,
-        'sub': idTokenPayload.sub,
-        'email_verified': idTokenPayload.email_verified,
-        'name': idTokenPayload.name,
-        'given_name': idTokenPayload.given_name,
-        'family_name': idTokenPayload.family_name,
-        'picture': idTokenPayload.picture,
-        'locale': idTokenPayload.locale,
-        'cognito:username': idTokenPayload['cognito:username'],
-        'cognito:groups': idTokenPayload['cognito:groups'],
-        'identities': idTokenPayload.identities,
-        'aud': idTokenPayload.aud,
-        'iss': idTokenPayload.iss,
-        'token_use': idTokenPayload.token_use,
-        'auth_time': idTokenPayload.auth_time,
-        'exp': idTokenPayload.exp,
-        'iat': idTokenPayload.iat,
-      }
+      const user = mapJwtPayloadToUser(idTokenPayload)
 
       const tokens: AuthTokens = {
         accessToken: authResult.AccessToken,

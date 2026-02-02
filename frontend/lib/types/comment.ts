@@ -20,18 +20,107 @@ export interface Reaction {
   createdAt: string
 }
 
-export interface CommentApiResponse {
-  success: boolean
-  data?: Comment | Comment[]
-  error?: string
+// ============================================================================
+// Discriminated Union Response Types
+// ============================================================================
+
+/**
+ * Response when fetching a list of comments
+ */
+export interface CommentListResponse {
+  success: true
+  data: Comment[]
   lastEvaluatedKey?: string
+  error?: undefined // Explicit for TypeScript narrowing
 }
 
-export interface ReactionApiResponse {
-  success: boolean
-  data?: Reaction | Reaction[]
-  error?: string
+/**
+ * Response when creating or updating a single comment
+ */
+export interface CommentSingleResponse {
+  success: true
+  data: Comment
+  lastEvaluatedKey?: undefined
+  error?: undefined
 }
+
+/**
+ * Response when an error occurs
+ */
+export interface CommentErrorResponse {
+  success: false
+  error: string
+  data?: undefined
+  lastEvaluatedKey?: undefined
+}
+
+/**
+ * Union type for all comment API responses.
+ * Use type guards (isCommentList, isCommentSingle) to narrow the type.
+ */
+export type CommentApiResponse =
+  | CommentListResponse
+  | CommentSingleResponse
+  | CommentErrorResponse
+
+// ============================================================================
+// Type Guards
+// ============================================================================
+
+/**
+ * Type guard to check if response contains a comment list
+ */
+export function isCommentList(
+  response: CommentApiResponse,
+): response is CommentListResponse {
+  return response.success && Array.isArray((response as CommentListResponse).data)
+}
+
+/**
+ * Type guard to check if response contains a single comment
+ */
+export function isCommentSingle(
+  response: CommentApiResponse,
+): response is CommentSingleResponse {
+  return response.success && !Array.isArray((response as CommentSingleResponse).data)
+}
+
+/**
+ * Type guard to check if response is an error
+ */
+export function isCommentError(
+  response: CommentApiResponse,
+): response is CommentErrorResponse {
+  return !response.success
+}
+
+// ============================================================================
+// Reaction Response Types
+// ============================================================================
+
+export interface ReactionListResponse {
+  success: true
+  data: Reaction[]
+}
+
+export interface ReactionSingleResponse {
+  success: true
+  data: Reaction
+}
+
+export interface ReactionErrorResponse {
+  success: false
+  error: string
+}
+
+export type ReactionApiResponse =
+  | ReactionListResponse
+  | ReactionSingleResponse
+  | ReactionErrorResponse
+
+// ============================================================================
+// Request Types
+// ============================================================================
 
 export interface CreateCommentRequest {
   content: string

@@ -176,11 +176,23 @@ export function getUserMessage(error: unknown): string {
 }
 
 /**
+ * Type guard for errors with a name property (AWS SDK errors)
+ */
+export function isAwsError(error: unknown): error is Error & { name: string } {
+  return error instanceof Error && typeof error.name === 'string'
+}
+
+/**
+ * Type guard to check if an error has a specific name.
+ * Useful for checking AWS SDK error types without unsafe casts.
+ */
+export function hasErrorName(error: unknown, name: string): boolean {
+  return isAwsError(error) && error.name === name
+}
+
+/**
  * Check if an error is a DynamoDB conditional check failure
  */
 export function isConditionalCheckFailed(error: unknown): boolean {
-  if (error instanceof Error) {
-    return error.name === 'ConditionalCheckFailedException'
-  }
-  return false
+  return hasErrorName(error, 'ConditionalCheckFailedException')
 }

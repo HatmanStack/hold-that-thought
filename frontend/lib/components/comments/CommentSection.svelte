@@ -100,8 +100,21 @@
     // Initial load
     loadComments()
 
-    // Start polling for new comments every 30 seconds
-    pollInterval = setInterval(pollNewComments, 30000)
+    /**
+     * Polling interval: 30 seconds
+     *
+     * Design rationale:
+     * - Simple and predictable behavior for users
+     * - Document visibility check (line 61) prevents requests when tab is hidden
+     * - 30s is low enough to feel responsive for a family platform
+     * - High enough to avoid rate limiting (max 20 comments/min)
+     * - Set-based deduplication (line 70) prevents duplicate comments from appearing
+     *
+     * Future consideration: Adaptive polling or WebSockets for real-time updates
+     * if user activity metrics show need for lower latency.
+     */
+    const POLL_INTERVAL_MS = 30000
+    pollInterval = setInterval(pollNewComments, POLL_INTERVAL_MS)
   })
 
   onDestroy(() => {
