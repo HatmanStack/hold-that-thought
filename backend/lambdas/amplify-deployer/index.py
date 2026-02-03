@@ -2,6 +2,7 @@
 import json
 import logging
 import os
+import urllib.parse
 import urllib.request
 
 import boto3
@@ -37,10 +38,15 @@ def create_or_update(event, context):
     job_id = deployment["jobId"]
 
     # 3. Upload zip to presigned URL
+    parsed_url = urllib.parse.urlparse(upload_url)
+    if parsed_url.scheme != "https":
+        logger.error(f"Presigned URL has invalid scheme: {parsed_url.scheme}")
+        raise ValueError(f"Presigned URL must use HTTPS, got: {parsed_url.scheme}")
+
     logger.info(f"Uploading {len(zip_data)} bytes to Amplify")
     req = urllib.request.Request(upload_url, data=zip_data, method="PUT")
     req.add_header("Content-Type", "application/zip")
-    urllib.request.urlopen(req)
+    urllib.request.urlopen(req, timeout=120)
 
     # 4. Start deployment
     logger.info(f"Starting deployment job {job_id}")

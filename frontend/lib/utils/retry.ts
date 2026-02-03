@@ -91,14 +91,14 @@ export async function withRetry<T>(
     catch (error) {
       lastError = error
 
-      // If it's the last attempt, throw MaxRetriesError
-      if (attempt === maxAttempts) {
-        throw new MaxRetriesError(attempt, lastError)
-      }
-
-      // Check if the error is retryable
+      // Non-retryable errors should be thrown immediately
       if (!isRetryable(error)) {
         throw error
+      }
+
+      // If it's the last attempt and error was retryable, throw MaxRetriesError
+      if (attempt === maxAttempts) {
+        throw new MaxRetriesError(attempt, lastError)
       }
 
       // Callback before retry
