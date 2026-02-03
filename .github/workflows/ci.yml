@@ -65,9 +65,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install frontend dependencies
-        run: cd frontend && npm ci
-
       - name: Generate SvelteKit types
         run: cd frontend && npx svelte-kit sync
 
