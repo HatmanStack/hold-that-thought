@@ -34,6 +34,8 @@ A private family platform for sharing letters, photos, and memories. Upload scan
 
 ## Live Demo
 
+** THIS REPO IS IN ACTIVE DEVELOPMENT AND WILL CHANGE OFTEN **
+
 | Environment | URL | Access |
 |-------------|-----|--------|
 | **Showcase** | [showcase-htt.hatstack.fun](https://showcase-htt.hatstack.fun) | Login as guest |
