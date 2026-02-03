@@ -93,11 +93,31 @@ Parameters:
     Default: ''
     NoEcho: true
 
+  # UI Source for one-click deployments
+  UISourceBucket:
+    Type: String
+    Description: S3 bucket containing frontend source zip
+    Default: ''
+
+  UISourceKey:
+    Type: String
+    Description: S3 key for frontend source zip
+    Default: 'frontend.zip'
+
+  DeployUI:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Deploy frontend via Amplify
+
 Conditions:
   HasGoogleOAuth: !Not [!Equals [!Ref GoogleClientId, '']]
   IsLocalhost: !Equals [!Select [0, !Split [":", !Ref AppDomain]], "localhost"]
   DeployNewRagStack: !Equals [!Ref RagStackStackName, '']
   UseExistingRagStack: !Not [!Equals [!Ref RagStackStackName, '']]
+  ShouldDeployUI: !And
+    - !Equals [!Ref DeployUI, 'true']
+    - !Not [!Equals [!Ref UISourceBucket, '']]
 
 Globals:
   Function:
@@ -677,6 +697,146 @@ Resources:
       Parameters:
         AdminEmail: !Ref RagStackAdminEmail
 
+  # =============================================================================
+  # Amplify Hosting
+  # =============================================================================
+
+  AmplifyApp:
+    Type: AWS::Amplify::App
+    Properties:
+      Name: !Sub '${AWS::StackName}'
+      Description: Hold That Thought - Family Memory Platform
+
+      # Build settings (uses amplify.yml from source, but inline as backup)
+      BuildSpec: |
+        version: 1
+        frontend:
+          phases:
+            preBuild:
+              commands:
+                - cd frontend && npm ci
+            build:
+              commands:
+                - cd frontend && npm run build
+          artifacts:
+            baseDirectory: frontend/build
+            files:
+              - '**/*'
+          cache:
+            paths:
+              - frontend/node_modules/**/*
+
+      # Environment variables (users can modify these in Amplify Console)
+      EnvironmentVariables:
+        - Name: PUBLIC_AWS_REGION
+          Value: !Ref AWS::Region
+        - Name: PUBLIC_API_GATEWAY_URL
+          Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/'
+        - Name: PUBLIC_COGNITO_USER_POOL_ID
+          Value: !Ref UserPool
+        - Name: PUBLIC_COGNITO_USER_POOL_CLIENT_ID
+          Value: !If [HasGoogleOAuth, !Ref UserPoolClientWithGoogle, !Ref UserPoolClient]
+        - Name: PUBLIC_COGNITO_IDENTITY_POOL_ID
+          Value: !Ref IdentityPool
+        - Name: PUBLIC_COGNITO_HOSTED_UI_DOMAIN
+          Value: !Sub '${AWS::StackName}-${AWS::AccountId}'
+        - Name: PUBLIC_COGNITO_HOSTED_UI_URL
+          Value: !Sub 'https://${AWS::StackName}-${AWS::AccountId}.auth.${AWS::Region}.amazoncognito.com'
+        - Name: PUBLIC_RAGSTACK_GRAPHQL_URL
+          Value: !If
+            - UseExistingRagStack
+            - !Ref RagStackGraphQLApiUrl
+            - !If
+              - DeployNewRagStack
+              - !GetAtt RagStackNestedStack.Outputs.GraphQLApiUrl
+              - ''
+        - Name: PUBLIC_RAGSTACK_API_KEY
+          Value: !If
+            - UseExistingRagStack
+            - !Ref RagStackGraphQLApiKey
+            - !If
+              - DeployNewRagStack
+              - !GetAtt RagStackNestedStack.Outputs.GraphQLApiKey
+              - ''
+        - Name: PUBLIC_RAGSTACK_CHAT_URL
+          Value: !If
+            - UseExistingRagStack
+            - !Ref RagStackChatWidgetUrl
+            - !If
+              - DeployNewRagStack
+              - !GetAtt RagStackNestedStack.Outputs.WebComponentCDNUrl
+              - ''
+
+      # SPA rewrite rule
+      CustomRules:
+        - Source: '</^[^.]+$|\.(?!(css|gif|ico|jpg|jpeg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>'
+          Target: /index.html
+          Status: '200'
+
+      Tags:
+        - Key: Project
+          Value: HoldThatThought
+
+  AmplifyBranch:
+    Type: AWS::Amplify::Branch
+    Properties:
+      AppId: !GetAtt AmplifyApp.AppId
+      BranchName: main
+      EnableAutoBuild: false
+      Stage: PRODUCTION
+      EnvironmentVariables:
+        - Name: NODE_ENV
+          Value: production
+
+  # Lambda to trigger Amplify deployment
+  AmplifyDeployerFunction:
+    Type: AWS::Serverless::Function
+    Condition: ShouldDeployUI
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-amplify-deployer'
+      CodeUri: lambdas/amplify-deployer/
+      Handler: index.lambda_handler
+      Runtime: python3.13
+      Timeout: 900
+      MemorySize: 256
+      Environment:
+        Variables:
+          LOG_LEVEL: INFO
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - amplify:CreateDeployment
+                - amplify:StartDeployment
+                - amplify:GetJob
+              Resource: !Sub 'arn:${AWS::Partition}:amplify:${AWS::Region}:${AWS::AccountId}:apps/${AmplifyApp.AppId}/*'
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource: !Sub 'arn:${AWS::Partition}:s3:::${UISourceBucket}/*'
+        - Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: '*'
+
+  # Custom resource that triggers deployment during stack creation
+  AmplifyDeployment:
+    Type: Custom::AmplifyDeployment
+    Condition: ShouldDeployUI
+    DependsOn:
+      - AmplifyBranch
+      - ApiFunction
+    Properties:
+      ServiceToken: !GetAtt AmplifyDeployerFunction.Arn
+      AppId: !GetAtt AmplifyApp.AppId
+      BranchName: main
+      SourceBucket: !Ref UISourceBucket
+      SourceKey: !Ref UISourceKey
+
 Outputs:
   ApiUrl:
     Description: API Gateway endpoint URL
@@ -737,3 +897,15 @@ Outputs:
       - UseExistingRagStack
       - !Ref RagStackDataBucketName
       - !GetAtt RagStackNestedStack.Outputs.DataBucketName
+
+  AmplifyAppId:
+    Description: Amplify App ID
+    Value: !GetAtt AmplifyApp.AppId
+
+  AmplifyUrl:
+    Description: Amplify Hosting URL
+    Value: !Sub 'https://main.${AmplifyApp.DefaultDomain}'
+
+  AmplifyConsoleUrl:
+    Description: Amplify Console URL (for managing environment variables)
+    Value: !Sub 'https://${AWS::Region}.console.aws.amazon.com/amplify/home?region=${AWS::Region}#/${AmplifyApp.AppId}'

@@ -60,11 +60,78 @@ export interface UserProfile {
   familyRelationships?: FamilyRelationship[]
 }
 
-export interface ProfileApiResponse {
-  success: boolean
-  data?: UserProfile | UserProfile[]
-  error?: string
+// ============================================================================
+// Discriminated Union Response Types
+// ============================================================================
+
+/**
+ * Response when fetching a list of profiles
+ */
+export interface ProfileListResponse {
+  success: true
+  data: UserProfile[]
   lastEvaluatedKey?: string
+  error?: undefined
+}
+
+/**
+ * Response when fetching or updating a single profile
+ */
+export interface ProfileSingleResponse {
+  success: true
+  data: UserProfile
+  lastEvaluatedKey?: undefined
+  error?: undefined
+}
+
+/**
+ * Response when an error occurs
+ */
+export interface ProfileErrorResponse {
+  success: false
+  error: string
+  data?: undefined
+  lastEvaluatedKey?: undefined
+}
+
+/**
+ * Union type for all profile API responses.
+ * Use type guards to narrow the type.
+ */
+export type ProfileApiResponse =
+  | ProfileListResponse
+  | ProfileSingleResponse
+  | ProfileErrorResponse
+
+// ============================================================================
+// Type Guards
+// ============================================================================
+
+/**
+ * Type guard to check if response contains a profile list
+ */
+export function isProfileList(
+  response: ProfileApiResponse,
+): response is ProfileListResponse {
+  return response.success && Array.isArray((response as ProfileListResponse).data)
+}
+
+/**
+ * Type guard to check if response contains a single profile
+ */
+export function isProfileSingle(
+  response: ProfileApiResponse,
+): response is ProfileSingleResponse {
+  return response.success && !Array.isArray((response as ProfileSingleResponse).data)
+}
+
+/**
+ * Type guard to check if response is an error
+ */
+export function isProfileError(
+  response: ProfileApiResponse,
+): response is ProfileErrorResponse {
+  return !response.success
 }
 
 export interface UpdateProfileRequest {
@@ -92,9 +159,24 @@ export interface CommentHistoryItem {
   reactionCount: number
 }
 
-export interface CommentHistoryResponse {
-  success: boolean
-  data?: CommentHistoryItem[]
-  error?: string
+// ============================================================================
+// Comment History Response Types
+// ============================================================================
+
+export interface CommentHistorySuccessResponse {
+  success: true
+  data: CommentHistoryItem[]
   lastEvaluatedKey?: string
+  error?: undefined
 }
+
+export interface CommentHistoryErrorResponse {
+  success: false
+  error: string
+  data?: undefined
+  lastEvaluatedKey?: undefined
+}
+
+export type CommentHistoryResponse =
+  | CommentHistorySuccessResponse
+  | CommentHistoryErrorResponse

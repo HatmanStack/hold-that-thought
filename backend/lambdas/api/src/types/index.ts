@@ -19,8 +19,17 @@ export interface RequestContext {
 export interface AuthClaims {
   sub?: string
   email?: string
-  'cognito:groups'?: string
-  [key: string]: unknown
+  'cognito:groups'?: string | string[]
+  // Standard JWT claims
+  iss?: string
+  aud?: string
+  exp?: number
+  iat?: number
+  auth_time?: number
+  token_use?: string
+  // Cognito-specific claims
+  'cognito:username'?: string
+  email_verified?: boolean
 }
 
 // ============================================================================

@@ -14,6 +14,8 @@ import {
   RateLimitError,
   InternalError,
   isConditionalCheckFailed,
+  isAwsError,
+  hasErrorName,
 } from '../../backend/lambdas/api/src/lib/errors.ts'
 
 describe('toError utility', () => {
@@ -163,6 +165,46 @@ describe('getUserMessage', () => {
   it('should return generic message for non-AppError', () => {
     expect(getUserMessage(new Error('test'))).toBe('An unexpected error occurred')
     expect(getUserMessage('string')).toBe('An unexpected error occurred')
+  })
+})
+
+describe('isAwsError', () => {
+  it('should return true for Error with name property', () => {
+    const error = new Error('test')
+    error.name = 'SomeAwsError'
+    expect(isAwsError(error)).toBe(true)
+  })
+
+  it('should return true for standard Error (has name)', () => {
+    const error = new Error('test')
+    expect(isAwsError(error)).toBe(true)
+  })
+
+  it('should return false for non-Error values', () => {
+    expect(isAwsError('string')).toBe(false)
+    expect(isAwsError(null)).toBe(false)
+    expect(isAwsError(undefined)).toBe(false)
+    expect(isAwsError({ name: 'NotAnError' })).toBe(false)
+  })
+})
+
+describe('hasErrorName', () => {
+  it('should return true when error name matches', () => {
+    const error = new Error('test')
+    error.name = 'ConditionalCheckFailedException'
+    expect(hasErrorName(error, 'ConditionalCheckFailedException')).toBe(true)
+  })
+
+  it('should return false when error name does not match', () => {
+    const error = new Error('test')
+    error.name = 'SomeOtherError'
+    expect(hasErrorName(error, 'ConditionalCheckFailedException')).toBe(false)
+  })
+
+  it('should return false for non-Error values', () => {
+    expect(hasErrorName('string', 'SomeError')).toBe(false)
+    expect(hasErrorName(null, 'SomeError')).toBe(false)
+    expect(hasErrorName({ name: 'FakeError' }, 'FakeError')).toBe(false)
   })
 })
 

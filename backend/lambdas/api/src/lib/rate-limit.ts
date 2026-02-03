@@ -4,6 +4,7 @@
 import { PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb'
 import { docClient, TABLE_NAME } from './database'
 import { keys } from './keys'
+import { hasErrorName } from './errors'
 
 interface RateLimitConfig {
   maxRequests: number
@@ -90,7 +91,7 @@ export async function checkRateLimit(
     }
   } catch (error) {
     // Window expired during operation - try to reset with conditional Put
-    if ((error as Error).name === 'ConditionalCheckFailedException') {
+    if (hasErrorName(error, 'ConditionalCheckFailedException')) {
       try {
         // Conditional Put: only create new window if item doesn't exist OR
         // the existing windowStart is older than our threshold (truly expired)
@@ -122,7 +123,7 @@ export async function checkRateLimit(
       } catch (putError) {
         // If conditional Put failed, another request won the race and created
         // the new window. Retry the original UpdateCommand to increment.
-        if ((putError as Error).name === 'ConditionalCheckFailedException') {
+        if (hasErrorName(putError, 'ConditionalCheckFailedException')) {
           try {
             const retryResult = await docClient.send(
               new UpdateCommand({
