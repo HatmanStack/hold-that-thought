@@ -14,22 +14,228 @@ echo ""
 # Check for command line flags
 FORCE_MIGRATE=false
 FORCE_POPULATE=false
+PUBLISH_MARKETPLACE=false
+MARKETPLACE_REGION="us-east-1"
+SKIP_UI=false
+
 for arg in "$@"; do
     case $arg in
         --force-migrate)
             FORCE_MIGRATE=true
             shift
-            ;; 
+            ;;
         --force-populate)
             FORCE_POPULATE=true
             shift
-            ;; 
+            ;;
         --dry-run)
             DRY_RUN=true
             shift
-            ;; 
+            ;;
+        --publish-marketplace)
+            PUBLISH_MARKETPLACE=true
+            shift
+            ;;
+        --marketplace-region=*)
+            MARKETPLACE_REGION="${arg#*=}"
+            shift
+            ;;
+        --skip-ui)
+            SKIP_UI=true
+            shift
+            ;;
     esac
 done
+
+# =============================================================================
+# Package Frontend Source Function
+# =============================================================================
+# Packages the frontend source code into a zip file and uploads to S3 for
+# Amplify deployment. The zip contains the frontend/ directory and amplify.yml.
+# =============================================================================
+
+package_frontend_source() {
+    local bucket_name=$1
+    local region=$2
+    local s3_key="frontend.zip"
+    local zip_file="/tmp/frontend-source.zip"
+
+    echo "Packaging frontend source..."
+
+    # Create zip from project root (Amplify expects frontend/ directory)
+    (cd .. && zip -r "$zip_file" frontend amplify.yml \
+        -x "frontend/node_modules/*" \
+        -x "frontend/build/*" \
+        -x "frontend/.svelte-kit/*" \
+        -x "frontend/.env*")
+
+    echo "  Uploading to s3://${bucket_name}/${s3_key}..."
+    aws s3 cp "$zip_file" "s3://${bucket_name}/${s3_key}" --region "$region"
+    rm -f "$zip_file"
+
+    echo "$s3_key"
+}
+
+# =============================================================================
+# Marketplace Publishing Function
+# =============================================================================
+# Packages and publishes the template for one-click deployment from S3.
+# This creates a fully-packaged CloudFormation template with all Lambda code
+# bundled, suitable for sharing or marketplace distribution.
+#
+# Usage: ./scripts/deploy.sh --publish-marketplace [--marketplace-region=us-east-1]
+# =============================================================================
+
+publish_to_marketplace() {
+    local region="${1:-us-east-1}"
+    local marketplace_bucket="hold-that-thought-quicklaunch-public"
+    local template_key="hold-that-thought-template.yaml"
+
+    echo ""
+    echo "============================================================"
+    echo "Hold That Thought - Marketplace Publishing"
+    echo "============================================================"
+    echo ""
+
+    # Get AWS account ID for bucket naming
+    local account_id
+    account_id=$(aws sts get-caller-identity --query 'Account' --output text 2>/dev/null)
+    if [ -z "$account_id" ]; then
+        echo "ERROR: Could not get AWS account ID. Check AWS credentials."
+        exit 1
+    fi
+    marketplace_bucket="${marketplace_bucket}-${account_id}"
+
+    echo "Configuration:"
+    echo "  Region: $region"
+    echo "  Bucket: $marketplace_bucket"
+    echo "  Template: $template_key"
+    echo ""
+
+    # Step 1: Check prerequisites
+    echo "Step 1: Checking prerequisites..."
+
+    if ! command -v aws &> /dev/null; then
+        echo "ERROR: AWS CLI not found. Install from https://aws.amazon.com/cli/"
+        exit 1
+    fi
+    echo "  ✓ AWS CLI found"
+
+    if ! aws sts get-caller-identity &> /dev/null; then
+        echo "ERROR: AWS credentials not configured. Run: aws configure"
+        exit 1
+    fi
+    echo "  ✓ AWS credentials configured"
+
+    if ! command -v sam &> /dev/null; then
+        echo "ERROR: SAM CLI not found. Install from https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html"
+        exit 1
+    fi
+    echo "  ✓ SAM CLI found"
+    echo ""
+
+    # Step 2: Create/verify marketplace bucket
+    echo "Step 2: Setting up marketplace bucket..."
+
+    if ! aws s3 ls "s3://${marketplace_bucket}" --region "$region" 2>/dev/null; then
+        echo "  Creating bucket: ${marketplace_bucket}"
+        if [ "$region" = "us-east-1" ]; then
+            aws s3 mb "s3://${marketplace_bucket}" --region "$region"
+        else
+            aws s3 mb "s3://${marketplace_bucket}" --region "$region" \
+                --create-bucket-configuration LocationConstraint="$region"
+        fi
+
+        # Enable versioning for artifact tracking
+        aws s3api put-bucket-versioning \
+            --bucket "$marketplace_bucket" \
+            --versioning-configuration Status=Enabled \
+            --region "$region"
+
+        # Make bucket publicly readable for one-click deploys
+        aws s3api put-public-access-block \
+            --bucket "$marketplace_bucket" \
+            --public-access-block-configuration "BlockPublicAcls=false,IgnorePublicAcls=false,BlockPublicPolicy=false,RestrictPublicBuckets=false" \
+            --region "$region"
+
+        aws s3api put-bucket-policy \
+            --bucket "$marketplace_bucket" \
+            --policy "{
+                \"Version\": \"2012-10-17\",
+                \"Statement\": [{
+                    \"Sid\": \"PublicReadGetObject\",
+                    \"Effect\": \"Allow\",
+                    \"Principal\": \"*\",
+                    \"Action\": \"s3:GetObject\",
+                    \"Resource\": \"arn:aws:s3:::${marketplace_bucket}/*\"
+                }]
+            }" \
+            --region "$region"
+
+        echo "  ✓ Bucket created with public read access"
+    else
+        echo "  ✓ Bucket exists: ${marketplace_bucket}"
+    fi
+    echo ""
+
+    # Step 3: SAM build
+    echo "Step 3: Building SAM application..."
+    sam build --parallel
+    echo "  ✓ SAM build complete"
+    echo ""
+
+    # Step 4: Package frontend source
+    echo "Step 4: Packaging frontend source..."
+    package_frontend_source "$marketplace_bucket" "$region"
+    echo "  ✓ Frontend source uploaded: frontend.zip"
+    echo ""
+
+    # Step 5: SAM package (bundles Lambda code with template)
+    echo "Step 5: Packaging SAM application..."
+    sam package \
+        --template-file .aws-sam/build/template.yaml \
+        --output-template-file hold-that-thought-packaged.yaml \
+        --s3-bucket "$marketplace_bucket" \
+        --s3-prefix "hold-that-thought-quicklaunch" \
+        --region "$region"
+    echo "  ✓ SAM package complete"
+    echo ""
+
+    # Step 6: Upload packaged template
+    echo "Step 6: Uploading packaged template..."
+    aws s3 cp \
+        hold-that-thought-packaged.yaml \
+        "s3://${marketplace_bucket}/${template_key}" \
+        --region "$region"
+    echo "  ✓ Template uploaded"
+    echo ""
+
+    # Clean up local packaged template
+    rm -f hold-that-thought-packaged.yaml
+
+    # Print results
+    local template_url="https://${marketplace_bucket}.s3.${region}.amazonaws.com/${template_key}"
+    local deploy_url="https://${region}.console.aws.amazon.com/cloudformation/home?region=${region}#/stacks/create/review?templateURL=${template_url}"
+
+    echo "============================================================"
+    echo "Marketplace Publishing Complete!"
+    echo "============================================================"
+    echo ""
+    echo "Template URL:"
+    echo "  $template_url"
+    echo ""
+    echo "One-Click Deploy URL:"
+    echo "  $deploy_url"
+    echo ""
+    echo "Share the One-Click Deploy URL with users for easy deployment."
+    echo ""
+}
+
+# Handle marketplace publishing mode (runs early, before interactive prompts)
+if [ "$PUBLISH_MARKETPLACE" = "true" ]; then
+    publish_to_marketplace "$MARKETPLACE_REGION"
+    exit 0
+fi
 
 # Warning if running sam deploy directly would cause issues
 if [ -f "$FRONTEND_ENV" ] && [ -f "$ENV_DEPLOY_FILE" ]; then
@@ -391,6 +597,15 @@ echo "==================================="
 echo ""
 sam build --template template.yaml
 
+# Package frontend source for Amplify deployment (unless skipped)
+if [ "$SKIP_UI" != "true" ]; then
+    echo ""
+    echo "==================================="
+    echo "Step 3b: Package Frontend Source"
+    echo "==================================="
+    UI_SOURCE_KEY=$(package_frontend_source "$DEPLOY_BUCKET" "$AWS_REGION")
+fi
+
 echo ""
 echo "==================================="
 echo "Step 4: Deploy Stack"
@@ -420,6 +635,15 @@ fi
 if [ -n "$GOOGLE_CLIENT_ID" ]; then
     PARAM_OVERRIDES="$PARAM_OVERRIDES GoogleClientId=$GOOGLE_CLIENT_ID"
     PARAM_OVERRIDES="$PARAM_OVERRIDES GoogleClientSecret=$GOOGLE_CLIENT_SECRET"
+fi
+
+# Add UI deployment parameters
+if [ "$SKIP_UI" != "true" ]; then
+    PARAM_OVERRIDES="$PARAM_OVERRIDES UISourceBucket=$DEPLOY_BUCKET"
+    PARAM_OVERRIDES="$PARAM_OVERRIDES UISourceKey=$UI_SOURCE_KEY"
+    PARAM_OVERRIDES="$PARAM_OVERRIDES DeployUI=true"
+else
+    PARAM_OVERRIDES="$PARAM_OVERRIDES DeployUI=false"
 fi
 
 sam deploy \
@@ -530,6 +754,18 @@ RAGSTACK_CHAT_WIDGET_URL=$(aws cloudformation describe-stacks \
     --query 'Stacks[0].Outputs[?OutputKey==`RagStackChatWidgetUrl`].OutputValue' \
     --output text 2>/dev/null || echo "")
 
+AMPLIFY_URL=$(aws cloudformation describe-stacks \
+    --stack-name "$STACK_NAME" \
+    --region "$AWS_REGION" \
+    --query 'Stacks[0].Outputs[?OutputKey==`AmplifyUrl`].OutputValue' \
+    --output text 2>/dev/null || echo "")
+
+AMPLIFY_CONSOLE_URL=$(aws cloudformation describe-stacks \
+    --stack-name "$STACK_NAME" \
+    --region "$AWS_REGION" \
+    --query 'Stacks[0].Outputs[?OutputKey==`AmplifyConsoleUrl`].OutputValue' \
+    --output text 2>/dev/null || echo "")
+
 echo "Stack Outputs:"
 echo "  API URL: $API_URL"
 echo "  User Pool ID: $USER_POOL_ID"
@@ -538,6 +774,10 @@ echo "  Identity Pool ID: $IDENTITY_POOL_ID"
 echo "  Cognito Hosted UI: $COGNITO_HOSTED_UI_URL"
 echo "  RAGStack GraphQL: $RAGSTACK_GRAPHQL_URL"
 echo "  RAGStack Chat Widget: $RAGSTACK_CHAT_WIDGET_URL"
+if [ -n "$AMPLIFY_URL" ] && [ "$AMPLIFY_URL" != "None" ]; then
+    echo "  Amplify UI URL: $AMPLIFY_URL"
+    echo "  Amplify Console: $AMPLIFY_CONSOLE_URL"
+fi
 echo ""
 
 # Update frontend .env file (root for backwards compat, frontend/ for Vite)
